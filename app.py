@@ -21,18 +21,16 @@ except ImportError:
     COMPARTILHAMENTO_DISPONIVEL = False
 
 # ─── DIRETÓRIO DE DADOS ───────────────────────────────────────────────────────
-# Detecta ambiente: Streamlit Cloud vs Local
-# No Streamlit Cloud: usa diretório relativo "./data"
-# Local: usa Google Drive ou diretório especificado
+# DOC_DIR: sempre a pasta onde app.py está (raiz do repo), em qualquer ambiente
+DOC_DIR = os.path.dirname(os.path.abspath(__file__))
+
 IS_STREAMLIT_CLOUD = os.environ.get('STREAMLIT_SERVER_HEADLESS') == 'true'
 
 if IS_STREAMLIT_CLOUD:
-    DATA_DIR = "./data"
-    DOC_DIR  = "."       # Arquivos .md ficam na raiz do repositório no Cloud
+    DATA_DIR = os.path.join(DOC_DIR, "data")
     APP_URL  = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
 else:
     DATA_DIR = r"G:\Meu Drive\SSTG-E-Social"
-    DOC_DIR  = r"G:\Meu Drive\SSTG-E-Social"   # Mesma pasta local
     APP_URL  = "http://192.168.77.2:8501"
 
 # URL pública para compartilhamento (sempre usa Streamlit Cloud)
@@ -46,7 +44,7 @@ def caminho(nome_arquivo: str) -> str:
     return nome_arquivo
 
 def caminho_doc(nome_arquivo: str) -> str:
-    """Caminho para arquivos de documentação (.md, .pdf) na raiz do projeto."""
+    """Caminho para arquivos de documentação (.md, .pdf) — sempre na raiz do repo."""
     return os.path.join(DOC_DIR, nome_arquivo)
 
 # ─── CONFIGURAÇÕES ────────────────────────────────────────────────────────────
