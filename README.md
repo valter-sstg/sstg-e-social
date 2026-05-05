@@ -1,73 +1,74 @@
-# 📚 SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) — Avaliação de Riscos Psicossociais (COPSOQ III)
+# 📚 SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1)
 
-**Versão:** 6.0  
-**Atualizado:** 30/04/2026  
+**Versão:** 6.1  
+**Atualizado:** 05/05/2026  
 **Status:** ✅ Em Produção
 
 ---
 
-## 🎯 O que é SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1)?
+## 🎯 O que é SSTG - DRPS?
 
-Sistema **web-based** para coleta, análise e geração de **laudos de riscos psicossociais** utilizando o **protocolo COPSOQ III** (Copenhagen Psychosocial Questionnaire).
+Sistema **web-based** para coleta, análise e geração de **laudos de riscos psicossociais** utilizando o **protocolo COPSOQ III** (Copenhagen Psychosocial Questionnaire), conforme exigência da NR-1.
 
 ### Características Principais
 
+✅ **3 Módulos** — Questionário, Gestão RH e Admin  
 ✅ **Anonimato Garantido** — CPF criptografado com SHA-256  
 ✅ **Período Controlado** — Janela de resposta configurável por empresa  
 ✅ **Cadastro em Lote** — Suporte a importação via CSV  
-✅ **Links Personalizados** — URL individual por empresa  
-✅ **Laudo Automático** — PDF gerado com análise de risco (BS 8800)  
+✅ **Links Personalizados** — URL individual por empresa com QR Code  
+✅ **Laudo Automático** — PDF gerado com análise de risco  
+✅ **Módulo RH** — Acesso seguro por CNPJ + senha para gestão das respostas  
 ✅ **LGPD Compliant** — Proteção de dados pessoais  
-✅ **Rede Local/Nuvem** — Funciona offline ou publicado online  
+✅ **Nuvem** — Publicado no Streamlit Cloud, acessível de qualquer lugar  
+
+---
+
+## 🗂️ Módulos do Sistema
+
+### 📋 Questionário Psicossocial
+Interface para colaboradores responderem o questionário COPSOQ III:
+- Acesso via CPF (autorizado pelo RH)
+- 40 questões em 8 dimensões (blocos)
+- Escala Likert 5 pontos (Nunca → Sempre)
+- Navegação por abas com botão "Próxima Demanda" ao final de cada bloco
+- Mesmo CPF pode responder em empresas diferentes
+
+### 📊 Gestão das Respostas (RH)
+Módulo exclusivo para o departamento de RH de cada empresa:
+- Login seguro: **CNPJ + Senha** (gerada automaticamente no cadastro)
+- Visualização de respostas e métricas da empresa
+- Geração de QR Code para compartilhamento do questionário
+- Integração com WhatsApp e E-mail
+- Isolamento de dados: cada RH acessa apenas sua própria empresa
+
+### 🔐 Admin SSTG (Gestão)
+Painel administrativo com **6 abas**:
+
+| Aba | Função |
+|-----|--------|
+| 📝 Cadastro / Inclusão | Registrar empresas e colaboradores (manual ou CSV) |
+| 📋 Conferência e Correção | Visualizar acessos, gerenciar período, Zona de Perigo |
+| 📊 Resultados | Respostas consolidadas, laudo PDF por empresa |
+| 🔄 Movimentação de Pessoal | Admissão, desligamento, reativação |
+| 🔐 Segurança e Acesso RH | Gerar/redefinir senhas de acesso RH |
+| 📚 Documentação | Guias e tutoriais integrados |
 
 ---
 
 ## 📖 Documentação
 
-### Para Usuários RH/Administrativos
-
-**👉 [TUTORIAL.md](TUTORIAL.md)** — Guia operacional passo a passo
-
-- Como acessar o sistema
-- Cadastro manual vs. CSV
-- Gerar links para colaboradores
-- Como os colaboradores respondem
-- Consultar resultados e gerar laudos
-- FAQ com 7 problemas comuns
-
-**Tempo de leitura:** ~20 minutos
-
----
+### Para Usuários RH
+**👉 [TUTORIAL.md](TUTORIAL.md)** — Guia operacional completo  
+- Acesso ao módulo RH, login, compartilhamento, análise de respostas
 
 ### Para Administradores de Sistema
-
-**👉 [GUIA_INSTALACAO.md](GUIA_INSTALACAO.md)** — Instalação, setup e manutenção
-
-- Pré-requisitos (hardware, software)
-- Instalação passo a passo
-- Configuração de variáveis
-- Integração com Google Drive
-- Publicação no Streamlit Cloud
-- Backup e recuperação
-- Troubleshooting
-
-**Tempo de leitura:** ~30 minutos
-
----
+**👉 [GUIA_INSTALACAO.md](GUIA_INSTALACAO.md)** — Instalação, setup e manutenção  
+- Dependências, configuração, publicação no Streamlit Cloud, backup
 
 ### Para Desenvolvedores / Técnicos
-
-**👉 [GUIA_TECNICO.md](GUIA_TECNICO.md)** — Arquitetura, fluxos e segurança
-
-- Stack tecnológico
-- Estrutura de dados (CSV)
-- Fluxos de dados (4 diagramas)
-- Variáveis de configuração
-- Segurança (hash, período, validações)
-- Troubleshooting técnico
-- Próximas melhorias
-
-**Tempo de leitura:** ~25 minutos
+**👉 [GUIA_TECNICO.md](GUIA_TECNICO.md)** — Arquitetura, fluxos e segurança  
+- Stack, estrutura de dados, funções, segurança, troubleshooting
 
 ---
 
@@ -76,19 +77,16 @@ Sistema **web-based** para coleta, análise e geração de **laudos de riscos ps
 ### 1️⃣ Instalação (5 min)
 
 ```bash
-# Clone ou copie os arquivos
-cd C:\Users\valte\Claude
-
 # Instale dependências
-py -m pip install streamlit pandas reportlab
+pip install streamlit pandas reportlab pillow "qrcode[pil]"
 
 # Inicie o app
-py -m streamlit run app.py
+streamlit run app.py
 ```
 
 **URL de acesso:**
 ```
-http://192.168.77.2:8501
+http://localhost:8501
 ```
 
 ### 2️⃣ Primeiro Cadastro (3 min)
@@ -96,26 +94,33 @@ http://192.168.77.2:8501
 1. Acesse o app
 2. Selecione: **🔐 Admin SSTG (Gestão)**
 3. Digite senha: `sstg2025`
-4. Aba **📝 Cadastro** → Digite CNPJ, empresa, colaboradores
+4. Aba **📝 Cadastro / Inclusão** → preencha CNPJ, empresa e colaboradores
 5. Clique **✅ SALVAR E LIBERAR ACESSOS**
+6. O sistema gera automaticamente a **senha de acesso RH** — anote e envie ao RH
 
 ### 3️⃣ Distribuir Links (2 min)
 
-1. Scroll na **Aba 1** até **🔗 Links para Compartilhar**
-2. Copie link da empresa
-3. Envie no WhatsApp, email, etc.
+1. Na **Aba 1** → **🔗 Link do Questionário para Compartilhar**
+2. Copie o link da empresa
+3. Envie por WhatsApp, e-mail ou gere o QR Code na **Aba 3 → Resultados**
 
-### 4️⃣ Colaborador Responde (10 min)
+### 4️⃣ Colaborador Responde (~10 min)
 
-1. Colaborador clica no link
+1. Colaborador acessa o link ou escaneia o QR Code
 2. Digita seu CPF (11 dígitos)
-3. Responde 35 questões (7 blocos)
-4. Envia respostas
+3. Responde as **40 questões** (8 blocos)
+4. Envia as respostas
 
-### 5️⃣ Gerar Laudo (2 min)
+### 5️⃣ RH Visualiza Respostas
 
-1. **Aba 3** → Resultados
-2. Selecione empresa
+1. Acesse: **📊 Gestão das Respostas (RH)**
+2. Informe CNPJ e senha gerada no cadastro
+3. Visualize métricas, gráficos e compartilhe o questionário
+
+### 6️⃣ Gerar Laudo (2 min)
+
+1. Admin → **Aba Resultados**
+2. Selecione a empresa
 3. Clique **📄 GERAR E BAIXAR LAUDO PDF**
 
 ---
@@ -127,67 +132,19 @@ http://192.168.77.2:8501
 │     Navegador Web (Qualquer SO)     │
 │         Streamlit Frontend          │
 └────────────────┬────────────────────┘
-                 │ HTTP (8501)
+                 │ HTTPS
 ┌────────────────▼────────────────────┐
 │    Python Streamlit Application     │
-│  • app.py (módulos Admin + Colab)   │
+│  • app.py (3 módulos)               │
 │  • gerar_laudo.py (PDF)             │
-│  • config.toml (tema)               │
+│  • gerar_compartilhamento.py (QR)   │
 └────────────────┬────────────────────┘
                  │ I/O
 ┌────────────────▼────────────────────┐
-│    Armazenamento CSV (Elegível)     │
-│  • Local: C:\Users\valte\Claude\    │
-│  • Google Drive: G:\Meu Drive\...   │
-│  • Backup: D:\Backups\...           │
+│    Armazenamento CSV                │
+│  • db_acessos_autorizados.csv       │
+│  • respostas_CNPJ_XXXXX.csv         │
 └─────────────────────────────────────┘
-```
-
----
-
-## 📊 Fluxo de Dados Principal
-
-```
-┌──────────────┐
-│ Admin registra│
-│ colaboradores│
-└──────┬───────┘
-       │
-       ├─→ Manual (tabela)
-       └─→ CSV (importação)
-       │
-       ▼
-┌──────────────────────────────┐
-│ db_acessos_autorizados.csv   │
-│ (CPF, Empresa, Período, etc) │
-└──────────────────────────────┘
-       │
-       ▼
-┌──────────────────────────────┐
-│ Admin gera link:             │
-│ ?cnpj=XXXXX                  │
-└──────────────────────────────┘
-       │
-       ▼
-┌──────────────────────────────┐
-│ Colaborador acessa link      │
-│ → Digita CPF                 │
-│ → Responde 35 questões       │
-└──────────────────────────────┘
-       │
-       ▼
-┌──────────────────────────────┐
-│ respostas_CNPJ_XXXXX.csv     │
-│ (CPF_Hash, Respostas, etc)   │
-└──────────────────────────────┘
-       │
-       ▼
-┌──────────────────────────────┐
-│ Admin gera laudo PDF:        │
-│ • Análise por dimensão       │
-│ • Classificação de risco     │
-│ • Recomendações             │
-└──────────────────────────────┘
 ```
 
 ---
@@ -197,71 +154,63 @@ http://192.168.77.2:8501
 | Aspecto | Implementação |
 |--------|---------------|
 | **Anonimato** | CPF → SHA-256 hash (impossível recuperar) |
+| **Acesso RH** | CNPJ + Senha com hash SHA-256 |
+| **Senha Segura** | Gerada com `secrets` module (criptograficamente seguro) |
 | **Controle de Acesso** | Período configurável (data início/fim) |
-| **Proteção de Dados** | Sem armazenamento de CPF nas respostas |
+| **Isolamento** | RH acessa apenas dados da própria empresa |
 | **Inativação** | Colaboradores inativados perdem acesso |
-| **Backup** | Cópia de segurança dos dados |
-| **Sigilo** | Resultados acessados apenas por admin |
+| **Exclusão** | Admin pode excluir empresa + histórico com confirmação |
 
 ---
 
-## 📋 Dimensões COPSOQ III (7 Blocos, 35 Questões)
+## 📊 Dimensões COPSOQ III (8 Blocos, 40 Questões)
 
-| # | Dimensão | Questões | Descr... Invertida? |
+| # | Dimensão | Questões | Invertida? |
 |---|----------|----------|-----------|
-| 1️⃣ | **📦 Cargo** | 5 | Clareza da função | Não |
-| 2️⃣ | **🎮 Controle** | 6 | Autonomia de decisão | Não |
-| 3️⃣ | **⚖️ Demandas** | 8 | Pressão e carga | ✅ Sim |
-| 4️⃣ | **⚠️ Relacionamentos** | 4 | Conflitos e assédio | ✅ Sim |
-| 5️⃣ | **🤝 Apoio Colegas** | 4 | Solidariedade | Não |
-| 6️⃣ | **👔 Apoio Chefia** | 5 | Suporte gerencial | Não |
-| 7️⃣ | **📢 Comunicação** | 3 | Transparência | Não |
+| 1️⃣ | **📦 Cargo** | 5 | Não |
+| 2️⃣ | **🎮 Controle** | 6 | Não |
+| 3️⃣ | **⚖️ Demandas** | 8 | ✅ Sim |
+| 4️⃣ | **⚠️ Relacionamentos** | 4 | ✅ Sim |
+| 5️⃣ | **🤝 Apoio Colegas** | 4 | Não |
+| 6️⃣ | **👔 Apoio Chefia** | 5 | Não |
+| 7️⃣ | **📢 Comunicação** | 3 | Não |
+| 8️⃣ | **🔄 Mudanças** | 5 | Não |
 
-**Total:** 35 questões, escala Likert 5 pontos (Nunca a Sempre)
-
----
-
-## 🎨 Identidade Visual SSTG
-
-```
-Cores Primárias:
-🔵 Azul Navy:    #282C5B
-🟢 Verde:        #5A9F62
-🟠 Laranja:      #DC3B24
-⚪ Cinza Claro:  #EFEFEF
-
-Tipografia: Sans Serif (Arial, Segoe UI)
-Logo: salvar como logo_sstg.png (opcional)
-```
+**Total:** 40 questões, escala Likert 5 pontos (Nunca → Sempre)
 
 ---
 
 ## 🚀 Deployment
 
-### Opção 1: Rede Local (Recomendado para Testes)
+### Opção 1: Streamlit Cloud (Produção)
 
-```bash
-# Na máquina servidor:
-py -m streamlit run app.py
-
-# Acesse de outro computador:
-http://192.168.77.2:8501
+**URL Pública:**
+```
+https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app
 ```
 
-✅ **Vantagens:** Rápido, sem dependência internet  
-❌ **Limitação:** Apenas na rede WiFi/LAN
+✅ Acesso global | ✅ HTTPS automático | ✅ Deploy via GitHub
+
+### Opção 2: Rede Local (Desenvolvimento)
+
+```bash
+streamlit run app.py
+# Acesse: http://localhost:8501
+```
 
 ---
 
-### Opção 2: Streamlit Cloud (Recomendado para Produção)
+## 🛠️ Tecnologias Utilizadas
 
-1. Push para GitHub
-2. Conectar Streamlit Cloud
-3. Deploy automático
-4. URL: `https://seu-app.streamlit.app`
-
-✅ **Vantagens:** Acesso global, autoscaling  
-❌ **Limitação:** Plano gratuito tem limites
+```
+Frontend:      Streamlit 1.28+
+Backend:       Python 3.9+
+Data:          Pandas, CSV
+PDF:           ReportLab 4.0+
+QR Code:       qrcode + Pillow (PIL)
+Segurança:     SHA-256, secrets module
+Deployment:    Streamlit Cloud / GitHub
+```
 
 ---
 
@@ -274,96 +223,40 @@ http://192.168.77.2:8501
 | Safari | ✅ | ✅ |
 | Edge | ✅ | ✅ |
 
-**Recomendação:** Usar em desktop para cadastro, mobile para responder
-
----
-
-## 💾 Requisitos de Armazenamento
-
-| Tipo | Tamanho | Descrição |
-|------|---------|-----------|
-| **Aplicação** | ~50 MB | Python + deps |
-| **Dados (100 colabs)** | ~2 MB | CSV com respostas |
-| **Dados (1000 colabs)** | ~20 MB | CSV com respostas |
-| **Backup** | 2x dados | Cópia de segurança |
-
-**Total recomendado:** 500 MB livres
-
----
-
-## 🛠️ Tecnologias Utilizadas
-
-```
-Frontend:      Streamlit 1.28+
-Backend:       Python 3.9+
-Data:          Pandas, CSV
-PDF:           ReportLab 4.0+
-Segurança:     SHA-256, validações
-Deployment:    Streamlit Cloud ou VPS
-```
-
----
-
-## 📈 Roadmap Futuro
-
-- [ ] Banco de dados relacional (PostgreSQL)
-- [ ] Autenticação com 2FA (Google Authenticator)
-- [ ] API REST para integrações
-- [ ] Dashboard com gráficos avançados (Plotly)
-- [ ] Exportação em múltiplos formatos (Excel, Word)
-- [ ] Notificações automáticas (email)
-- [ ] Versionamento de laudos (histórico)
-
 ---
 
 ## ❓ FAQ Rápido
 
-**P: Preciso de bancário de dados?**  
-R: Não, CSV é suficiente. Pode usar Google Drive.
+**P: Preciso de banco de dados?**  
+R: Não, CSV é suficiente. Dados persistem no Streamlit Cloud via `./data/`.
 
 **P: Os dados estão seguros?**  
-R: Sim, CPF é criptografado (SHA-256), período bloqueado.
+R: Sim. CPF é criptografado (SHA-256) e senhas RH são armazenadas como hash — nunca em texto puro.
 
-**P: Posso responder 2x o questionário?**  
-R: Não, o sistema detecta e bloqueia duplicatas.
+**P: Um colaborador pode responder por duas empresas?**  
+R: Sim. O mesmo CPF pode ser cadastrado e responder em empresas diferentes. O bloqueio de duplicidade é por CPF + CNPJ.
 
-**P: Como faço backup?**  
-R: Copie a pasta `C:\Users\valte\Claude` para outro local.
+**P: Como o RH acessa os resultados?**  
+R: Pelo módulo **📊 Gestão das Respostas (RH)** com CNPJ + senha fornecida pelo Admin SSTG.
+
+**P: Como recuperar a senha RH de uma empresa?**  
+R: Admin acessa **Segurança e Acesso RH**, seleciona a empresa e clica em **Gerar Nova Senha**.
+
+**P: Posso excluir uma empresa e seus dados?**  
+R: Sim. Na aba **Conferência → Zona de Perigo → Excluir Empresa**, com confirmação obrigatória da senha Admin.
 
 **P: Qual é o custo?**  
-R: Gratuito. Streamlit Cloud tem versão free.
+R: Gratuito. Streamlit Cloud tem versão free. Código open-source no GitHub.
 
 ---
 
 ## 📞 Suporte
 
-**Documentação:**
-- [TUTORIAL.md](TUTORIAL.md) — Para usuários
+- [TUTORIAL.md](TUTORIAL.md) — Para usuários RH
 - [GUIA_INSTALACAO.md](GUIA_INSTALACAO.md) — Para admins
-- [GUIA_TECNICO.md](GUIA_TECNICO.md) — Para devs
-
-**Contato:**
-- Email: suporte@sstg.com.br
-- WhatsApp: (XX) XXXXX-XXXX
+- [GUIA_TECNICO.md](GUIA_TECNICO.md) — Para desenvolvedores
 
 ---
 
-## 📄 Licença
-
-Desenvolvido para **SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) Gestão Ocupacional**  
-Versão 6.0 — Abril/2026
-
----
-
-## 🙏 Agradecimentos
-
-Desenvolvido com ❤️ para melhorar a saúde e segurança dos trabalhadores.
-
-Protocolo validado: **COPSOQ III**  
-Matriz de risco: **BS 8800**  
-Conformidade: **NR-01 (Norma Regulamentadora)**
-
----
-
-**Última atualização:** 30/04/2026  
-**Próxima revisão:** 30/07/2026
+**Última atualização:** 05/05/2026  
+**Próxima revisão:** 05/08/2026

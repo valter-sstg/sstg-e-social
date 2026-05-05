@@ -1,7 +1,7 @@
-# 📚 Documentação de Publicação — SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) v6.0
+# 📚 Documentação de Publicação — SSTG - DRPS v6.1
 
-**Versão:** 1.0  
-**Data:** 30/04/2026  
+**Versão:** 2.0  
+**Data:** 05/05/2026  
 **Status:** ✅ Publicado e Operacional  
 **URL:** https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app
 
@@ -10,575 +10,315 @@
 ## 📋 Índice
 
 1. [Resumo Executivo](#resumo-executivo)
-2. [Recursos e Sistemas Utilizados](#recursos-e-sistemas-utilizados)
-3. [Arquitetura da Publicação](#arquitetura-da-publicação)
-4. [Processo Passo a Passo](#processo-passo-a-passo)
-5. [Configurações Realizadas](#configurações-realizadas)
-6. [Verificação e Validação](#verificação-e-validação)
-7. [Troubleshooting](#troubleshooting)
-8. [Manutenção e Atualizações](#manutenção-e-atualizações)
+2. [Novidades da Versão 6.1](#novidades-da-versão-61)
+3. [Recursos e Sistemas Utilizados](#recursos-e-sistemas-utilizados)
+4. [Arquitetura da Publicação](#arquitetura-da-publicação)
+5. [Processo de Deploy](#processo-de-deploy)
+6. [Configurações Realizadas](#configurações-realizadas)
+7. [Verificação e Validação](#verificação-e-validação)
+8. [Troubleshooting](#troubleshooting)
+9. [Manutenção e Atualizações](#manutenção-e-atualizações)
+10. [Histórico de Versões](#histórico-de-versões)
 
 ---
 
 ## 📌 Resumo Executivo
 
-O SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) v6.0 foi publicado com sucesso na plataforma **Streamlit Cloud**, tornando o sistema acessível online para empresas e colaboradores em qualquer lugar.
+O SSTG - DRPS v6.1 está publicado na plataforma **Streamlit Cloud**, acessível online de qualquer dispositivo com internet. O sistema oferece três módulos integrados: questionário para colaboradores, gestão para RH e painel administrativo completo.
 
-### Principais Características da Publicação
+### Dados da Publicação
 
-- **Ambiente:** Streamlit Cloud (PaaS)
-- **Repositório:** GitHub (valter-contador/sstg-e-social)
-- **Visibilidade:** Pública (código seguro no .gitignore)
-- **Dados Sensíveis:** Protegidos e não versionados
-- **URL:** https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app
-- **Tempo de Deploy:** ~5 minutos
-- **Status:** Operacional e testado
+| Campo | Valor |
+|-------|-------|
+| **Plataforma** | Streamlit Cloud (PaaS) |
+| **Repositório** | GitHub — valter-contador/sstg-e-social |
+| **URL Pública** | https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app |
+| **Versão** | 6.1 |
+| **Protocolo** | COPSOQ III — 40 questões / 8 dimensões |
+| **Status** | Operacional e testado |
+| **SSL/HTTPS** | Ativo (automático pelo Streamlit Cloud) |
+| **Custo** | Gratuito (tier community) |
+
+---
+
+## 🆕 Novidades da Versão 6.1
+
+### Correções de Bugs
+
+| # | Problema | Solução |
+|---|----------|---------|
+| 1 | Respostas de um respondente apareciam para o próximo | Keys de `st.radio` prefixadas com CPF do respondente |
+| 2 | Mesmo CPF bloqueado em empresas diferentes | Verificação de duplicidade por CPF + CNPJ |
+| 3 | Documentação "Arquivo não encontrado" | `caminho_doc()` usa `__file__` para localizar raiz do repo |
+
+### Novas Funcionalidades
+
+| # | Funcionalidade | Descrição |
+|---|---------------|-----------|
+| 1 | **Módulo RH** | Login com CNPJ + senha, dashboard de respostas, QR Code |
+| 2 | **Senhas de Acesso RH** | Geradas automaticamente no cadastro com `secrets` module |
+| 3 | **Aba Segurança e Acesso RH** | Admin pode redefinir senha de qualquer empresa |
+| 4 | **Zona de Perigo expandida** | Exclusão individual de empresa com contadores e confirmação |
+| 5 | **Botão Próxima Demanda** | Navegação entre blocos com validação de completude |
+| 6 | **QR Code profissional** | Imagem 1280×720 px com WhatsApp e E-mail integrados |
+| 7 | **SHARE_URL** | URL pública separada de APP_URL para compartilhamento externo |
+| 8 | **6 abas no Admin** | Adicionadas abas de Segurança RH e Documentação |
 
 ---
 
 ## 🔧 Recursos e Sistemas Utilizados
 
-### 1. **Streamlit Cloud** (Plataforma de Publicação)
+### 1. Streamlit Cloud
 
 | Aspecto | Detalhe |
 |--------|---------|
-| **Serviço** | Platform as a Service (PaaS) da Streamlit |
+| **Tipo** | Platform as a Service (PaaS) |
 | **Custo** | Gratuito (tier community) |
 | **Uptime** | 99.9% SLA |
-| **Escalabilidade** | Automática com base na demanda |
 | **SSL/TLS** | Incluído automaticamente |
-| **Domínio** | *.streamlit.app |
-| **Região** | US (data center Streamlit) |
+| **Deploy** | Automático via push no GitHub |
+| **Dados** | Persistidos em `./data/` |
 
-**Vantagens:**
-- Zero configuração de servidor
-- Deploy automático via GitHub
-- Suporte a múltiplas versões do Python
-- Cache e otimização automática
-- Logs integrados
-
----
-
-### 2. **GitHub** (Controle de Versão e Deploy)
+### 2. GitHub
 
 | Aspecto | Detalhe |
 |--------|---------|
 | **Repositório** | valter-contador/sstg-e-social |
-| **Visibilidade** | Público (conforme exigido pelo Streamlit Cloud) |
-| **Branch Principal** | main |
-| **Commits** | 3 (inicial + 2 atualizações) |
-| **Arquivos** | 21 versionados |
+| **Visibilidade** | Público (dados sensíveis não versionados) |
+| **Branch principal** | `main` |
+| **Deploy trigger** | Push automático → Streamlit Cloud redeploy |
 
-**Funcionalidades Utilizadas:**
-- Git version control
-- Automated webhook deployment
-- Branch management
-- Commit history tracking
+### 3. Dependências Python
 
----
-
-### 3. **Python 3.x** (Runtime)
-
-| Dependência | Versão | Propósito |
-|------------|--------|----------|
-| **streamlit** | ≥1.28.0 | Framework web |
-| **pandas** | ≥2.0.0 | Manipulação de dados CSV |
-| **reportlab** | ≥4.0.0 | Geração de PDFs |
-
----
-
-### 4. **Google Drive Desktop** (Armazenamento Local - Backup)
-
-| Aspecto | Detalhe |
-|--------|---------|
-| **Caminho** | G:\Meu Drive\SSTG-E-Social |
-| **Função** | Sincronização automática de código-fonte |
-| **Backup** | D:\Backups\SSTG-E-Social_2026-04-30_22-27-30 |
+| Biblioteca | Versão | Uso |
+|-----------|--------|-----|
+| streamlit | ≥1.28.0 | Interface web |
+| pandas | ≥2.0.0 | Manipulação de dados CSV |
+| reportlab | ≥4.0.0 | Geração de laudos PDF |
+| pillow | ≥9.0.0 | Composição de imagens |
+| qrcode[pil] | ≥7.4.2 | Geração de QR Codes |
 
 ---
 
 ## 🏗️ Arquitetura da Publicação
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         ARQUITETURA GERAL                       │
-└─────────────────────────────────────────────────────────────────┘
-
-Local Developer Machine (Windows 11)
-    │
-    ├─ G:\Meu Drive\SSTG-E-Social (Development)
-    │   └─ app.py, gerar_laudo.py, requirements.txt, etc.
-    │
-    └─ GitHub Repository (valter-contador/sstg-e-social)
-        │   └─ main branch
-        │
-        └─ Streamlit Cloud
-            │   └─ Auto-deploy via webhook
-            │
-            └─ Production Environment
-                ├─ Python Runtime
-                ├─ Dependencies installed from requirements.txt
-                ├─ Data directory: ./data/
-                └─ Published URL: *.streamlit.app
-
-Backup Strategy
-    │
-    └─ D:\Backups\SSTG-E-Social_2026-04-30_22-27-30 (Local)
-    └─ Google Drive (Synced automatically)
-    └─ GitHub (Remote repository)
-    └─ Streamlit Cloud (Running instance)
+┌─────────────────────────────────────────────────────────────┐
+│                   USUÁRIOS                                  │
+│  Colaboradores │ RH das Empresas │ Admin SSTG              │
+└────────────────┬────────────────────────────────────────────┘
+                 │ HTTPS (qualquer dispositivo)
+┌────────────────▼────────────────────────────────────────────┐
+│                STREAMLIT CLOUD                              │
+│  URL: sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Python 3.11 + app.py (3 módulos)                  │   │
+│  │  • 📋 Questionário Psicossocial                     │   │
+│  │  • 📊 Gestão das Respostas (RH)                    │   │
+│  │  • 🔐 Admin SSTG (Gestão) — 6 abas                 │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Armazenamento ./data/                              │   │
+│  │  • db_acessos_autorizados.csv                       │   │
+│  │  • respostas_CNPJ_*.csv                             │   │
+│  └─────────────────────────────────────────────────────┘   │
+└────────────────┬────────────────────────────────────────────┘
+                 │ Deploy automático (push)
+┌────────────────▼────────────────────────────────────────────┐
+│                   GITHUB                                    │
+│  Repositório: valter-contador/sstg-e-social                 │
+│  Branch: main                                               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 📝 Processo Passo a Passo
+## 🚀 Processo de Deploy
 
-### **Fase 1: Preparação do Código**
-
-#### 1.1 Criação do `requirements.txt`
+### Deploy Inicial
 
 ```bash
-# Arquivo: requirements.txt
-streamlit>=1.28.0
-pandas>=2.0.0
-reportlab>=4.0.0
-```
+# 1. Clonar repositório
+git clone https://github.com/valter-contador/sstg-e-social.git
+cd sstg-e-social
 
-**Motivo:** Especificar dependências Python necessárias para o Streamlit Cloud instalá-las automaticamente.
+# 2. Conectar no Streamlit Cloud (via interface web)
+# → share.streamlit.io → New App → selecionar repo → app.py → Deploy
 
-**Versões Flexíveis:** Usamos `>=` em vez de `==` para permitir atualizações de segurança automáticas no Streamlit Cloud.
-
----
-
-#### 1.2 Criação do `.gitignore`
-
-```bash
-# Dados sensíveis
-db_acessos_autorizados.csv
-respostas_CNPJ_*.csv
-*.env
-
-# Cache Python
-__pycache__/
-*.pyc
-.streamlit/secrets.toml
-
-# Sistema
-.DS_Store
-Thumbs.db
-```
-
-**Função:** Garantir que dados sensíveis NÃO sejam versionados no GitHub.
-
----
-
-#### 1.3 Ajustes no `app.py`
-
-**Antes:**
-```python
-DATA_DIR = r"G:\Meu Drive\SSTG-E-Social"
-APP_URL = "http://192.168.77.2:8501"
-```
-
-**Depois:**
-```python
-IS_STREAMLIT_CLOUD = os.environ.get('STREAMLIT_SERVER_HEADLESS') == 'true'
-
-if IS_STREAMLIT_CLOUD:
-    DATA_DIR = "./data"
-    APP_URL = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
-else:
-    DATA_DIR = r"G:\Meu Drive\SSTG-E-Social"
-    APP_URL = "http://192.168.77.2:8501"
-```
-
-**Lógica:** 
-- Detecta automaticamente se está rodando no Streamlit Cloud
-- Adapta caminhos e URLs dinamicamente
-- Mantém compatibilidade com ambiente local
-
----
-
-### **Fase 2: Inicialização do Git**
-
-```bash
-# Comando 1: Inicializar repositório Git
-cd "G:\Meu Drive\SSTG-E-Social"
-git init
-
-# Comando 2: Configurar identidade local
-git config user.name "SSTG-E-Social"
-git config user.email "sstg@system.local"
-
-# Comando 3: Criar diretório data (para armazenar CSVs no Streamlit Cloud)
-mkdir -p data
-touch data/.gitkeep
-
-# Comando 4: Adicionar todos os arquivos
-git add .
-
-# Comando 5: Primeiro commit
-git commit -m "Initial commit - SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) v6.0 ready for Streamlit Cloud"
-```
-
-**Resultado:**
-```
-[master (root-commit) 541f73a] Initial commit...
- 21 files changed, 8414 insertions(+)
-```
-
----
-
-### **Fase 3: Conexão com GitHub**
-
-```bash
-# Comando 1: Adicionar repositório remoto
-git remote add origin https://github.com/valter-contador/sstg-e-social.git
-
-# Comando 2: Renomear branch para main
-git branch -M main
-
-# Comando 3: Fazer push para GitHub
-git push -u origin main
-```
-
-**Resultado:**
-```
-To https://github.com/valter-contador/sstg-e-social.git
- * [new branch]      main -> main
-branch 'main' set up to track 'origin/main'.
-```
-
----
-
-### **Fase 4: Publicação no Streamlit Cloud**
-
-#### 4.1 Preparar Repositório
-
-- ✅ Fazer repositório **PÚBLICO** (exigência do Streamlit Cloud para repos novos)
-- ✅ Confirmar branch `main` existe e está atualizado
-
-#### 4.2 Acessar Streamlit Cloud
-
-1. Ir para https://share.streamlit.io
-2. Clicar em **"New app"**
-3. Selecionar repositório: `valter-contador/sstg-e-social`
-4. Configurar:
-   - **Branch:** main
-   - **Main file path:** app.py
-   - **Python version:** 3.11
-
-#### 4.3 Deploy Automático
-
-- Streamlit Cloud lê `requirements.txt`
-- Instala dependências automaticamente
-- Executa `streamlit run app.py`
-- Disponibiliza em URL pública
-
-**Tempo:** 2-5 minutos para primeira inicialização
-
----
-
-### **Fase 5: Correção de Problemas de Dependências**
-
-**Erro Encontrado:**
-```
-Erro nos requisitos de instalação.
-```
-
-**Solução Aplicada:**
-
-1. Atualizar `requirements.txt` com versões mais flexíveis:
-   ```
-   streamlit>=1.28.0  (ao invés de ==1.31.1)
-   pandas>=2.0.0      (ao invés de ==2.0.3)
-   reportlab>=4.0.0   (ao invés de ==4.0.7)
-   ```
-
-2. Fazer push da atualização:
-   ```bash
-   git add requirements.txt
-   git commit -m "Update requirements.txt with flexible versions"
-   git push origin main
-   ```
-
-3. Fazer **Reboot** do app no Streamlit Cloud:
-   - Vai automaticamente fazer novo pull do GitHub
-   - Reinstalar dependências
-   - Reiniciar aplicação
-
-**Resultado:** ✅ App carregado com sucesso
-
----
-
-### **Fase 6: Atualização da URL Final**
-
-Após confirmação que o app estava funcionando:
-
-```bash
-# Atualizar APP_URL no código
-# De: APP_URL = "https://sstg-e-social.streamlit.app"
-# Para: APP_URL = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
-
+# 3. Atualizar SHARE_URL com a URL gerada
+# Editar app.py → SHARE_URL = "https://url-gerada.streamlit.app"
 git add app.py
-git commit -m "Update APP_URL to final Streamlit Cloud URL"
+git commit -m "Configura SHARE_URL de produção"
+git push
+```
+
+### Atualizações (Manutenção)
+
+```bash
+# 1. Fazer alterações locais
+# 2. Testar localmente: streamlit run app.py
+# 3. Commit e push
+git add .
+git commit -m "Descrição da alteração"
 git push origin main
+# → Streamlit Cloud redeploy automático em ~2-3 minutos
 ```
 
 ---
 
 ## ⚙️ Configurações Realizadas
 
-### **1. Streamlit Cloud Settings**
-
-| Configuração | Valor |
-|-------------|-------|
-| Repositório | valter-contador/sstg-e-social |
-| Branch | main |
-| Arquivo Principal | app.py |
-| Python Version | 3.11 |
-| Secrets | Nenhum (CSV armazenado localmente em ./data) |
-| Custom Domain | Não (usando domínio padrão) |
-
-### **2. GitHub Repository Settings**
-
-| Configuração | Valor |
-|-------------|-------|
-| Visibilidade | Pública |
-| Branch Default | main |
-| Protections | Nenhum (desenvolvimento ativo) |
-| Webhooks | Automático via Streamlit Cloud |
-
-### **3. Aplicação (app.py)**
+### app.py — Variáveis Principais
 
 ```python
-# Detecção automática de ambiente
+# Raiz do projeto (automático, não editar)
+DOC_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Detecção de ambiente
 IS_STREAMLIT_CLOUD = os.environ.get('STREAMLIT_SERVER_HEADLESS') == 'true'
 
-# Caminhos condicionais
-if IS_STREAMLIT_CLOUD:
-    DATA_DIR = "./data"  # Diretório relativo
-    APP_URL = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
-else:
-    DATA_DIR = r"G:\Meu Drive\SSTG-E-Social"  # Caminho local
-    APP_URL = "http://192.168.77.2:8501"
+# URL de compartilhamento (sempre Streamlit Cloud)
+SHARE_URL = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
 
-# Criar diretório se não existir
-def caminho(nome_arquivo: str) -> str:
-    if DATA_DIR:
-        os.makedirs(DATA_DIR, exist_ok=True)
-        return os.path.join(DATA_DIR, nome_arquivo)
-    return nome_arquivo
+# Senha admin
+SENHA_ADMIN = "sstg2025"  # ← Alterar em produção
 ```
 
-### **4. Estructura de Diretórios**
+### requirements.txt
 
 ```
-sstg-e-social/
-├── app.py                          # Aplicação principal
-├── gerar_laudo.py                  # Módulo de geração de PDFs
-├── gerar_pdfs.py                   # Conversor Markdown → PDF
-├── converter_pdf.py                # Conversor auxiliar
-├── requirements.txt                # Dependências Python
-├── .gitignore                      # Arquivos ignorados
-├── .streamlit/
-│   └── config.toml                 # Configurações Streamlit
-├── data/                           # Diretório de dados (Streamlit Cloud)
-│   └── .gitkeep
-├── README.md                       # Documentação principal
-├── TUTORIAL.md                     # Tutorial de uso
-├── GUIA_INSTALACAO.md             # Guia de instalação
-├── GUIA_TECNICO.md                # Documentação técnica
-├── CHECKLIST_LANCAMENTO.md        # Checklist pré-produção
-├── GUIA_MIGRACAO_NUVEM.md         # Guia de migração
-└── DOCUMENTACAO_PUBLICACAO.md      # Este arquivo
+streamlit>=1.28.0
+pandas>=2.0.0
+reportlab>=4.0.0
+pillow>=9.0.0
+qrcode[pil]>=7.4.2
+```
+
+### .streamlit/config.toml
+
+```toml
+[theme]
+primaryColor = "#5A9F62"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#282C5B"
+font = "sans serif"
 ```
 
 ---
 
 ## ✅ Verificação e Validação
 
-### **1. Testes Realizados**
+### Checklist Pós-Deploy
 
-| Teste | Resultado | Detalhes |
-|-------|-----------|----------|
-| URL Acessível | ✅ PASS | Carrega homepage |
-| Logo e Branding | ✅ PASS | SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) exibido |
-| Menu Lateral | ✅ PASS | Opções Questionnaire e Admin |
-| Interface Responsiva | ✅ PASS | Layout correto em desktop |
-| Carregamento Rápido | ✅ PASS | <3s primeira carga |
-| Sem Erros JS | ✅ PASS | Console limpo |
-| CPF Input Field | ✅ PASS | Funciona corretamente |
-| Botão ACESSAR | ✅ PASS | Não testado fluxo completo ainda |
+- [ ] URL pública acessível
+- [ ] App carrega sem erros
+- [ ] Login admin funciona
+- [ ] Cadastro de empresa gera senha RH
+- [ ] Login RH funciona com CNPJ + senha
+- [ ] Questionário acessível via link com `?cnpj=`
+- [ ] QR Code gerado é escaneável
+- [ ] Links WhatsApp e E-mail funcionam
+- [ ] Documentação carrega sem "Arquivo não encontrado"
+- [ ] Zona de Perigo requer senha admin
+- [ ] Exclusão de empresa remove dados corretamente
 
-### **2. Checklist de Funcionalidades**
+### Testes de Segurança
 
-- [ ] Login com CPF funciona
-- [ ] Cadastro de empresa (Admin) funciona
-- [ ] Importação CSV funciona
-- [ ] Preenchimento de respostas funciona
-- [ ] Geração de PDF (Laudo) funciona
-- [ ] Download de documentação funciona
-- [ ] Links compartilháveis (?cnpj=) funcionam
-- [ ] Dados persistem corretamente em ./data/
-
-**Status:** Aguardando testes de funcionalidade completos
+- [ ] RH não consegue ver dados de outra empresa
+- [ ] Senha incorreta bloqueia acesso RH
+- [ ] Senha incorreta bloqueia Zona de Perigo
+- [ ] CPF hash nas respostas (não texto puro)
+- [ ] Senha RH armazenada como hash
 
 ---
 
-## 🔧 Troubleshooting
+## 🔍 Troubleshooting
 
-### **Problema 1: "Erro nos requisitos de instalação"**
+### App não carrega (Streamlit Cloud)
 
-**Causa:** Versões específicas de bibliotecas incompatíveis com Streamlit Cloud
+1. Verificar logs no painel do Streamlit Cloud
+2. Verificar se `requirements.txt` inclui todas as dependências
+3. Verificar se `app.py` não tem erros de sintaxe
+4. Forçar redeploy: **Manage app → Reboot app**
 
-**Solução:**
-1. Usar versões flexíveis em `requirements.txt` (com `>=` ao invés de `==`)
-2. Fazer Reboot do app no Streamlit Cloud
-3. Aguardar 2-5 minutos para reinstalação
+### Dados não persistem após redeploy
 
-**Prevenção:** Testar `requirements.txt` localmente antes de fazer push
+O Streamlit Cloud **não garante persistência** de dados entre reboots em planos gratuitos. Para produção com dados críticos:
+- Usar Google Drive Desktop localmente
+- Ou exportar dados periodicamente via CSV
 
----
+### Link de compartilhamento não funciona
 
-### **Problema 2: "Esse repositório não existe" (GitHub)**
+Verificar se `SHARE_URL` em `app.py` está correto e foi commitado.
 
-**Causa:** Repositório privado; Streamlit Cloud requer público
+### "Arquivo não encontrado" na documentação
 
-**Solução:**
-1. Ir para Settings do repositório GitHub
-2. Alterar visibilidade para **Public**
-3. Fazer deploy novamente
+Verificar se os `.md` estão na **raiz do repositório** (não em subpastas). O sistema resolve o caminho via `__file__` automaticamente.
 
-**Nota:** Dados sensíveis estão no `.gitignore`, portanto é seguro deixar público
+### QR Code não gera
 
----
-
-### **Problema 3: Dados não persistem entre sessões**
-
-**Causa:** Cada deploy novo do Streamlit Cloud cria novo `./data/`
-
-**Solução Atual:** Arquivos CSV armazenados em `./data/` (funciona mas é efêmero)
-
-**Solução Futura:**
-- Migrar para banco de dados (PostgreSQL, SQLite)
-- Usar Streamlit Secrets para credenciais
-- Implementar backup automático
+Verificar se `pillow` e `qrcode[pil]` estão em `requirements.txt` e foram instalados no Cloud.
 
 ---
 
-### **Problema 4: APP_URL incorreta em links compartilháveis**
+## 🔄 Manutenção e Atualizações
 
-**Causa:** URL do Streamlit Cloud não é previsível até após deploy
+### Fluxo de Atualização
 
-**Solução Aplicada:**
-1. Publicar app
-2. Copiar URL final
-3. Atualizar `APP_URL` no código
-4. Fazer push com o novo valor
-
----
-
-## 📊 Manutenção e Atualizações
-
-### **Procedimento Padrão para Atualizações**
-
-```bash
-# 1. Fazer alterações localmente
-# 2. Testar em ambiente local
-# 3. Commit
-
-git add .
-git commit -m "Descrição clara da mudança"
-
-# 4. Push para GitHub
-git push origin main
-
-# 5. Streamlit Cloud fará deploy automático em ~30 segundos
-# 6. Verificar app em https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app
+```
+Desenvolvimento local
+       ↓
+Teste: streamlit run app.py
+       ↓
+git commit + git push
+       ↓
+Streamlit Cloud redeploy automático (~3 min)
+       ↓
+Validar na URL de produção
 ```
 
-### **Monitoramento**
+### Backup de Dados
 
-- **Logs:** Acessar via Streamlit Cloud Dashboard → App Name → Logs
-- **Uptime:** Streamlit Cloud mantém SLA de 99.9%
-- **Performance:** Tempo de resposta monitorado automaticamente
+1. Admin → Conferência → **⬇️ Baixar lista filtrada (.csv)**
+2. Admin → Resultados → selecionar empresa → **⬇️ Baixar resultados (.csv)**
+3. Repetir para cada empresa
 
-### **Atualização de Dependências**
+### Comunicação de Atualizações
 
-```bash
-# Para atualizar bibliotecas
-pip install --upgrade streamlit pandas reportlab
-
-# Verificar versões
-pip freeze > requirements.txt
-
-# Push para ativar atualização no Streamlit Cloud
-git add requirements.txt
-git commit -m "Upgrade dependencies"
-git push origin main
-```
-
-### **Backup de Dados**
-
-**Estratégia 3-Copy:**
-1. **Local:** G:\Meu Drive\SSTG-E-Social (Google Drive sincronizado)
-2. **Backup:** D:\Backups\SSTG-E-Social_* (automático)
-3. **Nuvem:** GitHub (código-fonte)
-4. **Produção:** Streamlit Cloud (aplicação rodando)
+Ao publicar versão com mudanças significativas:
+1. Atualizar documentação (`.md` na raiz)
+2. Comunicar ao RH das empresas se houver mudança de fluxo
+3. Gerar novas senhas RH se necessário (Aba Segurança)
 
 ---
 
-## 📞 Recursos Adicionais
+## 📜 Histórico de Versões
 
-### **Documentação Oficial**
-- Streamlit: https://docs.streamlit.io
-- Streamlit Cloud: https://docs.streamlit.io/streamlit-cloud
-- GitHub: https://docs.github.com
+### v6.1 — 05/05/2026
+- ✅ Correção: respostas pré-preenchidas entre respondentes (keys únicas por CPF)
+- ✅ Correção: mesmo CPF liberado em empresas diferentes
+- ✅ Correção: documentação "Arquivo não encontrado" (caminho via `__file__`)
+- ✨ Novo: Módulo "📊 Gestão das Respostas (RH)" com login CNPJ + senha
+- ✨ Novo: Aba "🔐 Segurança e Acesso RH" no Admin
+- ✨ Novo: Senhas RH geradas automaticamente no cadastro
+- ✨ Novo: Zona de Perigo com exclusão individual de empresa
+- ✨ Novo: Botão "Próxima Demanda" ao final de cada bloco
+- ✨ Novo: QR Code profissional 1280×720 px com WhatsApp/E-mail
+- ✨ Novo: SHARE_URL separada de APP_URL para compartilhamento externo
+- ✨ Novo: Admin expandido para 6 abas
 
-### **Arquivos de Documentação Inclusos**
-- `README.md` - Overview do sistema
-- `TUTORIAL.md` - Como usar
-- `GUIA_INSTALACAO.md` - Instalação e deployment
-- `GUIA_TECNICO.md` - Arquitetura e detalhes técnicos
-- `CHECKLIST_LANCAMENTO.md` - Validações pré-produção
-
----
-
-## 📝 Histórico de Versões
-
-| Versão | Data | Mudanças |
-|--------|------|----------|
-| 1.0 | 30/04/2026 | Publicação inicial no Streamlit Cloud |
-
----
-
-## ✨ Próximos Passos Recomendados
-
-1. **Testar fluxos completos:**
-   - Login de colaborador
-   - Preenchimento de questionário
-   - Geração de laudo PDF
-   - Download de documentação
-
-2. **Configurar domínio customizado** (opcional):
-   - Comprar domínio (ex: sstg-e-social.com.br)
-   - Configurar DNS apontando para Streamlit Cloud
-
-3. **Implementar persistência de dados:**
-   - Considerar migração para banco de dados
-   - Implementar autenticação de admin mais robusta
-
-4. **Ativar analytics:**
-   - Streamlit Cloud fornece estatísticas básicas
-   - Considerar Google Analytics para tracking detalhado
-
-5. **Planejar escalabilidade:**
-   - Monitorar uso e performance
-   - Considerar upgrade de plano conforme crescimento
+### v6.0 — 30/04/2026
+- Publicação inicial no Streamlit Cloud
+- Questionário COPSOQ III com 40 questões / 8 dimensões
+- Admin com cadastro manual e via CSV
+- Geração de laudo PDF
+- Geração de imagem QR Code
 
 ---
 
-**Documento Preparado:** 30/04/2026  
-**Responsável:** Sistema SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) v6.0  
-**Status:** ✅ Sistema Operacional
+**Última atualização:** 05/05/2026  
+**Versão:** 6.1  
+**Responsável:** SSTG Gestão Ocupacional

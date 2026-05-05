@@ -1,352 +1,220 @@
-# ✅ Checklist de Lançamento — SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) v6.0
+# ✅ Checklist de Lançamento — SSTG - DRPS v6.1
 
-**Data:** 30/04/2026  
+**Data:** 05/05/2026  
 **Responsável:** _______________  
 **Assinado em:** _______________
 
 ---
 
-## 📋 Pré-requisitos Técnicos
+## 📋 1. Pré-requisitos Técnicos
 
 - [ ] **Python 3.9+** instalado (`py --version`)
-- [ ] **Dependências instaladas** (`py -m pip list | findstr streamlit`)
+- [ ] **Dependências instaladas** (`pip list`):
   - [ ] `streamlit >= 1.28.0`
   - [ ] `pandas >= 2.0.0`
   - [ ] `reportlab >= 4.0.0`
-- [ ] **Pasta `.streamlit\`** criada
-- [ ] **Arquivo `config.toml`** presente
+  - [ ] `pillow >= 9.0.0` ← necessário para QR Code
+  - [ ] `qrcode[pil] >= 7.4.2` ← necessário para QR Code
+- [ ] **Pasta `.streamlit/`** criada
+- [ ] **Arquivo `.streamlit/config.toml`** presente e configurado
 - [ ] **Arquivos principais presentes:**
   - [ ] `app.py`
   - [ ] `gerar_laudo.py`
-  - [ ] `.streamlit/config.toml`
+  - [ ] `gerar_compartilhamento.py`
+  - [ ] `gerar_pdf_publicacao.py`
+  - [ ] `requirements.txt`
+- [ ] **Arquivos de documentação presentes (raiz do projeto):**
+  - [ ] `README.md`
+  - [ ] `TUTORIAL.md`
+  - [ ] `GUIA_INSTALACAO.md`
+  - [ ] `GUIA_TECNICO.md`
+  - [ ] `CHECKLIST_LANCAMENTO.md`
+  - [ ] `DOCUMENTACAO_PUBLICACAO.md`
 
 ---
 
-## ⚙️ Configuração
+## ⚙️ 2. Configuração
 
-- [ ] **Variável `DATA_DIR`** definida
-  - [ ] Vazia (local) OU
-  - [ ] Apontando para Google Drive válido
-- [ ] **Variável `APP_URL`** configurada
-  - [ ] `http://192.168.77.2:8501` (rede local) OU
-  - [ ] `http://localhost:8501` (apenas local) OU
-  - [ ] URL de produção (após publicar)
-- [ ] **Variável `SENHA_ADMIN`** alterada
-  - [ ] Senha forte (8+ chars, maiús/minús/números/símbolos)
-  - [ ] Não é a senha padrão `sstg2025`
-- [ ] **Arquivo `db_acessos_autorizados.csv`** criado (vazio é OK)
+- [ ] **`DATA_DIR`** definido corretamente
+  - [ ] Streamlit Cloud: `./data/` (automático via `__file__`)
+  - [ ] Local: caminho para Google Drive ou pasta local
+- [ ] **`APP_URL`** configurado para o ambiente atual
+- [ ] **`SHARE_URL`** aponta para URL pública do Streamlit Cloud
+  - [ ] Testado: links enviados por WhatsApp/e-mail funcionam externamente
+- [ ] **`SENHA_ADMIN`** alterada (não usar `sstg2025` em produção)
+- [ ] **`DOC_DIR`** resolvido via `os.path.dirname(os.path.abspath(__file__))` — automático
+- [ ] **Pasta `data/`** criada e acessível (Streamlit Cloud cria automaticamente)
 
 ---
 
-## 🚀 Inicialização e Testes
+## 📋 3. Módulo Admin (6 Abas)
 
-- [ ] **App inicia sem erros**
-  ```bash
-  py -m streamlit run app.py
-  ```
-- [ ] **Tela de saudação apareça**
-  ```
-  Local URL: http://localhost:8501
-  Network URL: http://192.168.77.2:8501
-  ```
-- [ ] **Acesso via navegador**
-  - [ ] http://localhost:8501 (local)
-  - [ ] http://192.168.77.2:8501 (rede)
-- [ ] **Módulo Admin acessível**
-  - [ ] Senha correia aceita
-  - [ ] 4 abas aparecem (Cadastro, Conferência, Resultados, Movimentação)
+### Aba 1 — Cadastro / Inclusão
+- [ ] Cadastro manual de empresa funciona
+- [ ] Senha RH gerada automaticamente após cadastro
+- [ ] Senha RH exibida uma única vez com aviso
+- [ ] Importação via CSV funciona
+- [ ] Senha RH gerada para empresas importadas via CSV
+- [ ] Duplicidade bloqueada por CPF + CNPJ (não global)
+- [ ] Mesmo CPF aceito em empresas diferentes
+- [ ] Links de questionário exibidos corretamente (usam `SHARE_URL`)
 
----
+### Aba 2 — Conferência e Correção
+- [ ] Lista de colaboradores carrega
+- [ ] Filtro por empresa funciona
+- [ ] Export CSV funciona
+- [ ] Gerenciamento de período funciona (alterar datas)
+- [ ] **Zona de Perigo — Excluir Empresa:**
+  - [ ] Dropdown de empresa funciona
+  - [ ] Contadores de impacto exibidos (CPFs e respostas)
+  - [ ] Campo de senha admin presente
+  - [ ] Senha incorreta bloqueia a ação
+  - [ ] Ação remove CPFs do CSV e apaga arquivo de respostas
+  - [ ] `st.rerun()` após exclusão atualiza a lista
+- [ ] **Zona de Perigo — Resetar Tudo:**
+  - [ ] Campo de senha admin presente
+  - [ ] Senha incorreta bloqueia a ação
+  - [ ] Ação remove todos os CSVs (acessos + respostas)
 
-## 📝 Teste de Cadastro Manual
+### Aba 3 — Resultados
+- [ ] Seleção de empresa funciona
+- [ ] Link público da empresa usa `SHARE_URL`
+- [ ] Geração de QR Code funciona
+- [ ] Imagem QR Code exibe nome da empresa corretamente
+- [ ] QR Code é escaneável (teste com celular)
+- [ ] Link dentro do QR Code abre questionário correto
+- [ ] Botão WhatsApp abre conversa pré-preenchida
+- [ ] Botão E-mail abre cliente com template
+- [ ] Download da imagem PNG funciona
+- [ ] Médias por dimensão exibidas
+- [ ] Histórico de respostas exibido
+- [ ] Export CSV de respostas funciona
+- [ ] Geração de laudo PDF funciona
 
-- [ ] **Aba 1 — Cadastro / Entrada Manual**
-  - [ ] Formulário exibe corretamente
-  - [ ] Campos: CNPJ, Razão Social, Data Início, Data Fim
-  - [ ] Data fim > Data início (validação)
-  - [ ] Tabela dinâmica funciona
-  - [ ] Botão ➕ adiciona linhas
-  - [ ] Botão ✅ SALVAR funciona
-- [ ] **Mensagens esperadas após salvar**
-  - [ ] ✅ "X colaborador(es) cadastrado(s) com sucesso"
-  - [ ] ⚠️ (se houver duplicatas)
-  - [ ] ❌ (se houver CPF inválido)
-- [ ] **Links gerados**
-  - [ ] Seção **🔗 Links para Compartilhar** aparece
-  - [ ] Link no formato: `http://192.168.77.2:8501/?cnpj=XXXXX`
-  - [ ] Link pode ser copiado
+### Aba 4 — Movimentação de Pessoal
+- [ ] Admissão de novos colaboradores funciona
+- [ ] Desligamento (inativação) funciona
+- [ ] Colaborador inativo não consegue acessar o questionário
+- [ ] Reativação funciona
+- [ ] Histórico de respostas preservado após desligamento
 
----
+### Aba 5 — Segurança e Acesso RH
+- [ ] Dropdown de seleção de empresa funciona
+- [ ] Botão "Gerar Nova Senha RH" funciona
+- [ ] Nova senha exibida uma única vez
+- [ ] Nova senha invalida a senha anterior
+- [ ] Login RH com nova senha funciona
 
-## 📊 Teste de Cadastro via CSV
-
-- [ ] **Aba 1 — Cadastro / Importar via CSV**
-  - [ ] Tab aparece corretamente
-  - [ ] Botão **⬇️ Baixar Template CSV** funciona
-  - [ ] Arquivo `template_colaboradores.csv` baixado
-- [ ] **Validar template baixado**
-  - [ ] Coluna 1: CPF
-  - [ ] Coluna 2: Função
-  - [ ] Coluna 3: Departamento
-  - [ ] Separador: `;` (ponto-e-vírgula)
-  - [ ] 2 linhas de exemplo
-- [ ] **Teste de upload**
-  - [ ] Preparar CSV com 3+ linhas
-  - [ ] Upload com sucesso
-  - [ ] Preview exibe dados corretamente
-  - [ ] Botão **💾 SALVAR COLABORADORES** salva
-  - [ ] Mensagem de sucesso exibida
-
----
-
-## 👥 Teste de Resposta (Colaborador)
-
-- [ ] **Acesso via link**
-  - [ ] URL: `http://192.168.77.2:8501/?cnpj=[CNPJ_TESTADO]`
-  - [ ] Página carrega sem erros
-- [ ] **Tela de Login Colaborador**
-  - [ ] Mensagem de boas-vindas exibe
-  - [ ] Nome da empresa aparece: "🏢 Você está respondendo..."
-  - [ ] Campo de CPF presente
-  - [ ] Botão ACESSAR presente
-- [ ] **Validações de CPF**
-  - [ ] CPF válido (cadastrado) → Acesso
-  - [ ] CPF inválido → ❌ "CPF inválido"
-  - [ ] CPF não cadastrado → ❌ "Seu CPF não está autorizado"
-- [ ] **Período válido**
-  - [ ] Data hoje dentro do período → ✅ Acesso
-  - [ ] Data hoje fora do período → ❌ Bloqueado
-- [ ] **Resposta ao Questionário**
-  - [ ] 7 blocos COPSOQ III aparecem
-  - [ ] 35 questões totais
-  - [ ] Botões "Anterior / Próximo" funcionam
-  - [ ] Progresso exibido corretamente
-  - [ ] Opções de resposta (1-5) funcionam
-- [ ] **Envio de Respostas**
-  - [ ] Botão **✅ ENVIAR** presente
-  - [ ] Mensagem de confirmação: "Respostas salvas com sucesso"
-- [ ] **Prevenção de Duplicata**
-  - [ ] Mesmo CPF tenta acessar novamente
-  - [ ] ⚠️ "Você já respondeu este questionário"
+### Aba 6 — Documentação
+- [ ] Todos os 6 documentos listados
+- [ ] Botão "Ler" abre o conteúdo `.md` sem erro "Arquivo não encontrado"
+- [ ] Conteúdo renderizado em Markdown
+- [ ] Botão de fechar documentação funciona
+- [ ] Botão "⬇️ PDF" mostra aviso se PDF não gerado (não causa erro)
 
 ---
 
-## 📊 Teste de Resultados
+## 📊 4. Módulo Gestão das Respostas (RH)
 
-- [ ] **Aba 2 — Conferência e Correção**
-  - [ ] Cadastro geral exibe (tabela)
-  - [ ] Métricas aparecem: Total, Ativos, Inativos, Último cadastro
-  - [ ] Filtro por empresa funciona
-  - [ ] Botão **⬇️ Baixar lista filtrada** funciona
-  - [ ] Expander **📅 Gerenciar Período** funciona
-  - [ ] Alteração de datas funciona
-- [ ] **Aba 3 — Resultados**
-  - [ ] Gráfico de barras exibe
-  - [ ] Mostra: Autorizados vs Respondidos
-  - [ ] Seletor de empresa presente
-  - [ ] Botão **📄 GERAR E BAIXAR LAUDO PDF**
-- [ ] **Geração de Laudo PDF**
-  - [ ] PDF gerado sem erros
-  - [ ] Arquivo baixado para Downloads
-  - [ ] Abre corretamente em leitor PDF
-  - [ ] Contém:
-    - [ ] Título e dados da empresa
-    - [ ] Tabela de dimensões
-    - [ ] Classificação de risco
-    - [ ] Gráficos
+- [ ] Tela de login exibida ao acessar o módulo
+- [ ] Login com CNPJ + senha incorretos rejeitado
+- [ ] Login com CNPJ + senha corretos aceito
+- [ ] RH autenticado vê apenas dados da sua empresa
+- [ ] Link do questionário exibido e correto
+- [ ] Geração de QR Code funciona
+- [ ] Botão WhatsApp funciona
+- [ ] Botão E-mail funciona
+- [ ] Dashboard de respostas carrega corretamente
+- [ ] Métricas corretas (autorizados, respondidos, taxa)
+- [ ] Gráfico de adesão exibido
+- [ ] Logout ou navegação para outro módulo funciona
 
 ---
 
-## 🔄 Teste de Movimentação
+## 📋 5. Módulo Questionário Psicossocial
 
-- [ ] **Aba 4 — Movimentação de Pessoal**
-  - [ ] Seção "Inativar colaborador" presente
-  - [ ] CPF selecionável em dropdown
-  - [ ] Botão **🚫 INATIVAR** funciona
-  - [ ] Colaborador inativado não consegue acessar
-- [ ] **Reativar Colaborador**
-  - [ ] Seção "Reativar colaborador" presente
-  - [ ] CPFs inativos listados
-  - [ ] Botão **✅ REATIVAR** funciona
-  - [ ] Colaborador reativado consegue acessar
-
----
-
-## 🔐 Testes de Segurança
-
-- [ ] **Criptografia de CPF**
-  - [ ] CPF na tabela de resposta é um hash
-  - [ ] Hash diferente para cada CPF
-  - [ ] Não é possível reverter o hash
-- [ ] **Período Bloqueado**
-  - [ ] Colaborador fora do período não consegue acessar
-  - [ ] Admin consegue alterar período e reabilitar
-- [ ] **Senha Admin**
-  - [ ] Senha padrão (`sstg2025`) rejeita
-  - [ ] Senha configurada aceita
-  - [ ] Botão "Sair" funciona
+- [ ] Tela de login exibida com informações do protocolo
+- [ ] CPF não autorizado rejeitado com mensagem clara
+- [ ] CPF inativo rejeitado com mensagem clara
+- [ ] CPF já respondeu (na mesma empresa) bloqueado
+- [ ] **Mesmo CPF aceito em empresa diferente** ← regra v6.1
+- [ ] Período encerrado bloqueia com mensagem de data
+- [ ] Questionário carrega com 8 abas (blocos)
+- [ ] 40 questões no total
+- [ ] Escala Likert (Nunca → Sempre) funcionando
+- [ ] Botão "Próxima Demanda" aparece ao final de cada bloco
+- [ ] Botão bloqueia avanço se há questões não respondidas
+- [ ] Progresso por bloco exibido
+- [ ] Progresso total exibido na última aba
+- [ ] **Sem contaminação entre respondentes** (keys únicas por CPF) ← correção v6.1
+- [ ] Envio registra respostas corretamente
+- [ ] Tela de confirmação após envio
 
 ---
 
-## 📁 Teste de Armazenamento
+## 🔒 6. Segurança
 
-- [ ] **Armazenamento Local**
-  - [ ] `db_acessos_autorizados.csv` criado
-  - [ ] Contém dados cadastrados
-  - [ ] `respostas_CNPJ_*.csv` criado após resposta
-- [ ] **Google Drive (Se configurado)**
-  - [ ] Google Drive Desktop ativo
-  - [ ] Pasta sincronizada
-  - [ ] Dados salvos em `G:\Meu Drive\...`
-  - [ ] Sincronização em tempo real
+- [ ] Senhas RH armazenadas como hash (não texto puro)
+- [ ] CPFs armazenados como hash nas respostas
+- [ ] `SENHA_ADMIN` não está em texto puro no código (ou usar variável de ambiente)
+- [ ] Arquivo `.gitignore` exclui dados sensíveis se repositório público
+- [ ] Acesso RH isolado por empresa
+- [ ] Exclusão de dados requer confirmação com senha admin
+- [ ] Respostas de respondentes diferentes não se misturam (session_state por CPF)
 
 ---
 
-## 🔗 Teste de Links
+## 🌐 7. Streamlit Cloud
 
-- [ ] **Link Gerado Válido**
-  - [ ] Copiado e colado em novo navegador
-  - [ ] Carrega página de resposta
-  - [ ] Identifica empresa corretamente
-- [ ] **Compartilhamento**
-  - [ ] Link enviado via WhatsApp funciona
-  - [ ] Link enviado via email funciona
-  - [ ] Acessível de outro computador (mesmo WiFi)
-
----
-
-## 📚 Documentação
-
-- [ ] **README.md** presente e legível
-- [ ] **TUTORIAL.md** presente (operacional)
-- [ ] **GUIA_INSTALACAO.md** presente (setup)
-- [ ] **GUIA_TECNICO.md** presente (técnico)
-- [ ] Todos os arquivos com markup correto
-- [ ] Links internos funcionam
+- [ ] Deploy realizado com sucesso
+- [ ] URL pública acessível
+- [ ] App carrega sem erros no primeiro acesso
+- [ ] `SHARE_URL` atualizado com URL de produção
+- [ ] Links de compartilhamento testados externamente (fora da rede local)
+- [ ] QR Code testado com celular (escaneamento real)
+- [ ] App funciona em dispositivo mobile
+- [ ] App hiberna e reactiva corretamente
 
 ---
 
-## 🎨 Testes Visuais
+## 📱 8. Compatibilidade
 
-- [ ] **Cores SSTG aplicadas**
-  - [ ] Azul navy (#282C5B) em elementos primários
-  - [ ] Verde (#5A9F62) em botões sucesso
-  - [ ] Laranja (#DC3B24) em CTAs
-- [ ] **Responsividade**
-  - [ ] Layout funciona em desktop
-  - [ ] Layout funciona em tablet
-  - [ ] Layout funciona em mobile (visualização)
-- [ ] **Fonts e Tipografia**
-  - [ ] Sans Serif consistente
-  - [ ] Tamanhos legíveis
-  - [ ] Contrast adequado
+- [ ] Chrome Desktop ✅
+- [ ] Firefox Desktop ✅
+- [ ] Edge Desktop ✅
+- [ ] Safari Desktop ✅
+- [ ] Chrome Mobile ✅
+- [ ] Safari Mobile (iOS) ✅
 
 ---
 
-## 🧪 Testes de Erro & Edge Cases
+## 📚 9. Documentação
 
-- [ ] **CPF Vazio** → Erro apropriado
-- [ ] **CNPJ Vazio** → Erro apropriado
-- [ ] **Data Fim < Data Início** → Erro apropriado
-- [ ] **Arquivo CSV inválido** → Erro apropriado
-- [ ] **Sem conexão internet** → Comportamento gracioso
-- [ ] **Porta 8501 ocupada** → Mensagem clara
-
----
-
-## 📱 Compatibilidade de Browser
-
-- [ ] **Google Chrome** → Funciona
-- [ ] **Mozilla Firefox** → Funciona
-- [ ] **Microsoft Edge** → Funciona
-- [ ] **Safari** (se aplicável) → Funciona
+- [ ] README.md atualizado (v6.1, 05/05/2026)
+- [ ] TUTORIAL.md atualizado com módulo RH e novas funcionalidades
+- [ ] GUIA_INSTALACAO.md atualizado com novas dependências
+- [ ] GUIA_TECNICO.md atualizado com arquitetura v6.1
+- [ ] CHECKLIST_LANCAMENTO.md atualizado (este documento)
+- [ ] DOCUMENTACAO_PUBLICACAO.md atualizado
 
 ---
 
-## 🚀 Pré-Produção
+## ✅ Aprovação Final
 
-- [ ] **Backup** realizado
-  - [ ] Cópia de todos os arquivos
-  - [ ] Armazenado em local seguro
-- [ ] **Plano de Rollback** documentado
-  - [ ] Como voltar à versão anterior
-  - [ ] Contacts de suporte
+| Critério | Status | Observações |
+|----------|--------|-------------|
+| Todos os módulos funcionando | ☐ | |
+| Segurança validada | ☐ | |
+| Testes em mobile realizados | ☐ | |
+| Documentação atualizada | ☐ | |
+| Backup configurado | ☐ | |
+| URL de produção testada | ☐ | |
 
----
-
-## 📊 Performance
-
-- [ ] **Tempo de carregamento**
-  - [ ] App inicia em < 5 segundos
-  - [ ] Página de resposta carrega em < 2 segundos
-  - [ ] PDF gerado em < 10 segundos
-- [ ] **Uso de memória**
-  - [ ] App consome < 500 MB RAM
-  - [ ] Sem memory leaks (testes longos)
+**Sistema pronto para produção:** ☐ Sim / ☐ Não  
+**Data de aprovação:** _______________  
+**Aprovado por:** _______________
 
 ---
 
-## 📞 Suporte Preparado
-
-- [ ] **Documentação impressa** (opcional)
-  - [ ] TUTORIAL.md impresso
-  - [ ] FAQ anexado
-- [ ] **Contatos de Suporte**
-  - [ ] Email informado
-  - [ ] Telefone disponível
-  - [ ] Horário de atendimento claro
-- [ ] **Treinamento Realizado**
-  - [ ] Admin consegue usar
-  - [ ] RH consegue distribuir links
-  - [ ] Dúvidas esclarecidas
-
----
-
-## ✅ Assinatura Final
-
-```
-Data de Conclusão:        ___/___/_____
-
-Responsável Técnico:      _____________________
-Assinatura:               _____________________
-
-Responsável RH:           _____________________
-Assinatura:               _____________________
-
-Diretor/Gerente:          _____________________
-Assinatura:               _____________________
-```
-
----
-
-## 📋 Observações Finais
-
-```
-_________________________________________________________________
-
-_________________________________________________________________
-
-_________________________________________________________________
-
-_________________________________________________________________
-```
-
----
-
-## 🎉 Status Geral
-
-- [ ] ✅ **APROVADO PARA PRODUÇÃO**
-- [ ] ⚠️ **APROVADO COM RESSALVAS** (listar abaixo)
-- [ ] ❌ **REPROVADO** (retest necessário)
-
-**Ressalvas (se aplicável):**
-```
-_________________________________________________________________
-
-_________________________________________________________________
-```
-
----
-
-**Checklist de Lançamento — SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) v6.0**  
-**Última atualização: 30/04/2026**
+**Última atualização:** 05/05/2026  
+**Versão:** 6.1
