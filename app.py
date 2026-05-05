@@ -1202,34 +1202,34 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 except Exception as e:
                     st.error(f"❌ Erro ao carregar: {str(e)}")
 
-        # ── VISUALIZADOR DE PDF EMBUTIDO (POP020 e futuros PDFs) ────────────
-        elif hasattr(st.session_state, 'doc_view') and st.session_state.doc_view == "pop020":
-            pdf_nome = "POP020_TUTORIAL_TELAS.pdf"
-            pdf_path = caminho_doc(pdf_nome)
+            # ── VISUALIZADOR DE PDF EMBUTIDO (POP020 e futuros PDFs) ────────
+            elif st.session_state.doc_view == "pop020":
+                pdf_nome = "POP020_TUTORIAL_TELAS.pdf"
+                pdf_path = caminho_doc(pdf_nome)
 
-            col_ler, col_fechar = st.columns([20, 1])
-            with col_ler:
-                st.subheader("📱 Visualizando: POP 020 — Tutorial Passo a Passo (Tela a Tela)")
-            with col_fechar:
-                if st.button("❌", key="btn_close_doc_pop020"):
-                    st.session_state.doc_view = None
-                    st.rerun()
+                col_ler, col_fechar = st.columns([20, 1])
+                with col_ler:
+                    st.subheader("📱 Visualizando: POP 020 — Tutorial Passo a Passo (Tela a Tela)")
+                with col_fechar:
+                    if st.button("❌", key="btn_close_doc_pop020"):
+                        st.session_state.doc_view = None
+                        st.rerun()
 
-            st.divider()
+                st.divider()
 
-            try:
-                with open(pdf_path, 'rb') as f:
-                    b64 = base64.b64encode(f.read()).decode('utf-8')
-                pdf_html = (
-                    f'<iframe src="data:application/pdf;base64,{b64}" '
-                    f'width="100%" height="820px" '
-                    f'style="border:1px solid #E0E0E0; border-radius:6px;"></iframe>'
-                )
-                st.components.v1.html(pdf_html, height=840, scrolling=False)
-            except FileNotFoundError:
-                st.error(f"❌ Arquivo não encontrado: {pdf_nome}")
-            except Exception as e:
-                st.error(f"❌ Erro ao carregar o PDF: {str(e)}")
+                try:
+                    with open(pdf_path, 'rb') as f:
+                        b64 = base64.b64encode(f.read()).decode('utf-8')
+                    pdf_html = (
+                        f'<iframe src="data:application/pdf;base64,{b64}" '
+                        f'width="100%" height="820px" '
+                        f'style="border:1px solid #E0E0E0; border-radius:6px;"></iframe>'
+                    )
+                    st.components.v1.html(pdf_html, height=840, scrolling=False)
+                except FileNotFoundError:
+                    st.error(f"❌ Arquivo não encontrado: {pdf_nome}")
+                except Exception as e:
+                    st.error(f"❌ Erro ao carregar o PDF: {str(e)}")
 
 # =============================================================================
 # MÓDULO GESTÃO DAS RESPOSTAS (RH)
