@@ -1477,67 +1477,126 @@ else:
                 else:
                     st.error("Nenhuma empresa cadastrada no sistema. Contate a equipe SSTG.")
 
-    # ── QUESTIONÁRIO ──────────────────────────────────────────────────────────
+    # ── QUESTIONÁRIO (wizard: uma dimensão por vez) ───────────────────────────
     elif st.session_state.passo == "quest":
-        dados_s   = st.session_state.dados_sessao
-        empresa   = dados_s['Empresa']
-        funcao    = dados_s.get('Função', '')
-        depto     = dados_s.get('Departamento', '')
-        caption   = f"Organização: {empresa}"
-        if funcao:  caption += f"  |  Função: {funcao}"
-        if depto:   caption += f"  |  Departamento: {depto}"
+        dados_s  = st.session_state.dados_sessao
+        empresa  = dados_s['Empresa']
+        funcao   = dados_s.get('Função', '')
+        depto    = dados_s.get('Departamento', '')
+        cpf_resp = dados_s['CPF']
+        caption  = f"Organização: {empresa}"
+        if funcao: caption += f"  |  Função: {funcao}"
+        if depto:  caption += f"  |  Departamento: {depto}"
 
+        # Índice da dimensão atual (persistido entre reruns)
+        if 'dominio_atual' not in st.session_state:
+            st.session_state.dominio_atual = 0
+
+        nomes_dim  = list(DIMENSOES.keys())
+        total_dim  = len(nomes_dim)
+        idx        = st.session_state.dominio_atual
+        nome_atual = nomes_dim[idx]
+        qus_atual  = DIMENSOES[nome_atual]
+
+        # ── Cabeçalho ─────────────────────────────────────────────────────────
         st.title("📋 Avaliação Psicossocial")
         st.caption(caption)
-        st.info("Navegue pelas abas abaixo e responda todas as perguntas de cada bloco antes de enviar.")
 
-        respostas  = {}
-        nomes_dim  = list(DIMENSOES.keys())
-        tabs       = st.tabs(nomes_dim)
+        # Barra de progresso por blocos
+        st.progress((idx) / total_dim,
+                    text=f"Bloco {idx + 1} de {total_dim} — {nome_atual}")
+        st.divider()
 
-        for i, (nome, qus) in enumerate(DIMENSOES.items()):
-            with tabs[i]:
-                st.markdown(f"### {nome}")
-                st.caption(f"{len(qus)} perguntas neste bloco")
-                st.divider()
-                for key, txt in qus.items():
-                    respostas[key] = st.radio(f"**{txt}**", OPCOES, horizontal=True, key=key, index=None)
+        # ── Perguntas do bloco atual ───────────────────────────────────────────
+        st.markdown(f"### {nome_atual}")
+        st.caption(f"{len(qus_atual)} perguntas neste bloco")
+        st.divider()
 
-                if i == len(DIMENSOES) - 1:
-                    st.divider()
-                    nao_resp   = [k for k, v in respostas.items() if v is None]
-                    respondidas = len(respostas) - len(nao_resp)
-                    st.progress(respondidas / len(respostas), text=f"{respondidas} de {len(respostas)} perguntas respondidas")
+        for key, txt in qus_atual.items():
+            chave_unica = f"{cpf_resp}_{key}"
+            st.radio(f"**{txt}**", OPCOES, horizontal=True,
+                     key=chave_unica, index=None)
 
-                    if nao_resp:
-                        st.warning(f"Você ainda tem {len(nao_resp)} pergunta(s) sem resposta. Revise todos os blocos.")
+        # ── Rodapé de navegação ───────────────────────────────────────────────
+        st.divider()
 
-                    if st.button("✅ FINALIZAR E ENVIAR AVALIAÇÃO", use_container_width=True, type="primary"):
-                        if nao_resp:
-                            st.error("Responda todas as perguntas antes de enviar.")
-                        else:
-                            dados_salvar = {
-                                "Data":         datetime.now().strftime("%d/%m/%Y %H:%M"),
-                                "Função":       funcao,
-                                "Departamento": depto,
-                                "CPF_Hash":     hash_cpf(dados_s['CPF'])
-                            }
-                            for nome_dim, qus_dim in DIMENSOES.items():
-                                nome_col = "Media_" + nome_dim.split(" ", 1)[1].replace("/", "_").replace(" ", "_")
-                                valores  = [DEPARA[respostas[k]] for k in qus_dim.keys()]
-                                dados_salvar[nome_col] = round(sum(valores) / len(valores), 2)
+        # Verifica respostas do bloco atual
+        nao_resp_bloco = [k for k in qus_atual.keys()
+                          if st.session_state.get(f"{cpf_resp}_{k}") is None]
 
-                            dados_salvar["Media_Geral"] = round(
-                                sum(DEPARA[v] for v in respostas.values()) / len(respostas), 2
-                            )
+        # Progresso geral (todas as dimensões)
+        total_qst   = sum(len(v) for v in DIMENSOES.values())
+        resp_geral  = sum(
+            1 for nd, qd in DIMENSOES.items()
+            for k in qd.keys()
+            if st.session_state.get(f"{cpf_resp}_{k}") is not None
+        )
+        st.progress(resp_geral / total_qst,
+                    text=f"Progresso geral: {resp_geral} de {total_qst} perguntas respondidas")
 
-                            nome_res = caminho(f"respostas_CNPJ_{dados_s['CNPJ']}.csv")
-                            pd.DataFrame([dados_salvar]).to_csv(
-                                nome_res, mode='a', index=False, sep=';',
-                                header=not os.path.exists(nome_res), encoding='utf-8-sig'
-                            )
-                            st.session_state.passo = "fim"
-                            st.rerun()
+        col_ant, col_prox = st.columns(2)
+
+        with col_ant:
+            if idx > 0:
+                if st.button("◀ Demanda Anterior", use_container_width=True):
+                    st.session_state.dominio_atual -= 1
+                    st.rerun()
+
+        with col_prox:
+            if idx < total_dim - 1:
+                # Não é o último bloco
+                if nao_resp_bloco:
+                    st.warning(
+                        f"⚠️ Responda as {len(nao_resp_bloco)} pergunta(s) acima para avançar.")
+                else:
+                    if st.button("Próxima Demanda ▶", use_container_width=True,
+                                 type="primary"):
+                        st.session_state.dominio_atual += 1
+                        st.rerun()
+            else:
+                # Último bloco — botão de envio
+                nao_resp_total = [
+                    k for nd, qd in DIMENSOES.items()
+                    for k in qd.keys()
+                    if st.session_state.get(f"{cpf_resp}_{k}") is None
+                ]
+                if nao_resp_total:
+                    st.warning(
+                        f"⚠️ Ainda há {len(nao_resp_total)} pergunta(s) sem resposta. "
+                        "Use o botão ◀ para revisar os blocos anteriores.")
+                if st.button("✅ FINALIZAR E ENVIAR AVALIAÇÃO",
+                             use_container_width=True, type="primary",
+                             disabled=bool(nao_resp_total)):
+                    # Monta dicionário de respostas a partir do session_state
+                    respostas = {
+                        k: st.session_state.get(f"{cpf_resp}_{k}")
+                        for nd, qd in DIMENSOES.items()
+                        for k in qd.keys()
+                    }
+                    dados_salvar = {
+                        "Data":         datetime.now().strftime("%d/%m/%Y %H:%M"),
+                        "Função":       funcao,
+                        "Departamento": depto,
+                        "CPF_Hash":     hash_cpf(cpf_resp)
+                    }
+                    for nome_dim, qus_dim in DIMENSOES.items():
+                        nome_col = ("Media_" + nome_dim.split(" ", 1)[1]
+                                    .replace("/", "_").replace(" ", "_"))
+                        valores  = [DEPARA[respostas[k]] for k in qus_dim.keys()]
+                        dados_salvar[nome_col] = round(sum(valores) / len(valores), 2)
+
+                    dados_salvar["Media_Geral"] = round(
+                        sum(DEPARA[v] for v in respostas.values()) / len(respostas), 2
+                    )
+                    nome_res = caminho(f"respostas_CNPJ_{dados_s['CNPJ']}.csv")
+                    pd.DataFrame([dados_salvar]).to_csv(
+                        nome_res, mode='a', index=False, sep=';',
+                        header=not os.path.exists(nome_res), encoding='utf-8-sig'
+                    )
+                    # Limpa estado do wizard antes de ir para tela final
+                    st.session_state.dominio_atual = 0
+                    st.session_state.passo = "fim"
+                    st.rerun()
 
     # ── TELA FINAL ────────────────────────────────────────────────────────────
     elif st.session_state.passo == "fim":
