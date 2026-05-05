@@ -1488,9 +1488,11 @@ else:
         if funcao: caption += f"  |  Função: {funcao}"
         if depto:  caption += f"  |  Departamento: {depto}"
 
-        # Índice da dimensão atual (persistido entre reruns)
+        # Índice da dimensão atual e cache persistente de respostas
         if 'dominio_atual' not in st.session_state:
             st.session_state.dominio_atual = 0
+        if 'respostas_salvas' not in st.session_state:
+            st.session_state.respostas_salvas = {}
 
         nomes_dim  = list(DIMENSOES.keys())
         total_dim  = len(nomes_dim)
@@ -1498,12 +1500,25 @@ else:
         nome_atual = nomes_dim[idx]
         qus_atual  = DIMENSOES[nome_atual]
 
+        # ── Funções auxiliares de leitura/escrita de respostas ────────────────
+        def salvar_bloco_atual():
+            """Persiste as respostas do bloco visível antes de mudar de domínio."""
+            for k in qus_atual.keys():
+                chave = f"{cpf_resp}_{k}"
+                if chave in st.session_state:
+                    st.session_state.respostas_salvas[chave] = st.session_state[chave]
+
+        def get_resp(chave):
+            """Retorna resposta: primeiro do widget ativo, depois do cache."""
+            val = st.session_state.get(chave)
+            if val is not None:
+                return val
+            return st.session_state.respostas_salvas.get(chave)
+
         # ── Cabeçalho ─────────────────────────────────────────────────────────
         st.title("📋 Avaliação Psicossocial")
         st.caption(caption)
-
-        # Barra de progresso por blocos
-        st.progress((idx) / total_dim,
+        st.progress(idx / total_dim,
                     text=f"Bloco {idx + 1} de {total_dim} — {nome_atual}")
         st.divider()
 
@@ -1513,23 +1528,25 @@ else:
         st.divider()
 
         for key, txt in qus_atual.items():
-            chave_unica = f"{cpf_resp}_{key}"
+            chave = f"{cpf_resp}_{key}"
+            # Restaura seleção anterior se o respondente voltar ao bloco
+            val_salvo = st.session_state.respostas_salvas.get(chave)
+            idx_inicial = OPCOES.index(val_salvo) if val_salvo in OPCOES else None
             st.radio(f"**{txt}**", OPCOES, horizontal=True,
-                     key=chave_unica, index=None)
+                     key=chave, index=idx_inicial)
 
         # ── Rodapé de navegação ───────────────────────────────────────────────
         st.divider()
 
-        # Verifica respostas do bloco atual
+        # Contagem usando get_resp (inclui cache de blocos não visíveis)
         nao_resp_bloco = [k for k in qus_atual.keys()
-                          if st.session_state.get(f"{cpf_resp}_{k}") is None]
+                          if get_resp(f"{cpf_resp}_{k}") is None]
 
-        # Progresso geral (todas as dimensões)
-        total_qst   = sum(len(v) for v in DIMENSOES.values())
-        resp_geral  = sum(
+        total_qst  = sum(len(v) for v in DIMENSOES.values())
+        resp_geral = sum(
             1 for nd, qd in DIMENSOES.items()
             for k in qd.keys()
-            if st.session_state.get(f"{cpf_resp}_{k}") is not None
+            if get_resp(f"{cpf_resp}_{k}") is not None
         )
         st.progress(resp_geral / total_qst,
                     text=f"Progresso geral: {resp_geral} de {total_qst} perguntas respondidas")
@@ -1539,37 +1556,39 @@ else:
         with col_ant:
             if idx > 0:
                 if st.button("◀ Demanda Anterior", use_container_width=True):
+                    salvar_bloco_atual()
                     st.session_state.dominio_atual -= 1
                     st.rerun()
 
         with col_prox:
             if idx < total_dim - 1:
-                # Não é o último bloco
                 if nao_resp_bloco:
                     st.warning(
                         f"⚠️ Responda as {len(nao_resp_bloco)} pergunta(s) acima para avançar.")
                 else:
                     if st.button("Próxima Demanda ▶", use_container_width=True,
                                  type="primary"):
+                        salvar_bloco_atual()
                         st.session_state.dominio_atual += 1
                         st.rerun()
             else:
-                # Último bloco — botão de envio
+                # Último bloco — verifica pendências em todos os blocos
                 nao_resp_total = [
                     k for nd, qd in DIMENSOES.items()
                     for k in qd.keys()
-                    if st.session_state.get(f"{cpf_resp}_{k}") is None
+                    if get_resp(f"{cpf_resp}_{k}") is None
                 ]
                 if nao_resp_total:
                     st.warning(
                         f"⚠️ Ainda há {len(nao_resp_total)} pergunta(s) sem resposta. "
-                        "Use o botão ◀ para revisar os blocos anteriores.")
+                        "Use ◀ para revisar os blocos anteriores.")
                 if st.button("✅ FINALIZAR E ENVIAR AVALIAÇÃO",
                              use_container_width=True, type="primary",
                              disabled=bool(nao_resp_total)):
-                    # Monta dicionário de respostas a partir do session_state
+                    salvar_bloco_atual()
+                    # Monta dicionário final lendo do cache persistente
                     respostas = {
-                        k: st.session_state.get(f"{cpf_resp}_{k}")
+                        k: get_resp(f"{cpf_resp}_{k}")
                         for nd, qd in DIMENSOES.items()
                         for k in qd.keys()
                     }
@@ -1593,8 +1612,9 @@ else:
                         nome_res, mode='a', index=False, sep=';',
                         header=not os.path.exists(nome_res), encoding='utf-8-sig'
                     )
-                    # Limpa estado do wizard antes de ir para tela final
+                    # Limpa estado do wizard
                     st.session_state.dominio_atual = 0
+                    st.session_state.respostas_salvas = {}
                     st.session_state.passo = "fim"
                     st.rerun()
 
