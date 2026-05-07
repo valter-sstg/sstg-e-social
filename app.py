@@ -539,8 +539,37 @@ if menu == "🔐 Admin SSTG (Gestão)":
             # ── ABA ENTRAR ────────────────────────────────────────────────────
             with tab_login:
                 st.markdown("##### Identificação")
-                usuario_in = st.text_input("Usuário:", placeholder="admin", key="login_usuario")
-                senha_in   = st.text_input("Senha:", type="password", key="login_senha")
+
+                # ── Seletor de usuários operacionais ──────────────────────────
+                _df_ops = carregar_usuarios()
+                _ops_ativos = (
+                    _df_ops[_df_ops['Status'] == 'Ativo']
+                    if not _df_ops.empty else pd.DataFrame()
+                )
+                _MANUAL = "✏️  Administrador / digitar manualmente"
+                _opcoes = [_MANUAL]
+                _mapa   = {}   # label → login
+                if not _ops_ativos.empty:
+                    for _, _row in _ops_ativos.iterrows():
+                        _label = f"👤  {_row['Nome']}  ({_row['Usuario']})"
+                        _opcoes.append(_label)
+                        _mapa[_label] = _row['Usuario']
+
+                _sel = st.selectbox(
+                    "Selecione o usuário:",
+                    _opcoes,
+                    key="login_sel_usuario"
+                )
+
+                if _sel == _MANUAL:
+                    usuario_in = st.text_input(
+                        "Usuário:", placeholder="admin", key="login_usuario_manual"
+                    )
+                else:
+                    usuario_in = _mapa[_sel]
+                    st.caption(f"Login selecionado: **{usuario_in}**")
+
+                senha_in = st.text_input("Senha:", type="password", key="login_senha")
                 if st.button("Entrar", use_container_width=True, type="primary", key="btn_entrar"):
                     u = usuario_in.strip().lower()
                     if u == "admin" and hash_senha(senha_in) == get_senha_admin_hash():
