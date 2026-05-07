@@ -42,17 +42,30 @@ def gerar_imagem_compartilhamento(empresa_nome: str, cnpj: str, app_url: str) ->
         fill=cor_navy
     )
 
-    # Tentar carregar fontes (fallback para default se não encontrar)
-    try:
-        fonte_titulo = ImageFont.truetype("arial.ttf", 48)
-        fonte_subtitulo = ImageFont.truetype("arial.ttf", 32)
-        fonte_normal = ImageFont.truetype("arial.ttf", 24)
-        fonte_pequena = ImageFont.truetype("arial.ttf", 20)
-    except:
-        fonte_titulo = ImageFont.load_default()
-        fonte_subtitulo = ImageFont.load_default()
-        fonte_normal = ImageFont.load_default()
-        fonte_pequena = ImageFont.load_default()
+    # Tentar carregar fontes com múltiplos caminhos
+    def _fonte(tamanho):
+        candidatos = [
+            "C:/Windows/Fonts/arial.ttf",
+            "C:/Windows/Fonts/Arial.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/Library/Fonts/Arial.ttf",
+            "arial.ttf",
+        ]
+        for c in candidatos:
+            try:
+                return ImageFont.truetype(c, tamanho)
+            except Exception:
+                continue
+        try:
+            return ImageFont.load_default(size=tamanho)
+        except TypeError:
+            return ImageFont.load_default()
+
+    fonte_titulo    = _fonte(48)
+    fonte_subtitulo = _fonte(32)
+    fonte_normal    = _fonte(24)
+    fonte_pequena   = _fonte(20)
 
     # Título: "SSTG E-SOCIAL"
     titulo = "SSTG E-SOCIAL"
@@ -154,9 +167,34 @@ def gerar_imagem_compartilhamento_simples(empresa_nome: str, cnpj: str, app_url:
 
     # ── Fontes ────────────────────────────────────────────────────────────────
     def fonte(tamanho):
+        # Lista de caminhos a tentar, do mais específico ao mais genérico
+        candidatos = [
+            # Windows — caminhos absolutos
+            "C:/Windows/Fonts/arial.ttf",
+            "C:/Windows/Fonts/Arial.ttf",
+            "C:/Windows/Fonts/arialbd.ttf",
+            # Linux (Streamlit Cloud / Ubuntu)
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+            "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+            # macOS
+            "/Library/Fonts/Arial.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
+            # Relativo (funciona às vezes se o CWD contiver a fonte)
+            "arial.ttf",
+        ]
+        for caminho_fonte in candidatos:
+            try:
+                return ImageFont.truetype(caminho_fonte, tamanho)
+            except Exception:
+                continue
+        # Último recurso: fonte bitmap do Pillow (tamanho fixo ~10px)
+        # Usamos FreeType embutido se disponível
         try:
-            return ImageFont.truetype("arial.ttf", tamanho)
-        except:
+            import importlib.resources
+            return ImageFont.load_default(size=tamanho)
+        except TypeError:
             return ImageFont.load_default()
 
     fonte_pequena  = fonte(18)
