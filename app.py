@@ -638,7 +638,10 @@ if menu == "🔐 Admin SSTG (Gestão)":
                             st.error("A nova senha deve ter no mínimo 6 caracteres.")
                         else:
                             ok, msg = redefinir_senha_operacional(login_op.strip().lower(), nova_senha_op)
-                            st.success(msg) if ok else st.error(msg)
+                            if ok:
+                                st.success(msg)
+                            else:
+                                st.error(msg)
         st.stop()
 
     st.title("🏢 Gestão de Empresas e Acessos")
@@ -1035,7 +1038,10 @@ if menu == "🔐 Admin SSTG (Gestão)":
                             novo_ini.strftime("%d/%m/%Y"),
                             novo_fim.strftime("%d/%m/%Y")
                         )
-                        st.success(msg) if ok else st.error(msg)
+                        if ok:
+                            st.success(msg)
+                        else:
+                            st.error(msg)
 
             if st.session_state.get('admin_perfil') == 'admin':
                 with st.expander("⚠️ Zona de Perigo — use com cuidado"):
@@ -1421,7 +1427,10 @@ if menu == "🔐 Admin SSTG (Gestão)":
                         st.error("CPF inválido.")
                     else:
                         ok, msg = atualizar_status_cpf(cpf_d, "Inativo", motivo_desl)
-                        st.success(msg) if ok else st.error(msg)
+                        if ok:
+                            st.success(msg)
+                        else:
+                            st.error(msg)
 
             # ── REATIVAÇÃO ───────────────────────────────────────────────────
             with m3:
@@ -1638,7 +1647,10 @@ if menu == "🔐 Admin SSTG (Gestão)":
                         st.error("O login 'admin' é reservado.")
                     else:
                         ok, msg = criar_usuario_operacional(novo_login.strip().lower(), novo_nome, nova_senha)
-                        st.success(msg) if ok else st.error(msg)
+                        if ok:
+                            st.success(msg)
+                        else:
+                            st.error(msg)
 
             st.divider()
 
@@ -1669,13 +1681,19 @@ if menu == "🔐 Admin SSTG (Gestão)":
                         if st.button("✅ Ativar", use_container_width=True,
                                      disabled=(status_atual == 'Ativo'), key="btn_ativar_usr"):
                             ok, msg = reativar_usuario_operacional(usr_sel)
-                            st.success(msg) if ok else st.error(msg)
+                            if ok:
+                                st.success(msg)
+                            else:
+                                st.error(msg)
                             st.rerun()
                     with col_des:
                         if st.button("🚫 Desativar", use_container_width=True,
                                      disabled=(status_atual == 'Inativo'), key="btn_desativar_usr"):
                             ok, msg = desativar_usuario_operacional(usr_sel)
-                            st.success(msg) if ok else st.error(msg)
+                            if ok:
+                                st.success(msg)
+                            else:
+                                st.error(msg)
                             st.rerun()
 
                 st.divider()
@@ -1698,7 +1716,10 @@ if menu == "🔐 Admin SSTG (Gestão)":
                             st.error("Mínimo de 6 caracteres.")
                         else:
                             ok, msg = redefinir_senha_operacional(usr_reset, nova_p)
-                            st.success(msg) if ok else st.error(msg)
+                            if ok:
+                                st.success(msg)
+                            else:
+                                st.error(msg)
 
             st.divider()
             st.subheader("🔐 Alterar Senha do Administrador")
