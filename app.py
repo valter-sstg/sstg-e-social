@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import pandas as pd
 import os
 import glob
@@ -104,8 +104,8 @@ def gerar_imagem_compartilhamento_simples(empresa_nome: str, cnpj: str, app_url:
 
     # Header
     draw.rectangle([(0, 0), (LARGURA, H_HEADER)], fill=COR_NAVY)
-    draw.text((MARGEM, 16),  "SSTG - DRPS  Diagnóstico de Riscos Psicossociais (NR-1)", fill=CZ_CLARO, font=f_hdr_sm)
-    draw.text((MARGEM, 50),  "SSTG - DRPS  Diagnóstico de Riscos Psicossociais",        fill=BRANCO,   font=f_hdr_lg)
+    draw.text((MARGEM, 16),  "SSTG - DRPS  Diagn" + chr(243) + "stico de Riscos Psicossociais (NR-1)", fill=CZ_CLARO, font=f_hdr_sm)
+    draw.text((MARGEM, 50),  "SSTG - DRPS  Diagn" + chr(243) + "stico de Riscos Psicossociais",        fill=BRANCO,   font=f_hdr_lg)
 
     # Empresa
     draw.text((MARGEM, y_label), "Empresa:", fill=CZ_MED, font=f_label)
@@ -1750,3 +1750,5 @@ else:
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
+
+
