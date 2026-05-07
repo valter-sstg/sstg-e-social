@@ -1,216 +1,105 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Gerador de Imagens para Compartilhamento - SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1)"""
+"""Gerador de Imagens para Compartilhamento - SSTG - DRPS v6.2"""
 
 import io
+import os
+import sys
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
-from pathlib import Path
 
-def gerar_imagem_compartilhamento(empresa_nome: str, cnpj: str, app_url: str) -> io.BytesIO:
+# ─────────────────────────────────────────────────────────────────────────────
+# Localiza uma fonte TrueType disponível no sistema — roda UMA VEZ na importação
+# ─────────────────────────────────────────────────────────────────────────────
+def _encontrar_fonte_ttf() -> str | None:
     """
-    Gera imagem de compartilhamento com QR Code e informações da empresa
-
-    Args:
-        empresa_nome: Nome da empresa
-        cnpj: CNPJ da empresa
-        app_url: URL base da aplicação
-
-    Returns:
-        BytesIO: Imagem em formato PNG
+    Retorna o primeiro caminho de fonte TTF encontrado no sistema.
+    Prioriza Arial (Windows) → DejaVu / Liberation (Linux) → Helvetica (macOS).
+    Retorna None se nenhuma for encontrada (Pillow usará bitmap default).
     """
+    windir = os.environ.get("WINDIR", "C:\\Windows")
+    candidatos = [
+        # Windows
+        os.path.join(windir, "Fonts", "arial.ttf"),
+        os.path.join(windir, "Fonts", "Arial.ttf"),
+        os.path.join(windir, "Fonts", "calibri.ttf"),
+        os.path.join(windir, "Fonts", "tahoma.ttf"),
+        os.path.join(windir, "Fonts", "verdana.ttf"),
+        # Windows — pasta de fontes do usuário (Windows 10+)
+        os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "Windows", "Fonts", "arial.ttf"),
+        # Linux / Streamlit Cloud
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        # macOS
+        "/Library/Fonts/Arial.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/System/Library/Fonts/SFNSText.ttf",
+    ]
+    for caminho in candidatos:
+        if caminho and os.path.isfile(caminho):
+            return caminho
+    return None
 
-    # Dimensões
-    largura, altura = 1200, 800
-    padding = 50
 
-    # Cores SSTG
-    cor_navy = (40, 44, 91)          # #282C5B
-    cor_verde = (90, 159, 98)        # #5A9F62
-    cor_laranja = (220, 59, 36)      # #DC3B24
-    cor_fundo = (239, 239, 239)      # #EFEFEF
-    branco = (255, 255, 255)
-    cinza_escuro = (100, 100, 100)
+_FONTE_TTF = _encontrar_fonte_ttf()  # resolvido uma vez na importação
 
-    # Criar imagem
-    img = Image.new('RGB', (largura, altura), cor_fundo)
-    draw = ImageDraw.Draw(img)
 
-    # Desenhar retângulo de cabeçalho com gradiente (simulado com retângulo)
-    draw.rectangle(
-        [(0, 0), (largura, 200)],
-        fill=cor_navy
-    )
-
-    # Tentar carregar fontes com múltiplos caminhos
-    def _fonte(tamanho):
-        candidatos = [
-            "C:/Windows/Fonts/arial.ttf",
-            "C:/Windows/Fonts/Arial.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-            "/Library/Fonts/Arial.ttf",
-            "arial.ttf",
-        ]
-        for c in candidatos:
-            try:
-                return ImageFont.truetype(c, tamanho)
-            except Exception:
-                continue
+def _fonte(tamanho: int) -> ImageFont.ImageFont:
+    """Carrega fonte TTF no tamanho pedido. Fallback: bitmap do Pillow."""
+    if _FONTE_TTF:
         try:
-            return ImageFont.load_default(size=tamanho)
-        except TypeError:
-            return ImageFont.load_default()
-
-    fonte_titulo    = _fonte(48)
-    fonte_subtitulo = _fonte(32)
-    fonte_normal    = _fonte(24)
-    fonte_pequena   = _fonte(20)
-
-    # Título: "SSTG E-SOCIAL"
-    titulo = "SSTG E-SOCIAL"
-    bbox = draw.textbbox((0, 0), titulo, font=fonte_titulo)
-    titulo_largura = bbox[2] - bbox[0]
-    x_titulo = (largura - titulo_largura) // 2
-    draw.text((x_titulo, 40), titulo, fill=branco, font=fonte_titulo)
-
-    # Subtítulo: "Avaliação de Riscos Psicossociais"
-    subtitulo = "Avaliação de Riscos Psicossociais"
-    bbox = draw.textbbox((0, 0), subtitulo, font=fonte_subtitulo)
-    sub_largura = bbox[2] - bbox[0]
-    x_sub = (largura - sub_largura) // 2
-    draw.text((x_sub, 100), subtitulo, fill=cor_verde, font=fonte_subtitulo)
-
-    # Seção de conteúdo
-    y_conteudo = 250
-
-    # Nome da empresa
-    texto_empresa = f"Empresa: {empresa_nome}"
-    draw.text((padding, y_conteudo), texto_empresa, fill=cor_navy, font=fonte_normal)
-
-    y_conteudo += 70
-
-    # Informações
-    info_text = "⏱️ ~10 minutos   🔒 100% Confidencial   ✓ Validado"
-    draw.text((padding, y_conteudo), info_text, fill=cinza_escuro, font=fonte_pequena)
-
-    y_conteudo += 80
-
-    # Gerar QR Code
-    link = f"{app_url}/?cnpj={cnpj}"
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=10,
-        border=2,
-    )
-    qr.add_data(link)
-    qr.make(fit=True)
-
-    qr_img = qr.make_image(fill_color=cor_navy, back_color=branco)
-    qr_tamanho = 200
-    qr_img = qr_img.resize((qr_tamanho, qr_tamanho), Image.Resampling.LANCZOS)
-
-    # Posicionar QR Code à esquerda
-    x_qr = padding + 50
-    img.paste(qr_img, (x_qr, y_conteudo))
-
-    # Link ao lado do QR Code
-    x_link = x_qr + qr_tamanho + 60
-    y_link = y_conteudo + 30
-
-    draw.text((x_link, y_link), "Escaneie o código QR", fill=cor_navy, font=fonte_normal)
-    y_link += 50
-    draw.text((x_link, y_link), "ou acesse:", fill=cinza_escuro, font=fonte_pequena)
-
-    # Link em formato reduzido (com cor destaque)
-    y_link += 50
-    link_display = link.replace('https://', '').replace('http://', '')
-    if len(link_display) > 40:
-        link_display = link_display[:37] + "..."
-    draw.text((x_link, y_link), link_display, fill=cor_laranja, font=fonte_pequena)
-
-    # Rodapé com call to action
-    y_rodape = altura - 80
-    draw.rectangle([(0, y_rodape), (largura, altura)], fill=cor_navy)
-
-    cta = "Clique no QR Code ou acesse o link para participar da pesquisa"
-    bbox = draw.textbbox((0, 0), cta, font=fonte_normal)
-    cta_largura = bbox[2] - bbox[0]
-    x_cta = (largura - cta_largura) // 2
-    draw.text((x_cta, y_rodape + 15), cta, fill=branco, font=fonte_normal)
-
-    # Converter para BytesIO
-    img_io = io.BytesIO()
-    img.save(img_io, format='PNG')
-    img_io.seek(0)
-
-    return img_io
+            return ImageFont.truetype(_FONTE_TTF, tamanho)
+        except Exception:
+            pass
+    # Pillow 10+ suporta size= em load_default
+    try:
+        return ImageFont.load_default(size=tamanho)
+    except TypeError:
+        return ImageFont.load_default()
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Função principal
+# ─────────────────────────────────────────────────────────────────────────────
 def gerar_imagem_compartilhamento_simples(empresa_nome: str, cnpj: str, app_url: str) -> io.BytesIO:
     """
-    Versão simplificada otimizada para Streamlit Cloud
-    Gera imagem de compartilhamento com QR Code
+    Gera imagem PNG de compartilhamento com QR Code.
+    Layout: header navy · nome empresa grande · QR Code centralizado grande · rodapé.
     """
 
-    # Dimensões base — altura calculada dinamicamente abaixo
-    largura = 1280
-    margem  = 40
+    # ── Constantes de layout ──────────────────────────────────────────────────
+    LARGURA       = 1280
+    MARGEM        = 50
+    QR_TAMANHO    = 600          # 600 × 600 px  (~200 % do original de 200 px)
+    ALTURA_HEADER = 120
+    ALT_LINHA_EMP = 100          # altura de linha para fonte 80px
+    ALT_RODAPE    = 60
 
-    # Cores SSTG
-    cor_navy   = (40, 44, 91)
-    cor_verde  = (90, 159, 98)
-    branco     = (255, 255, 255)
-    cinza_claro = (180, 180, 180)
-    cinza_medio = (150, 150, 150)
+    # ── Cores SSTG ────────────────────────────────────────────────────────────
+    COR_NAVY    = (40, 44, 91)
+    COR_VERDE   = (90, 159, 98)
+    BRANCO      = (255, 255, 255)
+    CINZA_CLARO = (190, 190, 190)
+    CINZA_MED   = (130, 130, 130)
 
     # ── Fontes ────────────────────────────────────────────────────────────────
-    def fonte(tamanho):
-        # Lista de caminhos a tentar, do mais específico ao mais genérico
-        candidatos = [
-            # Windows — caminhos absolutos
-            "C:/Windows/Fonts/arial.ttf",
-            "C:/Windows/Fonts/Arial.ttf",
-            "C:/Windows/Fonts/arialbd.ttf",
-            # Linux (Streamlit Cloud / Ubuntu)
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-            "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-            "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
-            # macOS
-            "/Library/Fonts/Arial.ttf",
-            "/System/Library/Fonts/Helvetica.ttc",
-            # Relativo (funciona às vezes se o CWD contiver a fonte)
-            "arial.ttf",
-        ]
-        for caminho_fonte in candidatos:
-            try:
-                return ImageFont.truetype(caminho_fonte, tamanho)
-            except Exception:
-                continue
-        # Último recurso: fonte bitmap do Pillow (tamanho fixo ~10px)
-        # Usamos FreeType embutido se disponível
-        try:
-            import importlib.resources
-            return ImageFont.load_default(size=tamanho)
-        except TypeError:
-            return ImageFont.load_default()
+    f_header_sm  = _fonte(20)   # texto pequeno no header
+    f_header_lg  = _fonte(46)   # título do header
+    f_label      = _fonte(28)   # "Empresa:"
+    f_empresa    = _fonte(80)   # nome da empresa — grande
+    f_rodape     = _fonte(20)   # texto do rodapé
 
-    fonte_pequena  = fonte(18)
-    fonte_titulo   = fonte(48)   # header — reduzido para caber na largura
-    fonte_subtitulo = fonte(18)
-    fonte_label    = fonte(20)
-    fonte_empresa  = fonte(72)   # nome da empresa — conforme solicitado
-    fonte_rodape   = fonte(18)
-
-    # ── Helper: quebra texto em linhas que cabem na largura máxima ────────────
-    def quebrar_linhas(draw, texto, fonte, largura_max):
+    # ── Helper: quebra texto em linhas que cabem na largura ───────────────────
+    def quebrar_linhas(draw_ref, texto, fonte_ref, largura_max):
         palavras = texto.split()
         linhas, atual = [], ""
         for p in palavras:
             candidato = (atual + " " + p).strip()
-            w = draw.textbbox((0, 0), candidato, font=fonte)[2]
+            w = draw_ref.textbbox((0, 0), candidato, font=fonte_ref)[2]
             if w <= largura_max:
                 atual = candidato
             else:
@@ -219,77 +108,76 @@ def gerar_imagem_compartilhamento_simples(empresa_nome: str, cnpj: str, app_url:
                 atual = p
         if atual:
             linhas.append(atual)
-        return linhas
+        return linhas if linhas else [texto]
 
-    # ── Pré-calcular linhas do nome da empresa para saber a altura necessária ─
-    # Usamos um canvas temporário apenas para medir
-    _tmp_img  = Image.new('RGB', (largura, 10))
-    _tmp_draw = ImageDraw.Draw(_tmp_img)
-    linhas_empresa = quebrar_linhas(_tmp_draw, empresa_nome,
-                                    fonte_empresa, largura - 2 * margem)
-    altura_linha_empresa = 88   # ~72pt + entrelinha
-    altura_bloco_empresa = len(linhas_empresa) * altura_linha_empresa
+    # ── Pré-calcular linhas para determinar altura total ──────────────────────
+    _tmp = Image.new("RGB", (LARGURA, 10))
+    _drw = ImageDraw.Draw(_tmp)
+    linhas_empresa   = quebrar_linhas(_drw, empresa_nome, f_empresa, LARGURA - 2 * MARGEM)
+    bloco_empresa_h  = len(linhas_empresa) * ALT_LINHA_EMP
 
-    # ── Layout vertical ───────────────────────────────────────────────────────
-    altura_header = 130
-    y_label       = altura_header + 25
-    y_empresa     = y_label + 30
-    y_qr          = y_empresa + altura_bloco_empresa + 30
-    qr_tamanho    = 500         # aumentado 150 % (200 → 500 px)
-    altura_rodape = 55
-    altura        = y_qr + qr_tamanho + 30 + altura_rodape
+    # Posições verticais
+    y_label   = ALTURA_HEADER + 30
+    y_empresa = y_label + 44           # abaixo do label "Empresa:"
+    y_qr      = y_empresa + bloco_empresa_h + 40
+    ALTURA    = y_qr + QR_TAMANHO + 30 + ALT_RODAPE
 
-    # ── Criar imagem com altura calculada ─────────────────────────────────────
-    img  = Image.new('RGB', (largura, altura), branco)
+    # ── Criar canvas ──────────────────────────────────────────────────────────
+    img  = Image.new("RGB", (LARGURA, ALTURA), BRANCO)
     draw = ImageDraw.Draw(img)
 
     # Header navy
-    draw.rectangle([(0, 0), (largura, altura_header)], fill=cor_navy)
-
-    # Texto pequeno topo
-    draw.text((margem, 14),
-              "SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1)",
-              fill=cinza_claro, font=fonte_subtitulo)
-
-    # Título principal no header
-    draw.text((margem, 55),
-              "SSTG - DRPS Diagnóstico de Riscos Psicossociais",
-              fill=branco, font=fonte_titulo)
+    draw.rectangle([(0, 0), (LARGURA, ALTURA_HEADER)], fill=COR_NAVY)
+    draw.text((MARGEM, 16),
+              "SSTG - DRPS  Diagnóstico de Riscos Psicossociais (NR-1)",
+              fill=CINZA_CLARO, font=f_header_sm)
+    draw.text((MARGEM, 50),
+              "SSTG - DRPS  Diagnóstico de Riscos Psicossociais",
+              fill=BRANCO, font=f_header_lg)
 
     # Label "Empresa:"
-    draw.text((margem, y_label), "Empresa:", fill=cinza_medio, font=fonte_label)
+    draw.text((MARGEM, y_label), "Empresa:", fill=CINZA_MED, font=f_label)
 
-    # Nome da empresa (multilinhas se necessário)
+    # Nome da empresa (multilinhas)
     y_cur = y_empresa
     for linha in linhas_empresa:
-        draw.text((margem, y_cur), linha, fill=cor_verde, font=fonte_empresa)
-        y_cur += altura_linha_empresa
+        draw.text((MARGEM, y_cur), linha, fill=COR_VERDE, font=f_empresa)
+        y_cur += ALT_LINHA_EMP
 
-    # QR Code
-    link   = f"{app_url}/?cnpj={cnpj}"
-    qr_obj = qrcode.QRCode(version=1,
-                            error_correction=qrcode.constants.ERROR_CORRECT_H,
-                            box_size=8, border=2)
+    # ── QR Code ───────────────────────────────────────────────────────────────
+    link = f"{app_url}/?cnpj={cnpj}"
+    qr_obj = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=10,
+        border=2,
+    )
     qr_obj.add_data(link)
     qr_obj.make(fit=True)
-    qr_img = qr_obj.make_image(fill_color=cor_navy, back_color=branco)
-    qr_img = qr_img.resize((qr_tamanho, qr_tamanho), Image.Resampling.LANCZOS)
+    qr_pil = qr_obj.make_image(fill_color=COR_NAVY, back_color=BRANCO)
+    qr_pil = qr_pil.resize((QR_TAMANHO, QR_TAMANHO), Image.Resampling.LANCZOS)
 
-    x_qr = (largura - qr_tamanho) // 2
-    img.paste(qr_img, (x_qr, y_qr))
+    x_qr = (LARGURA - QR_TAMANHO) // 2   # centralizado
+    img.paste(qr_pil, (x_qr, y_qr))
 
-    # Rodapé
-    draw.rectangle([(0, altura - altura_rodape), (largura, altura)],
-                   fill=(240, 240, 240))
-    texto_rodape = f"Imagem de compartilhamento: {empresa_nome}"
-    bbox_r = draw.textbbox((0, 0), texto_rodape, font=fonte_rodape)
-    x_rodape = (largura - (bbox_r[2] - bbox_r[0])) // 2
-    draw.text((x_rodape, altura - 38), texto_rodape,
-              fill=cinza_medio, font=fonte_rodape)
+    # ── Rodapé ────────────────────────────────────────────────────────────────
+    draw.rectangle([(0, ALTURA - ALT_RODAPE), (LARGURA, ALTURA)], fill=(235, 235, 235))
+    txt_rodape = f"Imagem de compartilhamento: {empresa_nome}"
+    bbox_r     = draw.textbbox((0, 0), txt_rodape, font=f_rodape)
+    x_rod      = (LARGURA - (bbox_r[2] - bbox_r[0])) // 2
+    draw.text((x_rod, ALTURA - ALT_RODAPE + 18), txt_rodape,
+              fill=CINZA_MED, font=f_rodape)
 
-    # Converter para BytesIO
-    img_io = io.BytesIO()
-    img.save(img_io, format='PNG')
-    img_io.seek(0)
+    # ── Exportar ──────────────────────────────────────────────────────────────
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
 
-    return img_io
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Função legada (mantida para compatibilidade)
+# ─────────────────────────────────────────────────────────────────────────────
+def gerar_imagem_compartilhamento(empresa_nome: str, cnpj: str, app_url: str) -> io.BytesIO:
+    """Alias para gerar_imagem_compartilhamento_simples (compatibilidade)."""
+    return gerar_imagem_compartilhamento_simples(empresa_nome, cnpj, app_url)
