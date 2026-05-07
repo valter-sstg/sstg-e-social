@@ -168,8 +168,9 @@ def caminho_doc(nome_arquivo: str) -> str:
     return os.path.join(DOC_DIR, nome_arquivo)
 
 # ─── CONFIGURAÇÕES ────────────────────────────────────────────────────────────
-ARQUIVO_ACESSOS = caminho("db_acessos_autorizados.csv")
-SENHA_ADMIN     = "sstg2025"
+ARQUIVO_ACESSOS  = caminho("db_acessos_autorizados.csv")
+ARQUIVO_USUARIOS = caminho("db_usuarios_operacionais.csv")
+SENHA_ADMIN      = "sstg2025"
 
 # ─── FUNÇÕES AUXILIARES ───────────────────────────────────────────────────────
 
@@ -192,6 +193,58 @@ def gerar_senha_rh() -> str:
 def hash_senha(senha: str) -> str:
     """Faz hash da senha para armazenamento seguro"""
     return hashlib.sha256(senha.encode()).hexdigest()
+
+# ─── USUÁRIOS OPERACIONAIS ────────────────────────────────────────────────────
+
+def carregar_usuarios() -> pd.DataFrame:
+    """Carrega o CSV de usuários operacionais."""
+    if os.path.exists(ARQUIVO_USUARIOS):
+        return pd.read_csv(ARQUIVO_USUARIOS, sep=';', dtype=str)
+    return pd.DataFrame(columns=["Usuario", "Nome", "Senha_Hash", "Status", "Data_Criacao"])
+
+def verificar_usuario_operacional(usuario: str, senha: str) -> bool:
+    """Verifica se usuário/senha operacional estão corretos e ativos."""
+    df = carregar_usuarios()
+    if df.empty:
+        return False
+    mask = (df['Usuario'] == usuario) & (df['Status'] == 'Ativo')
+    if not mask.any():
+        return False
+    return df.loc[mask, 'Senha_Hash'].iloc[0] == hash_senha(senha)
+
+def criar_usuario_operacional(usuario: str, nome: str, senha: str) -> tuple:
+    """Cria novo usuário operacional. Retorna (ok, mensagem)."""
+    df = carregar_usuarios()
+    if not df.empty and usuario in df['Usuario'].values:
+        return False, f"Usuário '{usuario}' já existe."
+    novo = pd.DataFrame([{
+        "Usuario":      usuario.strip().lower(),
+        "Nome":         nome.strip(),
+        "Senha_Hash":   hash_senha(senha),
+        "Status":       "Ativo",
+        "Data_Criacao": datetime.now().strftime("%d/%m/%Y %H:%M")
+    }])
+    novo.to_csv(ARQUIVO_USUARIOS, mode='a', index=False, sep=';',
+                header=not os.path.exists(ARQUIVO_USUARIOS), encoding='utf-8-sig')
+    return True, f"Usuário '{usuario}' criado com sucesso."
+
+def desativar_usuario_operacional(usuario: str) -> tuple:
+    """Desativa (não exclui) um usuário operacional."""
+    df = carregar_usuarios()
+    if df.empty or usuario not in df['Usuario'].values:
+        return False, f"Usuário '{usuario}' não encontrado."
+    df.loc[df['Usuario'] == usuario, 'Status'] = 'Inativo'
+    df.to_csv(ARQUIVO_USUARIOS, index=False, sep=';', encoding='utf-8-sig')
+    return True, f"Usuário '{usuario}' desativado."
+
+def reativar_usuario_operacional(usuario: str) -> tuple:
+    """Reativa um usuário operacional inativo."""
+    df = carregar_usuarios()
+    if df.empty or usuario not in df['Usuario'].values:
+        return False, f"Usuário '{usuario}' não encontrado."
+    df.loc[df['Usuario'] == usuario, 'Status'] = 'Ativo'
+    df.to_csv(ARQUIVO_USUARIOS, index=False, sep=';', encoding='utf-8-sig')
+    return True, f"Usuário '{usuario}' reativado."
 
 def cpf_ja_respondeu(cnpj: str, cpf: str) -> bool:
     arq = caminho(f"respostas_CNPJ_{cnpj}.csv")
@@ -440,22 +493,43 @@ if menu == "🔐 Admin SSTG (Gestão)":
 
     if 'admin_logado' not in st.session_state:
         st.session_state.admin_logado = False
+    if 'admin_perfil' not in st.session_state:
+        st.session_state.admin_perfil = None   # "admin" ou "operacional"
+    if 'admin_usuario' not in st.session_state:
+        st.session_state.admin_usuario = None
 
     if not st.session_state.admin_logado:
         st.title("🔐 Acesso Restrito — Admin SSTG")
-        senha = st.text_input("Senha do administrador:", type="password")
-        if st.button("Entrar", use_container_width=True):
-            if senha == SENHA_ADMIN:
-                st.session_state.admin_logado = True
-                st.rerun()
-            else:
-                st.error("Senha incorreta.")
+        col_l, col_c, col_r = st.columns([1, 2, 1])
+        with col_c:
+            st.markdown("### Identificação")
+            usuario_in = st.text_input("Usuário:", placeholder="admin")
+            senha_in   = st.text_input("Senha:", type="password")
+            if st.button("Entrar", use_container_width=True, type="primary"):
+                u = usuario_in.strip().lower()
+                if u == "admin" and senha_in == SENHA_ADMIN:
+                    st.session_state.admin_logado  = True
+                    st.session_state.admin_perfil  = "admin"
+                    st.session_state.admin_usuario = "admin"
+                    st.rerun()
+                elif verificar_usuario_operacional(u, senha_in):
+                    st.session_state.admin_logado  = True
+                    st.session_state.admin_perfil  = "operacional"
+                    st.session_state.admin_usuario = u
+                    st.rerun()
+                else:
+                    st.error("❌ Usuário ou senha incorretos.")
         st.stop()
 
     st.title("🏢 Gestão de Empresas e Acessos")
 
+    _perfil_logado = st.session_state.get('admin_perfil', 'admin')
+    _usuario_logado = st.session_state.get('admin_usuario', 'admin')
+    st.sidebar.caption(f"👤 {_usuario_logado} ({_perfil_logado})")
     if st.sidebar.button("🚪 Sair do Admin"):
-        st.session_state.admin_logado = False
+        st.session_state.admin_logado  = False
+        st.session_state.admin_perfil  = None
+        st.session_state.admin_usuario = None
         st.rerun()
 
     # ── MENU DE DOCUMENTAÇÃO ──────────────────────────────────────────────────
@@ -568,13 +642,14 @@ if menu == "🔐 Admin SSTG (Gestão)":
             except FileNotFoundError:
                 st.sidebar.warning("Arquivo de documentação não encontrado")
 
-    t1, t2, t3, t4, t5, t6 = st.tabs([
+    t1, t2, t3, t4, t5, t6, t7 = st.tabs([
         "🆕 Cadastro / Inclusão",
         "📋 Conferência e Correção",
         "📊 Resultados",
         "🔄 Movimentação de Pessoal",
         "🔐 Segurança e Acesso RH",
-        "📚 Documentação"
+        "📚 Documentação",
+        "👥 Usuários"
     ])
 
     # ── ABA 1: CADASTRO ───────────────────────────────────────────────────────
@@ -842,77 +917,78 @@ if menu == "🔐 Admin SSTG (Gestão)":
                         )
                         st.success(msg) if ok else st.error(msg)
 
-            with st.expander("⚠️ Zona de Perigo — use com cuidado"):
-                st.error("⚠️ As ações abaixo são **irreversíveis**. Confirme com a senha do Admin SSTG antes de prosseguir.")
+            if st.session_state.get('admin_perfil') == 'admin':
+                with st.expander("⚠️ Zona de Perigo — use com cuidado"):
+                    st.error("⚠️ As ações abaixo são **irreversíveis**. Confirme com a senha do Admin SSTG antes de prosseguir.")
 
-                zt1, zt2 = st.tabs(["🗑️ Excluir Empresa", "💣 Resetar Tudo"])
+                    zt1, zt2 = st.tabs(["🗑️ Excluir Empresa", "💣 Resetar Tudo"])
 
-                # ── EXCLUIR EMPRESA INDIVIDUAL ────────────────────────────────
-                with zt1:
-                    st.warning("Remove **todos os acessos** e **todo o histórico de respostas** da empresa selecionada.")
-                    df_zona = carregar_dados(ARQUIVO_ACESSOS)
-                    if not df_zona.empty:
-                        empresas_zona = df_zona.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
-                            lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
-                        ).tolist()
-                        emp_del = st.selectbox("Empresa a excluir:", empresas_zona, key="zona_emp_del")
-                        cnpj_del = emp_del.split("CNPJ: ")[-1]
-                        nome_del = emp_del.split(" — CNPJ:")[0].strip()
+                    # ── EXCLUIR EMPRESA INDIVIDUAL ────────────────────────────
+                    with zt1:
+                        st.warning("Remove **todos os acessos** e **todo o histórico de respostas** da empresa selecionada.")
+                        df_zona = carregar_dados(ARQUIVO_ACESSOS)
+                        if not df_zona.empty:
+                            empresas_zona = df_zona.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
+                                lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
+                            ).tolist()
+                            emp_del = st.selectbox("Empresa a excluir:", empresas_zona, key="zona_emp_del")
+                            cnpj_del = emp_del.split("CNPJ: ")[-1]
+                            nome_del = emp_del.split(" — CNPJ:")[0].strip()
 
-                        # Contadores para exibir impacto
-                        qtd_cpfs  = len(df_zona[df_zona['CNPJ'] == cnpj_del])
-                        arq_resp  = caminho(f"respostas_CNPJ_{cnpj_del}.csv")
-                        qtd_resp  = len(pd.read_csv(arq_resp, sep=';', dtype=str)) if os.path.exists(arq_resp) else 0
+                            # Contadores para exibir impacto
+                            qtd_cpfs  = len(df_zona[df_zona['CNPJ'] == cnpj_del])
+                            arq_resp  = caminho(f"respostas_CNPJ_{cnpj_del}.csv")
+                            qtd_resp  = len(pd.read_csv(arq_resp, sep=';', dtype=str)) if os.path.exists(arq_resp) else 0
 
-                        col_info1, col_info2 = st.columns(2)
-                        col_info1.metric("CPFs que serão removidos", qtd_cpfs)
-                        col_info2.metric("Respostas que serão apagadas", qtd_resp)
+                            col_info1, col_info2 = st.columns(2)
+                            col_info1.metric("CPFs que serão removidos", qtd_cpfs)
+                            col_info2.metric("Respostas que serão apagadas", qtd_resp)
 
-                        st.divider()
-                        st.markdown("**Confirme digitando a senha do Admin SSTG:**")
-                        senha_conf_del = st.text_input(
-                            "Senha Admin:", type="password", key="senha_conf_emp_del"
+                            st.divider()
+                            st.markdown("**Confirme digitando a senha do Admin SSTG:**")
+                            senha_conf_del = st.text_input(
+                                "Senha Admin:", type="password", key="senha_conf_emp_del"
+                            )
+
+                            if st.button("🗑️ EXCLUIR EMPRESA E TODO O HISTÓRICO", type="primary",
+                                         use_container_width=True, key="btn_del_empresa"):
+                                if not senha_conf_del:
+                                    st.error("Digite a senha do Admin para confirmar.")
+                                elif senha_conf_del != SENHA_ADMIN:
+                                    st.error("❌ Senha incorreta. Operação cancelada.")
+                                else:
+                                    # 1. Remove os CPFs da empresa no arquivo de acessos
+                                    df_zona_upd = df_zona[df_zona['CNPJ'] != cnpj_del]
+                                    df_zona_upd.to_csv(ARQUIVO_ACESSOS, index=False, sep=';', encoding='utf-8-sig')
+                                    # 2. Remove arquivo de respostas da empresa
+                                    if os.path.exists(arq_resp):
+                                        os.remove(arq_resp)
+                                    st.success(f"✅ Empresa **{nome_del}** removida com sucesso. {qtd_cpfs} acesso(s) e {qtd_resp} resposta(s) apagadas.")
+                                    st.rerun()
+                        else:
+                            st.info("Nenhuma empresa cadastrada.")
+
+                    # ── RESETAR TUDO ──────────────────────────────────────────
+                    with zt2:
+                        st.warning("Remove **TODOS** os registros de acesso e **TODOS** os históricos de resposta de **todas** as empresas.")
+                        senha_conf_all = st.text_input(
+                            "Senha Admin para confirmar reset total:", type="password", key="senha_conf_reset_all"
                         )
-
-                        if st.button("🗑️ EXCLUIR EMPRESA E TODO O HISTÓRICO", type="primary",
-                                     use_container_width=True, key="btn_del_empresa"):
-                            if not senha_conf_del:
+                        if st.button("💣 RESETAR BANCO DE DADOS COMPLETO", type="primary",
+                                     use_container_width=True, key="btn_reset_all"):
+                            if not senha_conf_all:
                                 st.error("Digite a senha do Admin para confirmar.")
-                            elif senha_conf_del != SENHA_ADMIN:
+                            elif senha_conf_all != SENHA_ADMIN:
                                 st.error("❌ Senha incorreta. Operação cancelada.")
                             else:
-                                # 1. Remove os CPFs da empresa no arquivo de acessos
-                                df_zona_upd = df_zona[df_zona['CNPJ'] != cnpj_del]
-                                df_zona_upd.to_csv(ARQUIVO_ACESSOS, index=False, sep=';', encoding='utf-8-sig')
-                                # 2. Remove arquivo de respostas da empresa
-                                if os.path.exists(arq_resp):
-                                    os.remove(arq_resp)
-                                st.success(f"✅ Empresa **{nome_del}** removida com sucesso. {qtd_cpfs} acesso(s) e {qtd_resp} resposta(s) apagadas.")
+                                # Remove arquivo de acessos
+                                if os.path.exists(ARQUIVO_ACESSOS):
+                                    os.remove(ARQUIVO_ACESSOS)
+                                # Remove todos os arquivos de respostas por empresa
+                                for arq in glob.glob(caminho("respostas_CNPJ_*.csv")):
+                                    os.remove(arq)
+                                st.success("✅ Banco de dados completo resetado.")
                                 st.rerun()
-                    else:
-                        st.info("Nenhuma empresa cadastrada.")
-
-                # ── RESETAR TUDO ──────────────────────────────────────────────
-                with zt2:
-                    st.warning("Remove **TODOS** os registros de acesso e **TODOS** os históricos de resposta de **todas** as empresas.")
-                    senha_conf_all = st.text_input(
-                        "Senha Admin para confirmar reset total:", type="password", key="senha_conf_reset_all"
-                    )
-                    if st.button("💣 RESETAR BANCO DE DADOS COMPLETO", type="primary",
-                                 use_container_width=True, key="btn_reset_all"):
-                        if not senha_conf_all:
-                            st.error("Digite a senha do Admin para confirmar.")
-                        elif senha_conf_all != SENHA_ADMIN:
-                            st.error("❌ Senha incorreta. Operação cancelada.")
-                        else:
-                            # Remove arquivo de acessos
-                            if os.path.exists(ARQUIVO_ACESSOS):
-                                os.remove(ARQUIVO_ACESSOS)
-                            # Remove todos os arquivos de respostas por empresa
-                            for arq in glob.glob(caminho("respostas_CNPJ_*.csv")):
-                                os.remove(arq)
-                            st.success("✅ Banco de dados completo resetado.")
-                            st.rerun()
         else:
             st.info("Nenhum registro encontrado. Faça o cadastro na aba anterior.")
 
@@ -1406,6 +1482,81 @@ if menu == "🔐 Admin SSTG (Gestão)":
                     st.error("❌ Biblioteca pymupdf não instalada. Aguarde o redeploy ou use o botão ⬇️ PDF.")
                 except Exception as e:
                     st.error(f"❌ Erro ao renderizar o PDF: {str(e)}")
+
+    # ── ABA 7: USUÁRIOS OPERACIONAIS ─────────────────────────────────────────
+    with t7:
+        st.subheader("👥 Gerenciamento de Usuários Operacionais")
+
+        if st.session_state.get('admin_perfil') != 'admin':
+            st.warning("⛔ Esta aba é restrita ao Administrador SSTG.")
+            st.info("Usuários operacionais não têm permissão para gerenciar outros usuários.")
+        else:
+            st.info(
+                "Usuários operacionais têm acesso ao Admin SSTG com as mesmas abas, "
+                "exceto esta (**👥 Usuários**) e a **Zona de Perigo**."
+            )
+
+            # ── CRIAR NOVO USUÁRIO ────────────────────────────────────────────
+            with st.expander("➕ Criar Novo Usuário Operacional", expanded=True):
+                with st.form("form_novo_usuario", clear_on_submit=True):
+                    col_u1, col_u2 = st.columns(2)
+                    novo_login  = col_u1.text_input("Login (usuário):", placeholder="ex: joao.silva")
+                    novo_nome   = col_u2.text_input("Nome completo:")
+                    col_u3, col_u4 = st.columns(2)
+                    nova_senha  = col_u3.text_input("Senha:", type="password")
+                    conf_senha  = col_u4.text_input("Confirmar senha:", type="password")
+                    submitted_u = st.form_submit_button("✅ Criar Usuário", use_container_width=True, type="primary")
+
+                if submitted_u:
+                    if not novo_login or not novo_nome or not nova_senha:
+                        st.error("Preencha todos os campos.")
+                    elif nova_senha != conf_senha:
+                        st.error("As senhas não coincidem.")
+                    elif len(nova_senha) < 6:
+                        st.error("A senha deve ter pelo menos 6 caracteres.")
+                    elif novo_login.strip().lower() == "admin":
+                        st.error("O login 'admin' é reservado.")
+                    else:
+                        ok, msg = criar_usuario_operacional(novo_login.strip().lower(), novo_nome, nova_senha)
+                        st.success(msg) if ok else st.error(msg)
+
+            st.divider()
+
+            # ── LISTAR USUÁRIOS ───────────────────────────────────────────────
+            st.subheader("Usuários Cadastrados")
+            df_usr = carregar_usuarios()
+
+            if df_usr.empty:
+                st.info("Nenhum usuário operacional cadastrado ainda.")
+            else:
+                # Exibir tabela sem a coluna de hash
+                df_exib = df_usr[["Usuario", "Nome", "Status", "Data_Criacao"]].copy()
+                df_exib.columns = ["Login", "Nome", "Status", "Criado em"]
+                st.dataframe(df_exib, use_container_width=True, hide_index=True)
+
+                st.divider()
+                st.subheader("Ativar / Desativar Usuário")
+
+                usuarios_lista = df_usr['Usuario'].tolist()
+                usr_sel = st.selectbox("Selecione o usuário:", usuarios_lista, key="usr_sel_acao")
+
+                if usr_sel:
+                    status_atual = df_usr.loc[df_usr['Usuario'] == usr_sel, 'Status'].iloc[0]
+                    st.caption(f"Status atual: **{status_atual}**")
+
+                    col_at, col_des = st.columns(2)
+                    with col_at:
+                        if st.button("✅ Ativar", use_container_width=True,
+                                     disabled=(status_atual == 'Ativo'), key="btn_ativar_usr"):
+                            ok, msg = reativar_usuario_operacional(usr_sel)
+                            st.success(msg) if ok else st.error(msg)
+                            st.rerun()
+                    with col_des:
+                        if st.button("🚫 Desativar", use_container_width=True,
+                                     disabled=(status_atual == 'Inativo'), key="btn_desativar_usr"):
+                            ok, msg = desativar_usuario_operacional(usr_sel)
+                            st.success(msg) if ok else st.error(msg)
+                            st.rerun()
 
 # =============================================================================
 # MÓDULO GESTÃO DAS RESPOSTAS (RH)
