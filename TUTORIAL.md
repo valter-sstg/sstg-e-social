@@ -1,7 +1,7 @@
 # 📚 SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) — Tutorial Operacional
 
-**Versão:** 6.1  
-**Data:** 05/05/2026  
+**Versão:** 6.2  
+**Data:** 07/05/2026  
 **Público:** Equipe de Gestão RH | Pessoal Administrativo | Usuários Finais
 
 ---
@@ -272,9 +272,9 @@ https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app/?cnpj=XXXXXXXXXXX
 
 Digite o CPF (11 dígitos, sem pontos ou traços) e clique em **ACESSAR ▶**
 
-### Passo 2: Responder os Blocos
+### Passo 2: Responder os Blocos — Navegação Wizard
 
-O questionário está dividido em **8 blocos (40 questões)**:
+O questionário exibe **um bloco (demanda) por vez**, em sequência guiada. São **8 blocos / 40 questões** no total:
 
 | Bloco | Nome | Questões |
 |-------|------|----------|
@@ -291,23 +291,35 @@ Escala de resposta: **Nunca / Raramente / Às vezes / Frequentemente / Sempre**
 
 ### Navegação Entre Blocos
 
-Ao concluir todas as questões de um bloco, clique no botão ao final:
-
+No **topo** da tela, uma barra indica o bloco atual:
 ```
-[✅ Próximo Bloco (2/8)]
+Bloco 3 de 8 — ⚖️ Demandas  ████████░░░░░░░░ 37%
 ```
 
-> Se houver perguntas sem resposta no bloco, o botão exibe um aviso e não avança.
+No **rodapé** de cada bloco, há dois botões e uma barra de progresso geral:
+```
+[◀ Demanda Anterior]          [Próxima Demanda ▶]
+
+Progresso geral: 19 de 40 perguntas respondidas  ████████████░░░░ 47%
+```
+
+**Regras de navegação:**
+- O botão **"Próxima Demanda ▶"** só aparece quando **todas as perguntas do bloco atual** estão respondidas
+- Se houver perguntas sem resposta, aparece um aviso e o botão não avança
+- O botão **"◀ Demanda Anterior"** retorna ao bloco anterior com as respostas **preservadas**
+- As respostas dos blocos já concluídos **não são perdidas** ao navegar
 
 ### Passo 3: Enviar
 
-No último bloco, após responder todas as 40 questões:
+No último bloco (Bloco 8), após responder todas as questões do bloco:
 
 ```
-[🚀 ENVIAR RESPOSTAS]
+[✅ FINALIZAR E ENVIAR AVALIAÇÃO]
 ```
 
-Uma mensagem de confirmação é exibida e as respostas são registradas.
+> O botão **ENVIAR fica desabilitado** enquanto ainda há perguntas sem resposta em qualquer bloco. Use "◀ Demanda Anterior" para revisar.
+
+Uma tela de confirmação com balões é exibida e as respostas são registradas com segurança.
 
 > **Observações:**
 > - O mesmo CPF não pode responder **duas vezes para a mesma empresa**
@@ -489,5 +501,5 @@ R: Verifique se os arquivos `.md` estão na raiz do repositório. A partir da v6
 
 ---
 
-**Última atualização:** 05/05/2026  
-**Versão do sistema:** 6.1
+**Última atualização:** 07/05/2026  
+**Versão do sistema:** 6.2

@@ -1,7 +1,7 @@
-# 📚 Documentação de Publicação — SSTG - DRPS v6.1
+# 📚 Documentação de Publicação — SSTG - DRPS v6.2
 
-**Versão:** 2.0  
-**Data:** 05/05/2026  
+**Versão:** 2.1  
+**Data:** 07/05/2026  
 **Status:** ✅ Publicado e Operacional  
 **URL:** https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app
 
@@ -10,7 +10,7 @@
 ## 📋 Índice
 
 1. [Resumo Executivo](#resumo-executivo)
-2. [Novidades da Versão 6.1](#novidades-da-versão-61)
+2. [Novidades da Versão 6.2](#novidades-da-versão-62)
 3. [Recursos e Sistemas Utilizados](#recursos-e-sistemas-utilizados)
 4. [Arquitetura da Publicação](#arquitetura-da-publicação)
 5. [Processo de Deploy](#processo-de-deploy)
@@ -24,7 +24,7 @@
 
 ## 📌 Resumo Executivo
 
-O SSTG - DRPS v6.1 está publicado na plataforma **Streamlit Cloud**, acessível online de qualquer dispositivo com internet. O sistema oferece três módulos integrados: questionário para colaboradores, gestão para RH e painel administrativo completo.
+O SSTG - DRPS v6.2 está publicado na plataforma **Streamlit Cloud**, acessível online de qualquer dispositivo com internet. O sistema oferece três módulos integrados: questionário para colaboradores, gestão para RH e painel administrativo completo.
 
 ### Dados da Publicação
 
@@ -33,7 +33,7 @@ O SSTG - DRPS v6.1 está publicado na plataforma **Streamlit Cloud**, acessível
 | **Plataforma** | Streamlit Cloud (PaaS) |
 | **Repositório** | GitHub — valter-contador/sstg-e-social |
 | **URL Pública** | https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app |
-| **Versão** | 6.1 |
+| **Versão** | 6.2 |
 | **Protocolo** | COPSOQ III — 40 questões / 8 dimensões |
 | **Status** | Operacional e testado |
 | **SSL/HTTPS** | Ativo (automático pelo Streamlit Cloud) |
@@ -41,17 +41,31 @@ O SSTG - DRPS v6.1 está publicado na plataforma **Streamlit Cloud**, acessível
 
 ---
 
-## 🆕 Novidades da Versão 6.1
+## 🆕 Novidades da Versão 6.2
 
-### Correções de Bugs
+### Melhorias no Questionário
 
-| # | Problema | Solução |
-|---|----------|---------|
-| 1 | Respostas de um respondente apareciam para o próximo | Keys de `st.radio` prefixadas com CPF do respondente |
-| 2 | Mesmo CPF bloqueado em empresas diferentes | Verificação de duplicidade por CPF + CNPJ |
-| 3 | Documentação "Arquivo não encontrado" | `caminho_doc()` usa `__file__` para localizar raiz do repo |
+| # | Item | Descrição |
+|---|------|-----------|
+| 1 | **Wizard de Navegação** | Substituição de `st.tabs` por fluxo guiado — uma demanda por vez |
+| 2 | **Botão "Próxima Demanda ▶"** | Só avança se todas as perguntas do bloco atual estão respondidas |
+| 3 | **Botão "◀ Demanda Anterior"** | Retorna ao bloco anterior restaurando as respostas já dadas |
+| 4 | **Cache `respostas_salvas`** | Persiste respostas no `session_state` ao navegar entre blocos (corrige perda de respostas) |
+| 5 | **Progresso por bloco** | Barra no topo indicando "Bloco X de 8 — Nome da Demanda" |
+| 6 | **Progresso geral** | Barra no rodapé indicando "X de 40 perguntas respondidas" |
+| 7 | **Anti-contaminação** | Keys de `st.radio` prefixadas com CPF — impede interferência entre respondentes |
 
-### Novas Funcionalidades
+### Documentação e QR Code
+
+| # | Item | Descrição |
+|---|------|-----------|
+| 1 | **POP 020 na Aba Documentação** | Tutorial visual tela a tela disponível para leitura e download |
+| 2 | **Visualizador PDF embutido** | PyMuPDF renderiza páginas como imagem — compatível com todos os browsers |
+| 3 | **QR Code ampliado** | Tamanho aumentado 150% (200 → 500 px) |
+| 4 | **Fonte do nome da empresa** | Aumentada para 72pt com quebra automática de linha para nomes longos |
+| 5 | **Imagem dinâmica** | Altura calculada automaticamente conforme número de linhas do nome |
+
+### Novidades da Versão 6.1 (referência)
 
 | # | Funcionalidade | Descrição |
 |---|---------------|-----------|
@@ -59,10 +73,9 @@ O SSTG - DRPS v6.1 está publicado na plataforma **Streamlit Cloud**, acessível
 | 2 | **Senhas de Acesso RH** | Geradas automaticamente no cadastro com `secrets` module |
 | 3 | **Aba Segurança e Acesso RH** | Admin pode redefinir senha de qualquer empresa |
 | 4 | **Zona de Perigo expandida** | Exclusão individual de empresa com contadores e confirmação |
-| 5 | **Botão Próxima Demanda** | Navegação entre blocos com validação de completude |
-| 6 | **QR Code profissional** | Imagem 1280×720 px com WhatsApp e E-mail integrados |
-| 7 | **SHARE_URL** | URL pública separada de APP_URL para compartilhamento externo |
-| 8 | **6 abas no Admin** | Adicionadas abas de Segurança RH e Documentação |
+| 5 | **QR Code profissional** | Imagem com WhatsApp e E-mail integrados |
+| 6 | **SHARE_URL** | URL pública separada de APP_URL para compartilhamento externo |
+| 7 | **6 abas no Admin** | Abas de Segurança RH e Documentação adicionadas |
 
 ---
 
@@ -95,8 +108,9 @@ O SSTG - DRPS v6.1 está publicado na plataforma **Streamlit Cloud**, acessível
 | streamlit | ≥1.28.0 | Interface web |
 | pandas | ≥2.0.0 | Manipulação de dados CSV |
 | reportlab | ≥4.0.0 | Geração de laudos PDF |
-| pillow | ≥9.0.0 | Composição de imagens |
+| pillow | ≥10.0.0 | Composição de imagens |
 | qrcode[pil] | ≥7.4.2 | Geração de QR Codes |
+| pymupdf | ≥1.23.0 | Visualizador PDF página a página (POP 020) |
 
 ---
 
@@ -297,6 +311,18 @@ Ao publicar versão com mudanças significativas:
 
 ## 📜 Histórico de Versões
 
+### v6.2 — 07/05/2026
+- ✨ Novo: Wizard de navegação no questionário — uma demanda por vez
+- ✨ Novo: Botão "Próxima Demanda ▶" com validação por bloco
+- ✨ Novo: Botão "◀ Demanda Anterior" com restauração de respostas
+- ✨ Novo: Cache `respostas_salvas` — elimina perda de respostas ao navegar entre blocos
+- ✨ Novo: Barras de progresso por bloco (topo) e geral X/40 (rodapé)
+- ✨ Novo: POP 020 — Tutorial visual tela a tela na Aba Documentação
+- ✨ Novo: Visualizador PDF embutido via PyMuPDF (renderização como imagem)
+- ✨ Novo: QR Code ampliado para 500 px (+150%)
+- ✨ Novo: Fonte do nome da empresa em 72pt com quebra automática de linha
+- ✅ Corrigido: Botão ENVIAR desabilitado enquanto há perguntas sem resposta
+
 ### v6.1 — 05/05/2026
 - ✅ Correção: respostas pré-preenchidas entre respondentes (keys únicas por CPF)
 - ✅ Correção: mesmo CPF liberado em empresas diferentes
@@ -305,8 +331,7 @@ Ao publicar versão com mudanças significativas:
 - ✨ Novo: Aba "🔐 Segurança e Acesso RH" no Admin
 - ✨ Novo: Senhas RH geradas automaticamente no cadastro
 - ✨ Novo: Zona de Perigo com exclusão individual de empresa
-- ✨ Novo: Botão "Próxima Demanda" ao final de cada bloco
-- ✨ Novo: QR Code profissional 1280×720 px com WhatsApp/E-mail
+- ✨ Novo: QR Code profissional com WhatsApp/E-mail integrados
 - ✨ Novo: SHARE_URL separada de APP_URL para compartilhamento externo
 - ✨ Novo: Admin expandido para 6 abas
 
@@ -319,6 +344,6 @@ Ao publicar versão com mudanças significativas:
 
 ---
 
-**Última atualização:** 05/05/2026  
-**Versão:** 6.1  
+**Última atualização:** 07/05/2026  
+**Versão:** 6.2  
 **Responsável:** SSTG Gestão Ocupacional

@@ -1,7 +1,7 @@
 # 📚 SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1)
 
-**Versão:** 6.1  
-**Atualizado:** 05/05/2026  
+**Versão:** 6.2  
+**Atualizado:** 07/05/2026  
 **Status:** ✅ Em Produção
 
 ---
@@ -19,6 +19,7 @@ Sistema **web-based** para coleta, análise e geração de **laudos de riscos ps
 ✅ **Links Personalizados** — URL individual por empresa com QR Code  
 ✅ **Laudo Automático** — PDF gerado com análise de risco  
 ✅ **Módulo RH** — Acesso seguro por CNPJ + senha para gestão das respostas  
+✅ **Wizard de Navegação** — Uma demanda por vez, sem perda de respostas entre blocos  
 ✅ **LGPD Compliant** — Proteção de dados pessoais  
 ✅ **Nuvem** — Publicado no Streamlit Cloud, acessível de qualquer lugar  
 
@@ -31,8 +32,11 @@ Interface para colaboradores responderem o questionário COPSOQ III:
 - Acesso via CPF (autorizado pelo RH)
 - 40 questões em 8 dimensões (blocos)
 - Escala Likert 5 pontos (Nunca → Sempre)
-- Navegação por abas com botão "Próxima Demanda" ao final de cada bloco
-- Mesmo CPF pode responder em empresas diferentes
+- **Wizard de navegação** — uma demanda por vez, sem perda de respostas entre blocos
+- Botão **"Próxima Demanda ▶"** com validação: só avança se todas as perguntas do bloco estão respondidas
+- Botão **"◀ Demanda Anterior"** com restauração das respostas já dadas
+- Barra de progresso por bloco (topo) + progresso geral em X/40 questões (rodapé)
+- Mesmo CPF pode responder em empresas diferentes (bloqueio por CPF + CNPJ)
 
 ### 📊 Gestão das Respostas (RH)
 Módulo exclusivo para o departamento de RH de cada empresa:
@@ -52,7 +56,7 @@ Painel administrativo com **6 abas**:
 | 📊 Resultados | Respostas consolidadas, laudo PDF por empresa |
 | 🔄 Movimentação de Pessoal | Admissão, desligamento, reativação |
 | 🔐 Segurança e Acesso RH | Gerar/redefinir senhas de acesso RH |
-| 📚 Documentação | Guias e tutoriais integrados |
+| 📚 Documentação | Guias, tutoriais e POP 020 (visualizável e baixável) |
 
 ---
 
@@ -208,6 +212,7 @@ Backend:       Python 3.9+
 Data:          Pandas, CSV
 PDF:           ReportLab 4.0+
 QR Code:       qrcode + Pillow (PIL)
+Visualiz. PDF: PyMuPDF (pymupdf) — renderização página a página
 Segurança:     SHA-256, secrets module
 Deployment:    Streamlit Cloud / GitHub
 ```
@@ -258,5 +263,6 @@ R: Gratuito. Streamlit Cloud tem versão free. Código open-source no GitHub.
 
 ---
 
-**Última atualização:** 05/05/2026  
-**Próxima revisão:** 05/08/2026
+**Última atualização:** 07/05/2026  
+**Versão:** 6.2  
+**Próxima revisão:** 07/08/2026

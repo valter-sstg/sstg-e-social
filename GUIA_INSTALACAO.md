@@ -1,7 +1,7 @@
 # 🚀 Guia de Instalação e Setup — SSTG - DRPS
 
-**Versão:** 6.1  
-**Data:** 05/05/2026  
+**Versão:** 6.2  
+**Data:** 07/05/2026  
 **Público:** Administradores de Sistema | Instaladores Técnicos
 
 ---
@@ -106,11 +106,12 @@ pip install -r requirements.txt
 streamlit>=1.28.0
 pandas>=2.0.0
 reportlab>=4.0.0
-pillow>=9.0.0
+pillow>=10.0.0
 qrcode[pil]>=7.4.2
+pymupdf>=1.23.0
 ```
 
-> ⚠️ **Importante:** `pillow` e `qrcode[pil]` são necessários para a geração de imagens QR Code. Sem eles, o botão de QR Code não funcionará.
+> ⚠️ **Importante:** `pillow` e `qrcode[pil]` são necessários para a geração de imagens QR Code. `pymupdf` é necessário para o visualizador de PDF embutido na Aba Documentação (POP 020). Sem ele, o botão de Ler o POP 020 não exibirá o conteúdo.
 
 ### Passo 5: Iniciar o App
 
@@ -368,5 +369,5 @@ Verifique se `SHARE_URL` em `app.py` aponta para a URL pública correta do Strea
 
 ---
 
-**Última atualização:** 05/05/2026  
-**Versão do sistema:** 6.1
+**Última atualização:** 07/05/2026  
+**Versão do sistema:** 6.2

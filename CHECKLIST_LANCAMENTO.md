@@ -1,6 +1,6 @@
-# ✅ Checklist de Lançamento — SSTG - DRPS v6.1
+# ✅ Checklist de Lançamento — SSTG - DRPS v6.2
 
-**Data:** 05/05/2026  
+**Data:** 07/05/2026  
 **Responsável:** _______________  
 **Assinado em:** _______________
 
@@ -139,14 +139,17 @@
 - [ ] CPF já respondeu (na mesma empresa) bloqueado
 - [ ] **Mesmo CPF aceito em empresa diferente** ← regra v6.1
 - [ ] Período encerrado bloqueia com mensagem de data
-- [ ] Questionário carrega com 8 abas (blocos)
-- [ ] 40 questões no total
+- [ ] **Wizard de navegação funciona** — exibe uma demanda por vez ← v6.2
+- [ ] 40 questões no total distribuídas em 8 blocos
 - [ ] Escala Likert (Nunca → Sempre) funcionando
-- [ ] Botão "Próxima Demanda" aparece ao final de cada bloco
-- [ ] Botão bloqueia avanço se há questões não respondidas
-- [ ] Progresso por bloco exibido
-- [ ] Progresso total exibido na última aba
-- [ ] **Sem contaminação entre respondentes** (keys únicas por CPF) ← correção v6.1
+- [ ] **Botão "Próxima Demanda ▶"** aparece no rodapé de cada bloco ← v6.2
+- [ ] Botão bloqueia avanço se há questões não respondidas no bloco atual ← v6.2
+- [ ] **Botão "◀ Demanda Anterior"** disponível a partir do bloco 2 ← v6.2
+- [ ] Ao voltar ao bloco anterior, respostas já dadas são restauradas ← v6.2
+- [ ] Barra de progresso por bloco exibida no topo (Bloco X de 8) ← v6.2
+- [ ] Barra de progresso geral exibida no rodapé (X de 40 perguntas) ← v6.2
+- [ ] **Sem contaminação entre respondentes** (keys únicas por CPF) ← v6.1
+- [ ] Botão ENVIAR desabilitado enquanto há perguntas sem resposta ← v6.2
 - [ ] Envio registra respostas corretamente
 - [ ] Tela de confirmação após envio
 
@@ -190,12 +193,13 @@
 
 ## 📚 9. Documentação
 
-- [ ] README.md atualizado (v6.1, 05/05/2026)
-- [ ] TUTORIAL.md atualizado com módulo RH e novas funcionalidades
-- [ ] GUIA_INSTALACAO.md atualizado com novas dependências
-- [ ] GUIA_TECNICO.md atualizado com arquitetura v6.1
+- [ ] README.md atualizado (v6.2, 07/05/2026)
+- [ ] TUTORIAL.md atualizado com wizard de navegação e POP 020
+- [ ] GUIA_INSTALACAO.md atualizado com pymupdf nas dependências
+- [ ] GUIA_TECNICO.md atualizado com arquitetura v6.2
 - [ ] CHECKLIST_LANCAMENTO.md atualizado (este documento)
-- [ ] DOCUMENTACAO_PUBLICACAO.md atualizado
+- [ ] DOCUMENTACAO_PUBLICACAO.md atualizado (v6.2)
+- [ ] POP020_TUTORIAL_TELAS.pdf presente na raiz do repositório
 
 ---
 
@@ -216,5 +220,5 @@
 
 ---
 
-**Última atualização:** 05/05/2026  
-**Versão:** 6.1
+**Última atualização:** 07/05/2026  
+**Versão:** 6.2

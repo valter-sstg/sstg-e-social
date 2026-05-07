@@ -1,7 +1,7 @@
 # 🔧 Guia Técnico SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1)
 
-**Versão:** 6.1  
-**Data:** 05/05/2026  
+**Versão:** 6.2  
+**Data:** 07/05/2026  
 **Público:** Administradores de Sistema | Desenvolvedores
 
 ---
@@ -58,13 +58,26 @@
 - Geração de PDF com ReportLab
 
 #### 3. **gerar_compartilhamento.py** (QR Code e Imagem)
-- `gerar_imagem_compartilhamento_simples()` — gera imagem 1280×720 px
+- `gerar_imagem_compartilhamento_simples()` — gera imagem 1280×(altura dinâmica) px
+- QR Code ampliado para **500 px** (+150%), fonte do nome em **72pt** com quebra automática de linha
+- Altura da imagem calculada dinamicamente conforme número de linhas do nome da empresa
 - Composição com PIL/Pillow: header, conteúdo, QR Code, footer
 - Retorna `io.BytesIO` pronto para download ou exibição
 
 #### 4. **config.toml** (Configuração Visual)
 - Tema SSTG (cores, fontes)
 - Configurações do servidor Streamlit
+
+### Dependências Python
+
+| Biblioteca | Versão mínima | Uso |
+|-----------|--------------|-----|
+| `streamlit` | ≥1.28.0 | Interface web |
+| `pandas` | ≥2.0.0 | Manipulação de dados CSV |
+| `reportlab` | ≥4.0.0 | Geração de laudos PDF |
+| `pillow` | ≥10.0.0 | Composição de imagens QR Code |
+| `qrcode[pil]` | ≥7.4.2 | Geração de QR Codes |
+| `pymupdf` | ≥1.23.0 | Visualizador PDF (POP 020) — renderiza páginas como PNG |
 
 ---
 
@@ -77,6 +90,7 @@ sstg-e-social/
 ├── gerar_compartilhamento.py       # Gerador de imagens QR Code
 ├── gerar_pdf_publicacao.py         # Converte .md para PDF
 ├── requirements.txt                # Dependências Python
+├── POP020_TUTORIAL_TELAS.pdf       # Tutorial visual tela a tela (v6.2)
 ├── .streamlit/
 │   └── config.toml                 # Tema e configurações
 ├── data/                           # Dados (Streamlit Cloud)
@@ -225,18 +239,72 @@ def salvar_cadastro_completo(dados_emp: dict, colaboradores: list):
 
 **Fluxo:**
 ```
-Login (CPF) → Validação → Questionário (8 abas) → Envio → Confirmação
+Login (CPF) → Validação → Wizard (8 blocos, um por vez) → Envio → Confirmação
 ```
 
 **Sessão:**
 - `st.session_state.passo`: `"login"` → `"quest"` → `"fim"`
 - `st.session_state.dados_sessao`: dados do respondente
+- `st.session_state.dominio_atual`: índice 0–7 do bloco exibido no momento
+- `st.session_state.respostas_salvas`: cache persistente de respostas entre reruns
+
+#### Padrão Wizard de Navegação (v6.2)
+
+O questionário exibe **um bloco (demanda) por vez**, controlado por `dominio_atual`. O padrão substitui o `st.tabs` anterior, que não tinha API de controle programático.
+
+**Problema resolvido:** O Streamlit apaga do `session_state` os valores de widgets que não estão renderizados na tela. Ao navegar entre blocos, as respostas do bloco anterior eram perdidas.
+
+**Solução — dupla camada de persistência:**
+
+```python
+# Inicialização
+if 'dominio_atual' not in st.session_state:
+    st.session_state.dominio_atual = 0
+if 'respostas_salvas' not in st.session_state:
+    st.session_state.respostas_salvas = {}
+
+# Salvar respostas do bloco atual antes de avançar/voltar
+def salvar_bloco_atual():
+    for k in qus_atual.keys():
+        chave = f"{cpf_resp}_{k}"
+        if chave in st.session_state:
+            st.session_state.respostas_salvas[chave] = st.session_state[chave]
+
+# Ler resposta: widget state → cache → None
+def get_resp(chave):
+    val = st.session_state.get(chave)
+    if val is not None:
+        return val
+    return st.session_state.respostas_salvas.get(chave)
+
+# Radio com restauração do valor salvo
+val_salvo = st.session_state.respostas_salvas.get(chave)
+idx_inicial = OPCOES.index(val_salvo) if val_salvo in OPCOES else None
+st.radio(f"**{txt}**", OPCOES, horizontal=True, key=chave, index=idx_inicial)
+
+# Botão avançar — salva antes de rerun
+if st.button("Próxima Demanda ▶", ...):
+    salvar_bloco_atual()
+    st.session_state.dominio_atual += 1
+    st.rerun()
+
+# Botão voltar
+if st.button("◀ Demanda Anterior", ...):
+    salvar_bloco_atual()
+    st.session_state.dominio_atual -= 1
+    st.rerun()
+```
+
+**Barras de progresso:**
+- **Topo:** `st.progress()` + caption "Bloco X de 8 — Nome da Demanda"
+- **Rodapé:** Contagem de perguntas respondidas via `get_resp()` → "X de 40 perguntas respondidas"
+
+**Validação de bloco:** O botão "Próxima Demanda" fica desabilitado se há perguntas sem resposta no bloco atual. O botão ENVIAR fica desabilitado enquanto `total_respondidas < 40`.
 
 **Keys de radio únicos por respondente:**
 ```python
 # Chave inclui CPF para evitar contaminação entre respondentes
-chave_unica = f"{cpf_respondente}_{key}"
-respostas[key] = st.radio(..., key=chave_unica, index=None)
+chave_unica = f"{cpf_respondente}_{key}"  # ex: "12345678901_q1"
 ```
 
 **Dimensões (40 questões, 8 blocos):**
@@ -278,7 +346,7 @@ if hash_senha(senha_rh) == row['Senha_RH_Hash']:
 | t3 | Resultados | Médias, laudo PDF, QR Code |
 | t4 | Movimentação | Admissão, desligamento, reativação |
 | t5 | Segurança RH | Gerar/redefinir senha RH por empresa |
-| t6 | Documentação | Leitura de `.md` via `caminho_doc()` |
+| t6 | Documentação | Leitura de `.md` via `caminho_doc()` + visualizador PDF (POP 020) via PyMuPDF |
 
 ---
 
@@ -349,9 +417,13 @@ Colaborador acessa link/?cnpj=XXXX
         ↓
 Digite CPF → Validações (CPF autorizado? Período ativo? Já respondeu?)
         ↓
-Preenche 40 questões em 8 blocos
-Navegação: botão "Próxima Demanda" ao final de cada bloco
+Wizard: exibe Bloco 1 de 8
+  → Responde questões do bloco
+  → "Próxima Demanda ▶" (só habilita se bloco completo)
+  → salvar_bloco_atual() → respostas_salvas → rerun
+  → Bloco 2... até Bloco 8
         ↓
+Botão ENVIAR habilitado apenas com 40/40 respondidas
 Envio: hash(CPF) + respostas + médias → respostas_CNPJ_XXXX.csv
 ```
 
@@ -403,13 +475,44 @@ Isso evita que respostas de um respondente apareçam pré-selecionadas para o pr
 
 **Causa:** Versões anteriores usavam `caminho()` que aponta para `./data/`, mas os `.md` estão na raiz do repo.
 
-**Solução atual (v6.1):** `caminho_doc()` usa `os.path.dirname(os.path.abspath(__file__))` para localizar sempre a pasta do `app.py`.
+**Solução atual (v6.1+):** `caminho_doc()` usa `os.path.dirname(os.path.abspath(__file__))` para localizar sempre a pasta do `app.py`.
 
 ### Respostas pré-preenchidas para outro respondente
 
 **Causa:** Keys de `st.radio` sem prefixo por respondente.
 
-**Solução (v6.1):** Keys incluem o CPF: `f"{cpf_respondente}_{key}"`.
+**Solução (v6.1+):** Keys incluem o CPF: `f"{cpf_respondente}_{key}"`.
+
+### Respostas perdidas ao navegar entre blocos do questionário
+
+**Causa:** O Streamlit apaga do `session_state` os valores de widgets não renderizados. Ao trocar de bloco, os radios do bloco anterior saem da tela e seus valores são removidos.
+
+**Solução (v6.2):** Cache `respostas_salvas` + função `salvar_bloco_atual()` chamada **antes de todo `st.rerun()`**:
+```python
+def salvar_bloco_atual():
+    for k in qus_atual.keys():
+        chave = f"{cpf_resp}_{k}"
+        if chave in st.session_state:
+            st.session_state.respostas_salvas[chave] = st.session_state[chave]
+```
+
+### Visualizador PDF (POP 020) mostra quadro em branco
+
+**Causa:** Browsers modernos bloqueiam `data:application/pdf;base64,...` em `<iframe>` por CSP (Content Security Policy). O Streamlit usa essa abordagem por padrão.
+
+**Solução (v6.2):** Renderização via **PyMuPDF** (`fitz`) — cada página do PDF é convertida para imagem PNG e exibida com `st.image()`:
+```python
+import fitz  # pymupdf
+doc_pdf = fitz.open(pdf_path)
+for num, pagina in enumerate(doc_pdf, start=1):
+    mat = fitz.Matrix(1.8, 1.8)   # escala 180% para melhor legibilidade
+    pix = pagina.get_pixmap(matrix=mat, alpha=False)
+    img_bytes = pix.tobytes("png")
+    st.image(img_bytes, caption=f"Página {num} de {len(doc_pdf)}", use_container_width=True)
+doc_pdf.close()
+```
+
+**Dependência necessária:** `pymupdf>=1.23.0` em `requirements.txt`.
 
 ### Links de compartilhamento não funcionam externamente
 
@@ -421,7 +524,7 @@ Isso evita que respostas de um respondente apareçam pré-selecionadas para o pr
 
 **Causa:** Versões anteriores verificavam CPF globalmente.
 
-**Solução (v6.1):** Verificação por CPF + CNPJ:
+**Solução (v6.1+):** Verificação por CPF + CNPJ:
 ```python
 ja_nessa_empresa = len(df[
     (df['CPF'] == cpf) & (df['CNPJ'] == cnpj)
@@ -437,7 +540,18 @@ ja_nessa_empresa = len(df[
 pip install "qrcode[pil]" pillow
 ```
 
+### Nome da empresa cortado na imagem de compartilhamento
+
+**Causa:** Nomes longos ultrapassam a largura da imagem em fonte 72pt.
+
+**Solução (v6.2):** Função `quebrar_linhas()` em `gerar_compartilhamento.py` divide o nome em múltiplas linhas que cabem dentro de `largura - 2*margem`. A altura da imagem é calculada dinamicamente:
+```python
+altura_linha_empresa = 88   # pixels por linha de texto
+altura_bloco_empresa = len(linhas_empresa) * altura_linha_empresa
+# altura total recalculada conforme número de linhas
+```
+
 ---
 
-**Última atualização:** 05/05/2026  
-**Versão do sistema:** 6.1
+**Última atualização:** 07/05/2026  
+**Versão do sistema:** 6.2
