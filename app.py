@@ -1278,10 +1278,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
                             cols_d[i].metric(nome_exib, f"{val:.2f}")
 
                 st.divider()
-                st.subheader("Histórico de Respostas")
                 colunas_exibir = [c for c in df_res.columns if c != 'CPF_Hash']
-                st.dataframe(df_res[colunas_exibir], use_container_width=True)
-
                 csv_res = df_res[colunas_exibir].to_csv(index=False, sep=';', encoding='utf-8-sig')
                 st.download_button(
                     "⬇️ Baixar resultados (.csv)",
@@ -1950,10 +1947,7 @@ elif menu == "📊 Gestão das Respostas (RH)":
                     cols_d[i].metric(nome_exib, f"{val:.2f}")
 
         st.divider()
-        st.subheader("Histórico de Respostas")
         colunas_exibir_rh = [c for c in df_res.columns if c != 'CPF_Hash']
-        st.dataframe(df_res[colunas_exibir_rh], use_container_width=True)
-
         csv_rh = df_res[colunas_exibir_rh].to_csv(index=False, sep=';', encoding='utf-8-sig')
         st.download_button("⬇️ Baixar resultados (.csv)", csv_rh, f"resultados_{cnpj_cod}.csv", "text/csv")
     else:
