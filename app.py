@@ -15,11 +15,126 @@ try:
 except ImportError:
     LAUDO_DISPONIVEL = False
 
-try:
-    from gerar_compartilhamento import gerar_imagem_compartilhamento_simples
-    COMPARTILHAMENTO_DISPONIVEL = True
-except ImportError:
-    COMPARTILHAMENTO_DISPONIVEL = False
+# ── Geração de imagem QR Code embutida (sem módulo externo) ──────────────────
+import io as _io
+import qrcode as _qrcode
+from PIL import Image as _Image, ImageDraw as _ImageDraw, ImageFont as _ImageFont
+
+def _achar_fonte():
+    """Retorna o primeiro arquivo TTF encontrado no sistema."""
+    windir = os.environ.get("WINDIR", r"C:\Windows")
+    candidatos = [
+        os.path.join(windir, "Fonts", "arial.ttf"),
+        os.path.join(windir, "Fonts", "Arial.ttf"),
+        os.path.join(windir, "Fonts", "calibri.ttf"),
+        os.path.join(windir, "Fonts", "tahoma.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+        "/Library/Fonts/Arial.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+    ]
+    for p in candidatos:
+        if p and os.path.isfile(p):
+            return p
+    return None
+
+_FONTE_PATH = _achar_fonte()
+
+def _f(tamanho):
+    """Carrega fonte TTF no tamanho pedido."""
+    if _FONTE_PATH:
+        try:
+            return _ImageFont.truetype(_FONTE_PATH, tamanho)
+        except Exception:
+            pass
+    try:
+        return _ImageFont.load_default(size=tamanho)
+    except TypeError:
+        return _ImageFont.load_default()
+
+def gerar_imagem_compartilhamento_simples(empresa_nome: str, cnpj: str, app_url: str):
+    """Gera PNG de compartilhamento com QR Code grande e nome da empresa em destaque."""
+    LARGURA    = 1280
+    MARGEM     = 50
+    QR_TAM     = 600
+    H_HEADER   = 120
+    H_LINHA    = 100
+    H_RODAPE   = 60
+
+    COR_NAVY   = (40, 44, 91)
+    COR_VERDE  = (90, 159, 98)
+    BRANCO     = (255, 255, 255)
+    CZ_CLARO   = (190, 190, 190)
+    CZ_MED     = (130, 130, 130)
+
+    f_hdr_sm = _f(20)
+    f_hdr_lg = _f(46)
+    f_label  = _f(28)
+    f_emp    = _f(80)
+    f_rod    = _f(20)
+
+    def quebrar(draw_r, texto, fonte_r, max_w):
+        palavras = texto.split()
+        linhas, atual = [], ""
+        for p in palavras:
+            c = (atual + " " + p).strip()
+            w = draw_r.textbbox((0, 0), c, font=fonte_r)[2]
+            if w <= max_w:
+                atual = c
+            else:
+                if atual:
+                    linhas.append(atual)
+                atual = p
+        if atual:
+            linhas.append(atual)
+        return linhas or [texto]
+
+    tmp = _Image.new("RGB", (LARGURA, 10))
+    drw = _ImageDraw.Draw(tmp)
+    linhas = quebrar(drw, empresa_nome, f_emp, LARGURA - 2 * MARGEM)
+
+    y_label   = H_HEADER + 30
+    y_emp     = y_label + 44
+    y_qr      = y_emp + len(linhas) * H_LINHA + 40
+    ALTURA    = y_qr + QR_TAM + 30 + H_RODAPE
+
+    img  = _Image.new("RGB", (LARGURA, ALTURA), BRANCO)
+    draw = _ImageDraw.Draw(img)
+
+    # Header
+    draw.rectangle([(0, 0), (LARGURA, H_HEADER)], fill=COR_NAVY)
+    draw.text((MARGEM, 16),  "SSTG - DRPS  Diagnóstico de Riscos Psicossociais (NR-1)", fill=CZ_CLARO, font=f_hdr_sm)
+    draw.text((MARGEM, 50),  "SSTG - DRPS  Diagnóstico de Riscos Psicossociais",        fill=BRANCO,   font=f_hdr_lg)
+
+    # Empresa
+    draw.text((MARGEM, y_label), "Empresa:", fill=CZ_MED, font=f_label)
+    y_cur = y_emp
+    for linha in linhas:
+        draw.text((MARGEM, y_cur), linha, fill=COR_VERDE, font=f_emp)
+        y_cur += H_LINHA
+
+    # QR Code
+    link   = f"{app_url}/?cnpj={cnpj}"
+    qr_obj = _qrcode.QRCode(version=1, error_correction=_qrcode.constants.ERROR_CORRECT_H, box_size=10, border=2)
+    qr_obj.add_data(link)
+    qr_obj.make(fit=True)
+    qr_pil = qr_obj.make_image(fill_color=COR_NAVY, back_color=BRANCO)
+    qr_pil = qr_pil.resize((QR_TAM, QR_TAM), _Image.Resampling.LANCZOS)
+    img.paste(qr_pil, ((LARGURA - QR_TAM) // 2, y_qr))
+
+    # Rodapé
+    draw.rectangle([(0, ALTURA - H_RODAPE), (LARGURA, ALTURA)], fill=(235, 235, 235))
+    txt_r = f"Imagem de compartilhamento: {empresa_nome}"
+    bx    = draw.textbbox((0, 0), txt_r, font=f_rod)
+    draw.text(((LARGURA - (bx[2] - bx[0])) // 2, ALTURA - H_RODAPE + 18), txt_r, fill=CZ_MED, font=f_rod)
+
+    buf = _io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
+
+COMPARTILHAMENTO_DISPONIVEL = True
 
 # ─── DIRETÓRIO DE DADOS ───────────────────────────────────────────────────────
 # DOC_DIR: sempre a pasta onde app.py está (raiz do repo), em qualquer ambiente
