@@ -170,7 +170,8 @@ def caminho_doc(nome_arquivo: str) -> str:
 # ─── CONFIGURAÇÕES ────────────────────────────────────────────────────────────
 ARQUIVO_ACESSOS  = caminho("db_acessos_autorizados.csv")
 ARQUIVO_USUARIOS = caminho("db_usuarios_operacionais.csv")
-SENHA_ADMIN      = "sstg2025"
+ARQUIVO_CONFIG   = caminho("db_admin_config.csv")
+SENHA_ADMIN      = "Valter@sstg230914"   # fallback — sobrescrito pelo config se alterado via UI
 
 # ─── FUNÇÕES AUXILIARES ───────────────────────────────────────────────────────
 
@@ -245,6 +246,37 @@ def reativar_usuario_operacional(usuario: str) -> tuple:
     df.loc[df['Usuario'] == usuario, 'Status'] = 'Ativo'
     df.to_csv(ARQUIVO_USUARIOS, index=False, sep=';', encoding='utf-8-sig')
     return True, f"Usuário '{usuario}' reativado."
+
+def get_senha_admin_hash() -> str:
+    """Retorna o hash da senha do admin. Lê do arquivo de config se existir."""
+    if os.path.exists(ARQUIVO_CONFIG):
+        df = pd.read_csv(ARQUIVO_CONFIG, sep=';', dtype=str)
+        row = df[df['Chave'] == 'senha_admin_hash']
+        if not row.empty:
+            return row.iloc[0]['Valor']
+    return hash_senha(SENHA_ADMIN)
+
+def set_senha_admin(nova_senha: str):
+    """Grava novo hash da senha do admin no arquivo de config."""
+    h = hash_senha(nova_senha)
+    if os.path.exists(ARQUIVO_CONFIG):
+        df = pd.read_csv(ARQUIVO_CONFIG, sep=';', dtype=str)
+        if 'senha_admin_hash' in df['Chave'].values:
+            df.loc[df['Chave'] == 'senha_admin_hash', 'Valor'] = h
+        else:
+            df = pd.concat([df, pd.DataFrame([{'Chave': 'senha_admin_hash', 'Valor': h}])], ignore_index=True)
+    else:
+        df = pd.DataFrame([{'Chave': 'senha_admin_hash', 'Valor': h}])
+    df.to_csv(ARQUIVO_CONFIG, index=False, sep=';', encoding='utf-8-sig')
+
+def redefinir_senha_operacional(usuario: str, nova_senha: str) -> tuple:
+    """Redefine a senha de um usuário operacional."""
+    df = carregar_usuarios()
+    if df.empty or usuario not in df['Usuario'].values:
+        return False, f"Usuário '{usuario}' não encontrado."
+    df.loc[df['Usuario'] == usuario, 'Senha_Hash'] = hash_senha(nova_senha)
+    df.to_csv(ARQUIVO_USUARIOS, index=False, sep=';', encoding='utf-8-sig')
+    return True, f"Senha do usuário '{usuario}' redefinida com sucesso."
 
 def cpf_ja_respondeu(cnpj: str, cpf: str) -> bool:
     arq = caminho(f"respostas_CNPJ_{cnpj}.csv")
@@ -502,23 +534,82 @@ if menu == "🔐 Admin SSTG (Gestão)":
         st.title("🔐 Acesso Restrito — Admin SSTG")
         col_l, col_c, col_r = st.columns([1, 2, 1])
         with col_c:
-            st.markdown("### Identificação")
-            usuario_in = st.text_input("Usuário:", placeholder="admin")
-            senha_in   = st.text_input("Senha:", type="password")
-            if st.button("Entrar", use_container_width=True, type="primary"):
-                u = usuario_in.strip().lower()
-                if u == "admin" and senha_in == SENHA_ADMIN:
-                    st.session_state.admin_logado  = True
-                    st.session_state.admin_perfil  = "admin"
-                    st.session_state.admin_usuario = "admin"
-                    st.rerun()
-                elif verificar_usuario_operacional(u, senha_in):
-                    st.session_state.admin_logado  = True
-                    st.session_state.admin_perfil  = "operacional"
-                    st.session_state.admin_usuario = u
-                    st.rerun()
+            tab_login, tab_alterar = st.tabs(["🔑 Entrar", "🔄 Alterar Senha"])
+
+            # ── ABA ENTRAR ────────────────────────────────────────────────────
+            with tab_login:
+                st.markdown("##### Identificação")
+                usuario_in = st.text_input("Usuário:", placeholder="admin", key="login_usuario")
+                senha_in   = st.text_input("Senha:", type="password", key="login_senha")
+                if st.button("Entrar", use_container_width=True, type="primary", key="btn_entrar"):
+                    u = usuario_in.strip().lower()
+                    if u == "admin" and hash_senha(senha_in) == get_senha_admin_hash():
+                        st.session_state.admin_logado  = True
+                        st.session_state.admin_perfil  = "admin"
+                        st.session_state.admin_usuario = "admin"
+                        st.rerun()
+                    elif verificar_usuario_operacional(u, senha_in):
+                        st.session_state.admin_logado  = True
+                        st.session_state.admin_perfil  = "operacional"
+                        st.session_state.admin_usuario = u
+                        st.rerun()
+                    else:
+                        st.error("❌ Usuário ou senha incorretos.")
+
+            # ── ABA ALTERAR SENHA ─────────────────────────────────────────────
+            with tab_alterar:
+                st.markdown("##### Redefinir Senha")
+                tipo_reset = st.radio(
+                    "Tipo de acesso:",
+                    ["👤 Administrador", "👥 Usuário Operacional"],
+                    horizontal=True,
+                    key="reset_tipo"
+                )
+
+                if tipo_reset == "👤 Administrador":
+                    st.caption("Informe a senha atual para autorizar a troca.")
+                    with st.form("form_reset_admin", clear_on_submit=True):
+                        senha_atual_adm = st.text_input("Senha atual:", type="password")
+                        nova_senha_adm  = st.text_input("Nova senha:", type="password")
+                        conf_senha_adm  = st.text_input("Confirmar nova senha:", type="password")
+                        subm_adm = st.form_submit_button(
+                            "💾 Alterar Senha do Admin", use_container_width=True, type="primary"
+                        )
+                    if subm_adm:
+                        if not senha_atual_adm or not nova_senha_adm:
+                            st.error("Preencha todos os campos.")
+                        elif hash_senha(senha_atual_adm) != get_senha_admin_hash():
+                            st.error("❌ Senha atual incorreta.")
+                        elif nova_senha_adm != conf_senha_adm:
+                            st.error("As novas senhas não coincidem.")
+                        elif len(nova_senha_adm) < 6:
+                            st.error("A nova senha deve ter no mínimo 6 caracteres.")
+                        else:
+                            set_senha_admin(nova_senha_adm)
+                            st.success("✅ Senha do administrador alterada com sucesso!")
+
                 else:
-                    st.error("❌ Usuário ou senha incorretos.")
+                    st.caption("Requer a senha do Admin para autorizar a redefinição.")
+                    with st.form("form_reset_op", clear_on_submit=True):
+                        login_op      = st.text_input("Login do usuário:", placeholder="ex: joao.silva")
+                        senha_adm_op  = st.text_input("Senha do Admin (autorização):", type="password")
+                        nova_senha_op = st.text_input("Nova senha:", type="password")
+                        conf_senha_op = st.text_input("Confirmar nova senha:", type="password")
+                        subm_op = st.form_submit_button(
+                            "💾 Redefinir Senha do Usuário", use_container_width=True, type="primary"
+                        )
+                    if subm_op:
+                        if not login_op or not senha_adm_op or not nova_senha_op:
+                            st.error("Preencha todos os campos.")
+                        elif hash_senha(senha_adm_op) != get_senha_admin_hash():
+                            st.error("❌ Senha do Admin incorreta. Operação não autorizada.")
+                        elif nova_senha_op != conf_senha_op:
+                            st.error("As novas senhas não coincidem.")
+                        elif len(nova_senha_op) < 6:
+                            st.error("A nova senha deve ter no mínimo 6 caracteres.")
+                        else:
+                            ok, msg = redefinir_senha_operacional(login_op.strip().lower(), nova_senha_op)
+                            st.success(msg) if ok else st.error(msg)
         st.stop()
 
     st.title("🏢 Gestão de Empresas e Acessos")
@@ -1557,6 +1648,48 @@ if menu == "🔐 Admin SSTG (Gestão)":
                             ok, msg = desativar_usuario_operacional(usr_sel)
                             st.success(msg) if ok else st.error(msg)
                             st.rerun()
+
+                st.divider()
+                st.subheader("🔑 Redefinir Senha de Usuário Operacional")
+                df_usr2 = carregar_usuarios()
+                if not df_usr2.empty:
+                    usr_reset = st.selectbox(
+                        "Usuário para redefinir senha:", df_usr2['Usuario'].tolist(), key="usr_reset_sel"
+                    )
+                    with st.form("form_reset_usr_interno", clear_on_submit=True):
+                        nova_p  = st.text_input("Nova senha:", type="password", key="ri_nova")
+                        conf_p  = st.text_input("Confirmar nova senha:", type="password", key="ri_conf")
+                        subm_ri = st.form_submit_button("💾 Redefinir Senha", use_container_width=True, type="primary")
+                    if subm_ri:
+                        if not nova_p:
+                            st.error("Informe a nova senha.")
+                        elif nova_p != conf_p:
+                            st.error("As senhas não coincidem.")
+                        elif len(nova_p) < 6:
+                            st.error("Mínimo de 6 caracteres.")
+                        else:
+                            ok, msg = redefinir_senha_operacional(usr_reset, nova_p)
+                            st.success(msg) if ok else st.error(msg)
+
+            st.divider()
+            st.subheader("🔐 Alterar Senha do Administrador")
+            with st.form("form_alterar_admin_t7", clear_on_submit=True):
+                s_atual = st.text_input("Senha atual:", type="password", key="t7_s_atual")
+                s_nova  = st.text_input("Nova senha:", type="password", key="t7_s_nova")
+                s_conf  = st.text_input("Confirmar nova senha:", type="password", key="t7_s_conf")
+                subm_adm_t7 = st.form_submit_button("💾 Alterar Senha Admin", use_container_width=True, type="primary")
+            if subm_adm_t7:
+                if not s_atual or not s_nova:
+                    st.error("Preencha todos os campos.")
+                elif hash_senha(s_atual) != get_senha_admin_hash():
+                    st.error("❌ Senha atual incorreta.")
+                elif s_nova != s_conf:
+                    st.error("As novas senhas não coincidem.")
+                elif len(s_nova) < 6:
+                    st.error("Mínimo de 6 caracteres.")
+                else:
+                    set_senha_admin(s_nova)
+                    st.success("✅ Senha do administrador alterada com sucesso!")
 
 # =============================================================================
 # MÓDULO GESTÃO DAS RESPOSTAS (RH)
