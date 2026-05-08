@@ -8,6 +8,7 @@ import secrets
 import string
 import base64
 import contextlib
+import zipfile
 from datetime import datetime, date
 
 # ── Bloqueio de arquivo para operações concorrentes de CSV ───────────────────
@@ -184,6 +185,25 @@ ARQUIVO_ACESSOS  = caminho("db_acessos_autorizados.csv")
 ARQUIVO_USUARIOS = caminho("db_usuarios_operacionais.csv")
 ARQUIVO_CONFIG   = caminho("db_admin_config.csv")
 SENHA_ADMIN      = "Valter@sstg230914"   # fallback — sobrescrito pelo config se alterado via UI
+
+# ─── BACKUP COMPLETO ─────────────────────────────────────────────────────────
+def gerar_backup_zip() -> bytes:
+    """
+    Empacota todos os CSVs de dados em um único ZIP para download.
+    Inclui: acessos, usuários, config e todos os arquivos de respostas.
+    """
+    buf = _io.BytesIO()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        arquivos = [ARQUIVO_ACESSOS, ARQUIVO_USUARIOS, ARQUIVO_CONFIG]
+        for arq in arquivos:
+            if os.path.exists(arq):
+                zf.write(arq, os.path.basename(arq))
+        for arq in glob.glob(caminho("respostas_CNPJ_*.csv")):
+            if os.path.exists(arq):
+                zf.write(arq, os.path.basename(arq))
+    buf.seek(0)
+    return buf.getvalue()
 
 # ─── FUNÇÕES AUXILIARES ───────────────────────────────────────────────────────
 
@@ -997,6 +1017,25 @@ if menu == "🔐 Admin SSTG (Gestão)":
 
     # ── ABA 2: CONFERÊNCIA ────────────────────────────────────────────────────
     with t2:
+        # ── Backup Completo ───────────────────────────────────────────────────
+        with st.expander("💾 Backup — Exportar todos os dados antes de atualizar o sistema", expanded=False):
+            st.warning(
+                "⚠️ **ATENÇÃO:** O Streamlit Cloud apaga os dados a cada atualização do sistema (redeploy). "
+                "**Sempre faça o backup antes de qualquer atualização.**"
+            )
+            zip_bytes = gerar_backup_zip()
+            nome_zip  = f"backup_SSTG_DRPS_{datetime.now().strftime('%d-%m-%Y_%H%M')}.zip"
+            st.download_button(
+                label="📦 Baixar Backup Completo (ZIP)",
+                data=zip_bytes,
+                file_name=nome_zip,
+                mime="application/zip",
+                use_container_width=True,
+                type="primary",
+            )
+            st.caption(f"Inclui: cadastros, usuários, configurações e todas as respostas. Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+        st.divider()
+
         st.subheader("Cadastro Geral de Colaboradores Autorizados")
         df_verif = carregar_dados(ARQUIVO_ACESSOS)
 
