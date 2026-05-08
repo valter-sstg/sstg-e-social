@@ -1,6 +1,6 @@
 # 📚 SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1)
 
-**Versão:** 6.2  
+**Versão:** 7.7  
 **Atualizado:** 07/05/2026  
 **Status:** ✅ Em Produção
 
@@ -17,9 +17,10 @@ Sistema **web-based** para coleta, análise e geração de **laudos de riscos ps
 ✅ **Período Controlado** — Janela de resposta configurável por empresa  
 ✅ **Cadastro em Lote** — Suporte a importação via CSV  
 ✅ **Links Personalizados** — URL individual por empresa com QR Code  
-✅ **Laudo Automático** — PDF gerado com análise de risco  
+✅ **Laudo Automático** — PDF com capa, cabeçalho com logo SSTG, dashboard e assinaturas  
 ✅ **Módulo RH** — Acesso seguro por CNPJ + senha para gestão das respostas  
 ✅ **Wizard de Navegação** — Uma demanda por vez, sem perda de respostas entre blocos  
+✅ **Multi-Usuário** — Sessões isoladas + bloqueio de arquivo (filelock) nas gravações CSV  
 ✅ **LGPD Compliant** — Proteção de dados pessoais  
 ✅ **Nuvem** — Publicado no Streamlit Cloud, acessível de qualquer lugar  
 
@@ -210,9 +211,11 @@ streamlit run app.py
 Frontend:      Streamlit 1.28+
 Backend:       Python 3.9+
 Data:          Pandas, CSV
-PDF:           ReportLab 4.0+
+PDF:           ReportLab 4.0+  (laudo com logo, dashboard, assinaturas)
 QR Code:       qrcode + Pillow (PIL)
 Visualiz. PDF: PyMuPDF (pymupdf) — renderização página a página
+Gráficos:      Matplotlib + Plotly
+Concorrência:  filelock 3.12+ — bloqueio de arquivo nas gravações CSV
 Segurança:     SHA-256, secrets module
 Deployment:    Streamlit Cloud / GitHub
 ```
@@ -264,5 +267,5 @@ R: Gratuito. Streamlit Cloud tem versão free. Código open-source no GitHub.
 ---
 
 **Última atualização:** 07/05/2026  
-**Versão:** 6.2  
+**Versão:** 7.7  
 **Próxima revisão:** 07/08/2026

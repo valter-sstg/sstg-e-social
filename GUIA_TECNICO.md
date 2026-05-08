@@ -1,6 +1,6 @@
 # 🔧 Guia Técnico SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1)
 
-**Versão:** 6.2  
+**Versão:** 7.7  
 **Data:** 07/05/2026  
 **Público:** Administradores de Sistema | Desenvolvedores
 
@@ -74,10 +74,13 @@
 |-----------|--------------|-----|
 | `streamlit` | ≥1.28.0 | Interface web |
 | `pandas` | ≥2.0.0 | Manipulação de dados CSV |
-| `reportlab` | ≥4.0.0 | Geração de laudos PDF |
-| `pillow` | ≥10.0.0 | Composição de imagens QR Code |
+| `reportlab` | ≥4.0.0 | Geração de laudos PDF (capa, cabeçalho, dashboard, assinaturas) |
+| `pillow` | ≥10.0.0 | Composição de imagens QR Code e logo no laudo |
 | `qrcode[pil]` | ≥7.4.2 | Geração de QR Codes |
 | `pymupdf` | ≥1.23.0 | Visualizador PDF (POP 020) — renderiza páginas como PNG |
+| `plotly` | ≥5.18.0 | Gráficos interativos nos dashboards |
+| `matplotlib` | ≥3.7.0 | Dashboard do laudo PDF (gridspec, barras) |
+| `filelock` | ≥3.12.0 | Bloqueio de arquivo — integridade CSV em acesso simultâneo |
 
 ---
 
@@ -467,6 +470,113 @@ key = f"{cpf_respondente}_{pergunta_id}"  # ex: "12345678901_q1"
 
 Isso evita que respostas de um respondente apareçam pré-selecionadas para o próximo, mesmo no mesmo navegador/dispositivo.
 
+### Suporte a Múltiplos Usuários (v7.7)
+
+O sistema suporta múltiplos usuários simultâneos. Cada conexão WebSocket tem seu próprio `st.session_state` completamente isolado.
+
+**Mecanismo de proteção de arquivo — `_csv_lock()` (v7.7):**
+
+```python
+try:
+    from filelock import FileLock as _FileLock
+    def _csv_lock(arquivo: str):
+        return _FileLock(arquivo + ".lock", timeout=10)
+except ImportError:
+    def _csv_lock(arquivo: str):
+        return contextlib.nullcontext()
+```
+
+Todas as operações de escrita em CSV são protegidas com `with _csv_lock(arquivo):`, garantindo que dois usuários simultâneos não corrompam os dados.
+
+**Operações protegidas:**
+
+| Função | Arquivo | Escopo do lock |
+|--------|---------|----------------|
+| `criar_usuario_operacional()` | usuarios.csv | read + write |
+| `desativar_usuario_operacional()` | usuarios.csv | read + write |
+| `reativar_usuario_operacional()` | usuarios.csv | read + write |
+| `redefinir_senha_operacional()` | usuarios.csv | read + write |
+| `set_senha_admin()` | config.csv | read + write |
+| `atualizar_status_cpf()` | acessos.csv | read + write |
+| `atualizar_periodo_empresa()` | acessos.csv | read + write |
+| `salvar_cadastro_completo()` | acessos.csv | write (append) |
+| Senha RH no cadastro (manual/CSV) | acessos.csv | read + write |
+| Excluir empresa | acessos.csv | write |
+| Gerar nova senha RH | acessos.csv | write |
+| Salvar resposta do questionário | respostas_CNPJ_*.csv | write (append) |
+
+**Fallback automático:** Se `filelock` não estiver instalado, `_csv_lock()` retorna `contextlib.nullcontext()` — o app funciona normalmente sem trava (sem erro).
+
+---
+
+## 📄 Laudo PDF — Arquitetura v7.7
+
+O laudo é gerado por `gerar_laudo.py` usando **ReportLab** (Platypus + canvas).
+
+### Estrutura do PDF
+
+| Página | Seção | Conteúdo |
+|--------|-------|---------|
+| 1 | Capa | Logo SSTG no hero banner, DADOS DA EMPRESA, RESPONSÁVEIS TÉCNICOS (único Table, borda a borda) |
+| 2 | Seção 1 | Identificação, objetivo, base legal |
+| 3 | Seção 2 | Metodologia COPSOQ III |
+| 4–5 | Seção 3 | Análise — inclui dashboard Matplotlib (métricas + adesão + médias por dimensão) |
+| 6 | Seção 4 | Classificação de riscos |
+| 7 | Seção 5 | Recomendações |
+| 8 | Seção 6 | Conclusão |
+| 9 | Última | Assinaturas (3 colunas) + nota legal no rodapé |
+
+### Cabeçalho (páginas 2–9)
+
+Desenhado via callback `onLaterPages` no nível do canvas (não do Platypus), garantindo que apareça em todas as páginas internas:
+
+```python
+def _header_footer(canvas_obj, doc, empresa="", logo_path=None):
+    canvas_obj.saveState()
+    w, h = A4
+    # Faixa navy
+    canvas_obj.setFillColor(C_AZUL)
+    canvas_obj.rect(0, h - 1.4*cm, w, 1.4*cm, fill=1, stroke=0)
+    # Logo SSTG (se disponível)
+    if logo_path and os.path.exists(logo_path):
+        logo_h = 1.1*cm
+        logo_w = logo_h * 2.3
+        logo_y = h - 1.4*cm + (1.4*cm - logo_h) / 2
+        canvas_obj.drawImage(logo_path, 0.3*cm, logo_y,
+                             width=logo_w, height=logo_h,
+                             preserveAspectRatio=True, mask='auto')
+    # Texto + número de página
+    canvas_obj.drawString(...)
+    canvas_obj.drawRightString(...)
+    canvas_obj.restoreState()
+```
+
+### Dashboard (Seção 3.5)
+
+Gerado com **Matplotlib + GridSpec** em 3 linhas:
+
+```
+Row 0 (0.18): 3 caixas métricas — CPFs autorizados / Respostas / Taxa de Adesão
+Row 1 (1.0):  Barras verticais de Adesão (navy/verde) | Painel Taxa de Adesão
+Row 2 (1.6):  Barras coloridas de Médias por Dimensão (CORES_DIMS palette)
+```
+
+### Tabela RESPONSÁVEIS TÉCNICOS (Capa)
+
+Implementada como um único `Table` ReportLab com SPAN no cabeçalho:
+
+```python
+t_resp = Table(
+    [
+        [Paragraph("RESPONSÁVEIS TÉCNICOS", ...), "", ""],  # SPAN linha 0
+        [rt1_subtable, "", rt2_subtable],                   # sub-tabelas lado a lado
+    ],
+    colWidths=[9*cm, 0.5*cm, 9*cm]   # = 18.5 cm total (igual a t_emp)
+)
+```
+
+O SPAN garante que o cabeçalho sempre ocupa exatamente a mesma largura que as sub-tabelas, sem desalinhamento.
+
 ---
 
 ## 🛠️ Troubleshooting Técnico
@@ -553,5 +663,15 @@ altura_bloco_empresa = len(linhas_empresa) * altura_linha_empresa
 
 ---
 
-**Última atualização:** 07/05/2026  
+### Corrupção de CSV com múltiplos usuários simultâneos
+
+**Causa (v6.x):** Duas sessões fazem `read_csv` → modificam → `to_csv` ao mesmo tempo, causando uma sobrescrever a outra.
+
+**Solução (v7.7):** `_csv_lock()` com `filelock`. Instalar: `pip install filelock`.
+
+**Diagnóstico:** Se aparecer CSV com menos linhas do que esperado após uso simultâneo, verifique se `filelock` está instalado: `py -m pip show filelock`.
+
+---
+
+**Última atualização:** 07/05/2026 — v7.7  
 **Versão do sistema:** 6.2

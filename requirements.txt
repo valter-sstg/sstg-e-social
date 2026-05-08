@@ -5,3 +5,5 @@ qrcode>=7.4.2
 Pillow>=10.0.0
 pymupdf>=1.23.0
 plotly>=5.18.0
+matplotlib>=3.7.0
+filelock>=3.12.0

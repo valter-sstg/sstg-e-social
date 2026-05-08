@@ -1,4 +1,4 @@
-# ✅ Checklist de Lançamento — SSTG - DRPS v6.2
+# ✅ Checklist de Lançamento — SSTG - DRPS v7.7
 
 **Data:** 07/05/2026  
 **Responsável:** _______________  
@@ -13,8 +13,12 @@
   - [ ] `streamlit >= 1.28.0`
   - [ ] `pandas >= 2.0.0`
   - [ ] `reportlab >= 4.0.0`
-  - [ ] `pillow >= 9.0.0` ← necessário para QR Code
+  - [ ] `pillow >= 10.0.0` ← necessário para QR Code e logo no laudo
   - [ ] `qrcode[pil] >= 7.4.2` ← necessário para QR Code
+  - [ ] `pymupdf >= 1.23.0` ← visualizador PDF (POP 020)
+  - [ ] `plotly >= 5.18.0` ← dashboards interativos
+  - [ ] `matplotlib >= 3.7.0` ← dashboard do laudo PDF
+  - [ ] `filelock >= 3.12.0` ← proteção contra race condition em CSV ← **novo v7.7**
 - [ ] **Pasta `.streamlit/`** criada
 - [ ] **Arquivo `.streamlit/config.toml`** presente e configurado
 - [ ] **Arquivos principais presentes:**
@@ -23,6 +27,7 @@
   - [ ] `gerar_compartilhamento.py`
   - [ ] `gerar_pdf_publicacao.py`
   - [ ] `requirements.txt`
+  - [ ] `logo_sstg.png` ← usada na capa e cabeçalho do laudo ← **novo v7.7**
 - [ ] **Arquivos de documentação presentes (raiz do projeto):**
   - [ ] `README.md`
   - [ ] `TUTORIAL.md`
@@ -41,9 +46,10 @@
 - [ ] **`APP_URL`** configurado para o ambiente atual
 - [ ] **`SHARE_URL`** aponta para URL pública do Streamlit Cloud
   - [ ] Testado: links enviados por WhatsApp/e-mail funcionam externamente
-- [ ] **`SENHA_ADMIN`** alterada (não usar `sstg2025` em produção)
+- [ ] **`SENHA_ADMIN`** alterada (não usar padrão em produção)
 - [ ] **`DOC_DIR`** resolvido via `os.path.dirname(os.path.abspath(__file__))` — automático
 - [ ] **Pasta `data/`** criada e acessível (Streamlit Cloud cria automaticamente)
+- [ ] **`filelock`** instalado: `py -m pip show filelock` ← **novo v7.7**
 
 ---
 
@@ -87,6 +93,7 @@
 - [ ] Botão E-mail abre cliente com template
 - [ ] Download da imagem PNG funciona
 - [ ] Médias por dimensão exibidas
+- [ ] Dashboard de resultados: 3 métricas + gráfico Adesão + Médias por Dimensão ← **v7.7**
 - [ ] Histórico de respostas exibido
 - [ ] Export CSV de respostas funciona
 - [ ] Geração de laudo PDF funciona
@@ -106,7 +113,7 @@
 - [ ] Login RH com nova senha funciona
 
 ### Aba 6 — Documentação
-- [ ] Todos os 6 documentos listados
+- [ ] Todos os documentos listados
 - [ ] Botão "Ler" abre o conteúdo `.md` sem erro "Arquivo não encontrado"
 - [ ] Conteúdo renderizado em Markdown
 - [ ] Botão de fechar documentação funciona
@@ -114,7 +121,31 @@
 
 ---
 
-## 📊 4. Módulo Gestão das Respostas (RH)
+## 📄 4. Laudo PDF — v7.7
+
+- [ ] **Capa:**
+  - [ ] Logo SSTG visível no banner superior ← **novo v7.7**
+  - [ ] Bloco DADOS DA EMPRESA renderiza corretamente (full-width)
+  - [ ] Bloco RESPONSÁVEIS TÉCNICOS: dois quadros alinhados borda a borda ← **novo v7.7**
+  - [ ] Responsável 1: Valter Moura (Técnico de Segurança) à esquerda
+  - [ ] Responsável 2: Leonardo Neves (Médico do Trabalho) à direita
+- [ ] **Cabeçalho (páginas 2–9):**
+  - [ ] Logo SSTG visível em todas as páginas internas ← **novo v7.7**
+  - [ ] Texto "PGR / LAUDO — FATORES PSICOSSOCIAIS" presente
+  - [ ] Número de página correto em cada página
+- [ ] **Seção 3.5 — Dashboard:**
+  - [ ] 3 métricas exibidas (CPFs autorizados / Respostas / Taxa de Adesão) ← **novo v7.7**
+  - [ ] Gráfico de Adesão (barras verticais navy/verde) ← **novo v7.7**
+  - [ ] Gráfico Médias por Dimensão (barras coloridas CORES_DIMS) ← **novo v7.7**
+- [ ] **Última página — Assinaturas:**
+  - [ ] 3 colunas: Valter Moura | Leonardo Neves | Representante Legal
+  - [ ] Coluna Representante Legal alinhada à esquerda ← **novo v7.7**
+  - [ ] "Cargo: ___________________" presente na coluna 3 ← **novo v7.7**
+  - [ ] Nota legal fixada ao rodapé
+
+---
+
+## 📊 5. Módulo Gestão das Respostas (RH)
 
 - [ ] Tela de login exibida ao acessar o módulo
 - [ ] Login com CNPJ + senha incorretos rejeitado
@@ -131,13 +162,13 @@
 
 ---
 
-## 📋 5. Módulo Questionário Psicossocial
+## 📋 6. Módulo Questionário Psicossocial
 
 - [ ] Tela de login exibida com informações do protocolo
 - [ ] CPF não autorizado rejeitado com mensagem clara
 - [ ] CPF inativo rejeitado com mensagem clara
 - [ ] CPF já respondeu (na mesma empresa) bloqueado
-- [ ] **Mesmo CPF aceito em empresa diferente** ← regra v6.1
+- [ ] **Mesmo CPF aceito em empresa diferente** ← v6.1
 - [ ] Período encerrado bloqueia com mensagem de data
 - [ ] **Wizard de navegação funciona** — exibe uma demanda por vez ← v6.2
 - [ ] 40 questões no total distribuídas em 8 blocos
@@ -155,7 +186,7 @@
 
 ---
 
-## 🔒 6. Segurança
+## 🔒 7. Segurança e Concorrência
 
 - [ ] Senhas RH armazenadas como hash (não texto puro)
 - [ ] CPFs armazenados como hash nas respostas
@@ -164,10 +195,12 @@
 - [ ] Acesso RH isolado por empresa
 - [ ] Exclusão de dados requer confirmação com senha admin
 - [ ] Respostas de respondentes diferentes não se misturam (session_state por CPF)
+- [ ] **`filelock` instalado** e protegendo todas as gravações CSV ← **novo v7.7**
+- [ ] **Teste multi-usuário:** dois logins simultâneos não corrompem dados ← **novo v7.7**
 
 ---
 
-## 🌐 7. Streamlit Cloud
+## 🌐 8. Streamlit Cloud
 
 - [ ] Deploy realizado com sucesso
 - [ ] URL pública acessível
@@ -180,7 +213,7 @@
 
 ---
 
-## 📱 8. Compatibilidade
+## 📱 9. Compatibilidade
 
 - [ ] Chrome Desktop ✅
 - [ ] Firefox Desktop ✅
@@ -191,14 +224,12 @@
 
 ---
 
-## 📚 9. Documentação
+## 📚 10. Documentação
 
-- [ ] README.md atualizado (v6.2, 07/05/2026)
-- [ ] TUTORIAL.md atualizado com wizard de navegação e POP 020
-- [ ] GUIA_INSTALACAO.md atualizado com pymupdf nas dependências
-- [ ] GUIA_TECNICO.md atualizado com arquitetura v6.2
+- [ ] README.md atualizado (v7.7, 07/05/2026)
+- [ ] GUIA_INSTALACAO.md atualizado com todas as dependências v7.7
+- [ ] GUIA_TECNICO.md atualizado com filelock, laudo PDF e multi-usuário
 - [ ] CHECKLIST_LANCAMENTO.md atualizado (este documento)
-- [ ] DOCUMENTACAO_PUBLICACAO.md atualizado (v6.2)
 - [ ] POP020_TUTORIAL_TELAS.pdf presente na raiz do repositório
 
 ---
@@ -208,7 +239,9 @@
 | Critério | Status | Observações |
 |----------|--------|-------------|
 | Todos os módulos funcionando | ☐ | |
+| Laudo PDF v7.7 gerado e validado | ☐ | |
 | Segurança validada | ☐ | |
+| filelock instalado e operacional | ☐ | |
 | Testes em mobile realizados | ☐ | |
 | Documentação atualizada | ☐ | |
 | Backup configurado | ☐ | |
@@ -221,4 +254,4 @@
 ---
 
 **Última atualização:** 07/05/2026  
-**Versão:** 6.2
+**Versão:** 7.7

@@ -25,6 +25,12 @@ RESP_NOME  = "Valter Moura"
 RESP_MTE   = "BA000776-5"
 RESP_CREA  = "PE050659691-5"
 
+# ===================== RESPONSÁVEL TÉCNICO 2 =====================
+RESP2_NOME  = "Leonardo Neves"
+RESP2_CARGO = "Médico do Trabalho"
+RESP2_CRM   = "PE17742"
+RESP2_RQE   = "12591"
+
 # ===================== DIMENSÕES ANALÍTICAS COPSOQ III =====================
 DIMS_ANALITICAS = {
     "Cargo": {
@@ -237,16 +243,30 @@ def get_styles():
 
 # ===================== HEADER / FOOTER =====================
 
-def _header_footer(canvas_obj, doc, empresa=""):
+def _header_footer(canvas_obj, doc, empresa="", logo_path=None):
     canvas_obj.saveState()
     w, h = A4
 
     # Header — barra navy
     canvas_obj.setFillColor(C_AZUL)
     canvas_obj.rect(0, h - 1.4*cm, w, 1.4*cm, fill=1, stroke=0)
+
+    # Logo no cabeçalho (se disponível)
+    texto_x = 1*cm   # posição x padrão do texto
+    if logo_path and os.path.exists(logo_path):
+        logo_h = 1.1*cm
+        logo_w = logo_h * 2.3   # proporção aproximada da logo SSTG (~2.3:1)
+        logo_y = h - 1.4*cm + (1.4*cm - logo_h) / 2   # centralizado verticalmente
+        canvas_obj.drawImage(
+            logo_path, 0.3*cm, logo_y,
+            width=logo_w, height=logo_h,
+            preserveAspectRatio=True, mask='auto'
+        )
+        texto_x = 0.3*cm + logo_w + 0.35*cm   # texto começa após a logo
+
     canvas_obj.setFillColor(C_BRANCO)
     canvas_obj.setFont("Helvetica-Bold", 8)
-    canvas_obj.drawString(1*cm, h - 0.85*cm, "PGR / LAUDO — FATORES PSICOSSOCIAIS")
+    canvas_obj.drawString(texto_x, h - 0.85*cm, "PGR / LAUDO — FATORES PSICOSSOCIAIS")
     canvas_obj.setFont("Helvetica", 8)
     canvas_obj.drawRightString(w - 1*cm, h - 0.85*cm, f"Pág. {doc.page}")
 
@@ -307,53 +327,101 @@ def build_capa(st, empresa, cnpj, cnae, grau_risco, data_emissao, logo_path):
     elementos.append(faixa)
     elementos.append(Spacer(1, 0.5*cm))
 
-    # Dados do documento — duas colunas
-    def campo(label, valor):
-        return [
-            Paragraph(label, ParagraphStyle('cl', fontName='Helvetica-Bold', fontSize=9,
-                       textColor=C_AZUL, leading=13)),
-            Paragraph(str(valor), ParagraphStyle('cv', fontName='Helvetica', fontSize=9,
-                       textColor=colors.HexColor('#333333'), leading=13)),
+    # ── Estilos internos da capa ──────────────────────────────────────────────
+    _hdr_st  = ParagraphStyle('ch', fontName='Helvetica-Bold', fontSize=10,
+                               textColor=C_BRANCO, alignment=TA_CENTER, leading=14)
+    _lbl_st  = ParagraphStyle('cl', fontName='Helvetica-Bold', fontSize=9,
+                               textColor=C_AZUL, leading=13)
+    _val_st  = ParagraphStyle('cv', fontName='Helvetica', fontSize=9,
+                               textColor=colors.HexColor('#333333'), leading=13)
+    _rnm_st  = ParagraphStyle('rn', fontName='Helvetica-Bold', fontSize=9,
+                               textColor=C_BRANCO, alignment=TA_CENTER, leading=13)
+    _crg_st  = ParagraphStyle('rc', fontName='Helvetica-Bold', fontSize=8,
+                               textColor=C_BRANCO, alignment=TA_CENTER, leading=12)
+    _rl2_st  = ParagraphStyle('rl', fontName='Helvetica-Bold', fontSize=8,
+                               textColor=C_AZUL, leading=12)
+    _rv2_st  = ParagraphStyle('rv', fontName='Helvetica', fontSize=8,
+                               textColor=colors.HexColor('#333333'), leading=12)
+
+    # ── Bloco 1: DADOS DA EMPRESA (full-width) ────────────────────────────────
+    emp_rows = [
+        [Paragraph("DADOS DA EMPRESA", _hdr_st), ""],
+        [Paragraph("Razão Social:",    _lbl_st), Paragraph(empresa,         _val_st)],
+        [Paragraph("CNPJ:",            _lbl_st), Paragraph(cnpj,            _val_st)],
+        [Paragraph("CNAE Principal:",  _lbl_st), Paragraph(cnae or "—",     _val_st)],
+        [Paragraph("Grau de Risco:",   _lbl_st), Paragraph(grau_risco or "—", _val_st)],
+    ]
+    t_emp = Table(emp_rows, colWidths=[4*cm, 14.5*cm])
+    t_emp.setStyle(TableStyle([
+        ('BACKGROUND',    (0, 0), (-1, 0), C_AZUL),
+        ('SPAN',          (0, 0), (-1, 0)),
+        ('ROWBACKGROUNDS',(0, 1), (-1, -1), [C_CINZAC, C_BRANCO]),
+        ('TOPPADDING',    (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 10),
+        ('GRID',          (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+    ]))
+    elementos.append(t_emp)
+    elementos.append(Spacer(1, 0.4*cm))
+
+    # ── Helper: monta sub-tabela de um RT ────────────────────────────────────
+    def _rt_sub(nome, cargo, reg1_label, reg1_val, reg2_label, reg2_val):
+        rows = [
+            [Paragraph(nome,  _rnm_st), ""],
+            [Paragraph("Data de Emissão:", _rl2_st),
+             Paragraph(data_emissao, _rv2_st)],
+            [Paragraph(cargo, _crg_st), ""],
+            [Paragraph(reg1_label, _rl2_st), Paragraph(reg1_val, _rv2_st)],
+            [Paragraph(reg2_label, _rl2_st), Paragraph(reg2_val, _rv2_st)],
         ]
-
-    dados_esq = [
-        campo("Razão Social:", empresa),
-        campo("CNPJ:", cnpj),
-        campo("CNAE Principal:", cnae or "—"),
-        campo("Grau de Risco:", grau_risco or "—"),
-    ]
-    dados_dir = [
-        campo("Data de Emissão:", data_emissao),
-        campo("Responsável Técnico:", RESP_NOME),
-        campo("MTE:", RESP_MTE),
-        campo("CREA:", RESP_CREA),
-    ]
-
-    def montar_bloco(dados, titulo):
-        rows = [[Paragraph(titulo, ParagraphStyle('bt', fontName='Helvetica-Bold', fontSize=9,
-                           textColor=C_BRANCO, alignment=TA_CENTER))]]
-        for par in dados:
-            rows.append(par)
-        t = Table(rows, colWidths=[4.5*cm, 4.5*cm])
+        t = Table(rows, colWidths=[3.5*cm, 5.5*cm])
         t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), C_AZUL),
-            ('SPAN', (0, 0), (-1, 0)),
-            ('BACKGROUND', (0, 1), (-1, -1), C_CINZAC),
-            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BACKGROUND',    (0, 0), (-1, 0), C_AZUL),
+            ('SPAN',          (0, 0), (-1, 0)),
+            ('BACKGROUND',    (0, 1), (-1, 1), C_CINZAC),
+            ('BACKGROUND',    (0, 2), (-1, 2), C_VERDE),
+            ('SPAN',          (0, 2), (-1, 2)),
+            ('ROWBACKGROUNDS',(0, 3), (-1, -1), [C_BRANCO, C_CINZAC]),
+            ('TOPPADDING',    (0, 0), (-1, -1), 5),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [C_CINZAC, C_BRANCO]),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 8),
+            ('GRID',          (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
         ]))
         return t
 
-    row_dados = [[montar_bloco(dados_esq, "DADOS DA EMPRESA"),
-                  Spacer(0.5*cm, 1),
-                  montar_bloco(dados_dir, "IDENTIFICAÇÃO DO DOCUMENTO")]]
-    t_dados = Table(row_dados, colWidths=[9*cm, 0.5*cm, 9*cm])
-    t_dados.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
-    elementos.append(t_dados)
+    rt1 = _rt_sub(RESP_NOME,  "Técnico de Segurança do Trabalho",
+                  "MTE:",  RESP_MTE,  "CREA:", RESP_CREA)
+    rt2 = _rt_sub(RESP2_NOME, RESP2_CARGO,
+                  "CRM:",  RESP2_CRM, "RQE:",  RESP2_RQE)
+
+    # ── Bloco 2: cabeçalho + sub-quadros num ÚNICO Table (alinhamento garantido)
+    # Linha 0: "RESPONSÁVEIS TÉCNICOS" com SPAN nas 3 colunas
+    # Linha 1: [rt1 | espaço | rt2]  — mesma largura total que o header
+    t_resp = Table(
+        [
+            [Paragraph("RESPONSÁVEIS TÉCNICOS", _hdr_st), "", ""],  # row 0
+            [rt1, "", rt2],                                          # row 1
+        ],
+        colWidths=[9*cm, 0.5*cm, 9*cm]   # total 18.5 cm = igual a t_emp
+    )
+    t_resp.setStyle(TableStyle([
+        # Cabeçalho
+        ('SPAN',          (0, 0), (-1, 0)),
+        ('BACKGROUND',    (0, 0), (-1, 0), C_AZUL),
+        ('TOPPADDING',    (0, 0), (-1, 0), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 7),
+        ('LEFTPADDING',   (0, 0), (-1, 0), 10),
+        ('RIGHTPADDING',  (0, 0), (-1, 0), 10),
+        # Sub-quadros
+        ('VALIGN',        (0, 1), (-1, 1), 'TOP'),
+        ('TOPPADDING',    (0, 1), (-1, 1), 0),
+        ('BOTTOMPADDING', (0, 1), (-1, 1), 0),
+        ('LEFTPADDING',   (0, 1), (-1, 1), 0),
+        ('RIGHTPADDING',  (0, 1), (-1, 1), 0),
+    ]))
+    elementos.append(t_resp)
     elementos.append(Spacer(1, 0.5*cm))
 
     # Rodapé da capa
@@ -427,12 +495,17 @@ def build_s1(st, empresa, cnpj, cnae, grau_risco, data_laudo, data_pgr="—", st
     el.append(_tabela_dados(dados2))
     el.append(Spacer(1, 0.3*cm))
 
-    el.append(_subtitulo("1.3. Responsável pela Elaboração", st))
+    el.append(_subtitulo("1.3. Responsáveis pela Elaboração", st))
     dados3 = [
-        ["Nome:", RESP_NOME],
-        ["Registro Profissional (MTE):", RESP_MTE],
-        ["Registro Profissional (CREA):", RESP_CREA],
-        ["Data de Elaboração:", data_laudo],
+        ["Responsável Técnico 1 — Nome:",    RESP_NOME],
+        ["Cargo:",                            "Engenheiro de Segurança do Trabalho"],
+        ["Registro Profissional (MTE):",      RESP_MTE],
+        ["Registro Profissional (CREA):",     RESP_CREA],
+        ["Responsável Técnico 2 — Nome:",    RESP2_NOME],
+        ["Cargo:",                            RESP2_CARGO],
+        ["Registro Profissional (CRM):",      RESP2_CRM],
+        ["Registro Profissional (RQE):",      RESP2_RQE],
+        ["Data de Elaboração:",               data_laudo],
     ]
     el.append(_tabela_dados(dados3))
     el.append(PageBreak())
@@ -484,7 +557,7 @@ def build_s2(st):
 
 # ===================== SEÇÃO 3: METODOLOGIA =====================
 
-def build_s3(st, total_respondentes):
+def build_s3(st, total_respondentes, total_autorizados=0, medias_por_dim=None):
     el = []
     el.append(_titulo_secao("3. METODOLOGIA DE AVALIAÇÃO", st))
 
@@ -582,6 +655,179 @@ def build_s3(st, total_respondentes):
         "A classificação do Nível de Risco final é obtida pelo cruzamento da Severidade (característica do "
         "perigo psicossocial por dimensão) com a Probabilidade (derivada da classificação COPSOQ III acima), "
         "conforme a <b>Matriz BS 8800 — OHSAS 18.001 (Anexo D)</b>.", st['body']))
+
+    # ── Gráficos de análise (página 6, antes do Inventário de Riscos) ─────────
+    el.append(Spacer(1, 0.5*cm))
+    el.append(_subtitulo("3.5. Análise Gráfica dos Resultados", st))
+    el.append(Paragraph(
+        "Os gráficos abaixo sintetizam a adesão à pesquisa e as médias obtidas por dimensão, "
+        "facilitando a visualização rápida do panorama psicossocial da organização.", st['body']))
+    el.append(Spacer(1, 0.3*cm))
+
+    if medias_por_dim:
+        try:
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
+            import matplotlib.gridspec as gridspec
+
+            CORES_DIMS = [
+                "#5A9F62", "#282C5B", "#DC3B24", "#F4A236",
+                "#4A90D9", "#9B59B6", "#1ABC9C", "#E67E22"
+            ]
+
+            # ── Dados ─────────────────────────────────────────────────────────
+            pct_ades = (round((total_respondentes / total_autorizados) * 100, 1)
+                        if total_autorizados > 0 else 0)
+
+            labels_dim  = [cfg['label'] for cfg in DIMS_ANALITICAS.values()]
+            col_keys_dim = [f"Dim_{k.replace(' ', '_')}" for k in DIMS_ANALITICAS]
+            values_dim  = [medias_por_dim.get(ck, 0.0) for ck in col_keys_dim]
+            cores_dim   = [CORES_DIMS[i % len(CORES_DIMS)] for i in range(len(labels_dim))]
+
+            # ── Figura dashboard ──────────────────────────────────────────────
+            fig = plt.figure(figsize=(12, 9.5))
+            fig.patch.set_facecolor('#F8F9FA')
+
+            gs = gridspec.GridSpec(
+                3, 2,
+                figure=fig,
+                height_ratios=[0.18, 1, 1.6],
+                hspace=0.55, wspace=0.35,
+                left=0.07, right=0.97, top=0.93, bottom=0.07
+            )
+
+            # Título do dashboard
+            fig.text(0.5, 0.97,
+                     "RESULTADO DO DRPS — Diagnóstico de Riscos Psicossociais",
+                     ha='center', va='top', fontsize=11,
+                     fontweight='bold', color='#282C5B')
+
+            # ── Métricas (3 caixas) ───────────────────────────────────────────
+            ax_m = fig.add_subplot(gs[0, :])
+            ax_m.set_visible(False)
+
+            metricas = [
+                ("CPFs Autorizados",   str(total_autorizados)),
+                ("Respostas Recebidas", str(total_respondentes)),
+                ("Taxa de Adesão",      f"{pct_ades}%"),
+            ]
+            for idx, (titulo, valor) in enumerate(metricas):
+                x_base = 0.08 + idx * 0.31
+                # caixa branca com borda navy
+                rect = plt.Rectangle((x_base, 0.75), 0.26, 0.18,
+                                     transform=fig.transFigure,
+                                     facecolor='white',
+                                     edgecolor='#282C5B', linewidth=1.2,
+                                     clip_on=False, zorder=3)
+                fig.add_artist(rect)
+                fig.text(x_base + 0.13, 0.875, titulo,
+                         ha='center', va='center', fontsize=8,
+                         color='#555555', transform=fig.transFigure, zorder=4)
+                fig.text(x_base + 0.13, 0.808, valor,
+                         ha='center', va='center', fontsize=14,
+                         fontweight='bold', color='#282C5B',
+                         transform=fig.transFigure, zorder=4)
+
+            # ── Gráfico 1: Adesão (barras verticais) ─────────────────────────
+            ax1 = fig.add_subplot(gs[1, 0])
+            ax1.set_facecolor('white')
+            ades_labels = ["Autorizados", "Respondidos"]
+            ades_vals   = [total_autorizados, total_respondentes]
+            ades_cores  = ["#282C5B", "#5A9F62"]
+            bars1 = ax1.bar(ades_labels, ades_vals, color=ades_cores,
+                            width=0.45, edgecolor='none')
+            for bar, val in zip(bars1, ades_vals):
+                ax1.text(bar.get_x() + bar.get_width() / 2,
+                         bar.get_height() + max(ades_vals) * 0.03,
+                         str(val), ha='center', va='bottom',
+                         fontsize=10, fontweight='bold', color='#282C5B')
+            ax1.set_title("Adesão ao Questionário",
+                          fontsize=9, fontweight='bold', color='#282C5B', pad=6)
+            ax1.set_ylabel("Quantidade", fontsize=8, color='#555555')
+            ax1.set_ylim(0, max(ades_vals + [1]) * 1.3)
+            ax1.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+            ax1.spines['top'].set_visible(False)
+            ax1.spines['right'].set_visible(False)
+            ax1.tick_params(labelsize=8)
+
+            # ── Painel Taxa de Adesão (caixa verde no subplot direito) ────────
+            ax1b = fig.add_subplot(gs[1, 1])
+            ax1b.set_facecolor('white')
+            ax1b.set_xlim(0, 1); ax1b.set_ylim(0, 1)
+            ax1b.axis('off')
+            ax1b.add_patch(plt.Rectangle((0.1, 0.25), 0.8, 0.5,
+                                         facecolor='#5A9F62', edgecolor='none',
+                                         linewidth=0, zorder=2))
+            ax1b.text(0.5, 0.62, "Taxa de Adesão",
+                      ha='center', va='center', fontsize=10,
+                      color='white', fontweight='bold', zorder=3)
+            ax1b.text(0.5, 0.42, f"{pct_ades}%",
+                      ha='center', va='center', fontsize=22,
+                      color='white', fontweight='bold', zorder=3)
+            ax1b.text(0.5, 0.27,
+                      f"{total_respondentes} de {total_autorizados} responderam",
+                      ha='center', va='center', fontsize=8,
+                      color='white', zorder=3)
+            ax1b.set_title("", fontsize=9)
+
+            # ── Gráfico 2: Médias por Dimensão (barras verticais) ─────────────
+            ax2 = fig.add_subplot(gs[2, :])
+            ax2.set_facecolor('white')
+            x_pos = list(range(len(labels_dim)))
+            bars2 = ax2.bar(x_pos, values_dim, color=cores_dim,
+                            width=0.55, edgecolor='none')
+            for bar, val in zip(bars2, values_dim):
+                ax2.text(bar.get_x() + bar.get_width() / 2,
+                         val + 0.06,
+                         f"{val:.2f}", ha='center', va='bottom',
+                         fontsize=8, fontweight='bold', color='#282C5B')
+            # Rótulos com quebra de linha para nomes longos
+            short_labels = []
+            for lbl in labels_dim:
+                words = lbl.split()
+                if len(words) > 2:
+                    mid = len(words) // 2
+                    short_labels.append(" ".join(words[:mid]) + "\n" + " ".join(words[mid:]))
+                else:
+                    short_labels.append(lbl)
+            ax2.set_xticks(x_pos)
+            ax2.set_xticklabels(short_labels, fontsize=7.5, ha='center')
+            ax2.set_ylabel("Média (Escala 0 a 4)", fontsize=8, color='#555555')
+            ax2.set_ylim(0, 4.6)
+            ax2.set_yticks([0, 1, 2, 3, 4])
+            ax2.yaxis.grid(True, color='#EEEEEE', linewidth=0.8)
+            ax2.set_axisbelow(True)
+            ax2.set_title("Médias por Dimensão (escala 0 a 4)",
+                          fontsize=9, fontweight='bold', color='#282C5B', pad=6)
+            ax2.spines['top'].set_visible(False)
+            ax2.spines['right'].set_visible(False)
+            ax2.tick_params(labelsize=8)
+
+            # ── Exportar ──────────────────────────────────────────────────────
+            buf_dash = io.BytesIO()
+            fig.savefig(buf_dash, format='PNG', dpi=150, bbox_inches='tight',
+                        facecolor='#F8F9FA')
+            plt.close(fig)
+            buf_dash.seek(0)
+
+            # Envolver em tabela com borda (estilo painel admin)
+            img_dash = Image(buf_dash, width=16.5*cm, height=14*cm, kind='proportional')
+            t_dash = Table([[img_dash]], colWidths=[17*cm])
+            t_dash.setStyle(TableStyle([
+                ('BOX',           (0, 0), (-1, -1), 1.2, colors.HexColor('#CCCCCC')),
+                ('BACKGROUND',    (0, 0), (-1, -1), colors.HexColor('#F8F9FA')),
+                ('TOPPADDING',    (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ('LEFTPADDING',   (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING',  (0, 0), (-1, -1), 8),
+            ]))
+            el.append(t_dash)
+
+        except Exception as _graf_err:
+            el.append(Paragraph(
+                f"[Gráficos não disponíveis: {_graf_err}]", st['body']))
+
     el.append(PageBreak())
     return el
 
@@ -775,41 +1021,49 @@ def build_s6(st, empresa):
         "de doenças relacionadas ao trabalho ou, no máximo, <b>a cada dois anos</b>, de forma a manter o "
         "Inventário de Riscos sempre atualizado e em conformidade com as diretrizes legais vigentes.",
         st['body']))
-    el.append(Spacer(1, 1*cm))
+    el.append(Spacer(1, 1.5*cm))
 
-    # Assinatura
+    # Assinatura — 3 colunas: RT1 | RT2 | Representante Legal
+    _ass_linha = "____________________________"
     ass = Table([
-        [Paragraph("____________________________", st['body']),
-         Paragraph("____________________________", st['body'])],
-        [Paragraph(RESP_NOME, st['body_bold']),
+        [Paragraph(_ass_linha,           st['body']),
+         Paragraph(_ass_linha,           st['body']),
+         Paragraph(_ass_linha,           st['body'])],
+        [Paragraph(RESP_NOME,            st['body_bold']),
+         Paragraph(RESP2_NOME,           st['body_bold']),
          Paragraph("Representante Legal da Organização", st['body_bold'])],
-        [Paragraph(f"MTE: {RESP_MTE} | CREA: {RESP_CREA}", st['body']),
-         Paragraph("Cargo: ________________________________", st['body'])],
-    ], colWidths=[9*cm, 9*cm])
+        [Paragraph(f"MTE: {RESP_MTE}",  st['body']),
+         Paragraph(RESP2_CARGO,          st['body']),
+         Paragraph("Cargo: ___________________", st['body'])],
+        [Paragraph(f"CREA: {RESP_CREA}", st['body']),
+         Paragraph(f"CRM: {RESP2_CRM}  |  RQE: {RESP2_RQE}", st['body']),
+         Paragraph("", st['body'])],
+    ], colWidths=[6*cm, 6*cm, 6*cm])
     ass.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN',         (0, 0), (1, -1), 'CENTER'),   # cols 0 e 1 centralizadas
+        ('ALIGN',         (2, 0), (2, -1), 'LEFT'),     # col 2 (Rep. Legal) alinhada à esquerda
+        ('TOPPADDING',    (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
-    el.append(ass)
-    el.append(Spacer(1, 0.5*cm))
 
-    # Rodapé legal
+    # Rodapé legal — mantido sempre ao final da página
     nota = Table([[Paragraph(
         "Fonte metodológica: Questionário COPSOQ III — validado pela Rede COPSOQ Internacional (2025). "
         "Classificação de riscos: Matriz BS 8800 (Anexo D) — OHSAS 18.001, traduzida livremente. "
-        "Referência normativa: NR-01 — Portaria MTE nº 1.419/2024.",
+        "Referência normativa: NR-01 — Portaria MTE nº 1.419/2024. "
+        "Documento elaborado em conformidade com a legislação vigente de Saúde e Segurança do Trabalho.",
         ParagraphStyle('nota', fontName='Helvetica-Oblique', fontSize=7, textColor=C_CINZA,
-                       alignment=TA_CENTER, leading=11))]], colWidths=[18.5*cm])
+                       alignment=TA_CENTER, leading=11))]], colWidths=[18*cm])
     nota.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), C_CINZAC),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BACKGROUND',    (0, 0), (-1, -1), C_CINZAC),
+        ('TOPPADDING',    (0, 0), (-1, -1), 8),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-        ('BOX', (0, 0), (-1, -1), 0.3, C_CINZA),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 10),
+        ('BOX',           (0, 0), (-1, -1), 0.3, C_CINZA),
     ]))
-    el.append(nota)
+
+    el.append(KeepTogether([ass, Spacer(1, 0.8*cm), nota]))
     return el
 
 # ===================== HELPERS =====================
@@ -870,7 +1124,8 @@ def gerar_laudo_pdf(
     dados_empresa: dict,
     medias_por_dim: dict,
     total_respondentes: int,
-    logo_path: str = "logo_sstg.png"
+    logo_path: str = "logo_sstg.png",
+    total_autorizados: int = 0,
 ) -> bytes:
     """
     Gera o Laudo de Fatores Psicossociais em PDF e retorna os bytes.
@@ -903,14 +1158,14 @@ def gerar_laudo_pdf(
 
     def _callback(canvas_obj, doc_obj):
         if doc_obj.page > 1:
-            _header_footer(canvas_obj, doc_obj, empresa)
+            _header_footer(canvas_obj, doc_obj, empresa, logo_path)
 
     story = []
     story += build_capa(st, empresa, cnpj, cnae, grau, data_emissao, logo_path)
     story += build_sumario(st)
     story += build_s1(st, empresa, cnpj, cnae, grau, data_emissao)
     story += build_s2(st)
-    story += build_s3(st, total_respondentes)
+    story += build_s3(st, total_respondentes, total_autorizados, medias_por_dim)
     story += build_s4(st, medias_por_dim)
     story += build_s5(st, medias_por_dim)
     story += build_s6(st, empresa)
