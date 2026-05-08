@@ -946,12 +946,36 @@ if menu == "🔐 Admin SSTG (Gestão)":
                     for _enc in ('utf-8-sig', 'utf-8', 'latin-1', 'cp1252'):
                         try:
                             uploaded_file.seek(0)
-                            df_upload = pd.read_csv(uploaded_file, sep=';', encoding=_enc)
+                            df_upload = pd.read_csv(uploaded_file, sep=';', encoding=_enc, dtype=str)
                             break
                         except (UnicodeDecodeError, Exception):
                             continue
                     else:
                         raise ValueError("Não foi possível ler o arquivo. Salve o CSV com encoding UTF-8 e tente novamente.")
+
+                    # Normaliza nomes de colunas — resolve corrupção de acentos pelo Excel
+                    import unicodedata as _ud
+                    def _norm_col(s):
+                        s = str(s).strip().lstrip('﻿')
+                        sem_acento = ''.join(
+                            c for c in _ud.normalize('NFKD', s)
+                            if not _ud.combining(c)
+                        )
+                        return sem_acento.lower()
+
+                    _mapa = {'cpf': 'CPF', 'funcao': 'Função', 'departamento': 'Departamento'}
+                    df_upload.columns = [
+                        _mapa.get(_norm_col(c), c) for c in df_upload.columns
+                    ]
+
+                    # Corrige CPF em notação científica (ex: 7,73E+09 → 07730000000)
+                    if 'CPF' in df_upload.columns:
+                        def _fix_cpf(v):
+                            try:
+                                return str(int(float(str(v).replace(',', '.')))).zfill(11)
+                            except Exception:
+                                return str(v).strip()
+                        df_upload['CPF'] = df_upload['CPF'].apply(_fix_cpf)
 
                     # Validações
                     colunas_obrig = {"CPF", "Função", "Departamento"}
