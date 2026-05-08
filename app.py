@@ -942,27 +942,39 @@ if menu == "🔐 Admin SSTG (Gestão)":
 
             if uploaded_file:
                 try:
-                    # Tenta múltiplos encodings — cobre UTF-8, Excel BR (latin-1/cp1252) e BOM
-                    for _enc in ('utf-8-sig', 'utf-8', 'latin-1', 'cp1252'):
-                        try:
-                            uploaded_file.seek(0)
-                            df_upload = pd.read_csv(uploaded_file, sep=';', encoding=_enc, dtype=str)
-                            break
-                        except (UnicodeDecodeError, Exception):
-                            continue
-                    else:
-                        raise ValueError("Não foi possível ler o arquivo. Salve o CSV com encoding UTF-8 e tente novamente.")
-
-                    # Normaliza nomes de colunas — resolve corrupção de acentos pelo Excel
                     import unicodedata as _ud
+
                     def _norm_col(s):
-                        s = str(s).strip().lstrip('﻿')
-                        sem_acento = ''.join(
+                        """Remove acentos, BOM e espaços para comparação flexível."""
+                        s = str(s).strip().lstrip('﻿').lstrip('﻿')
+                        return ''.join(
                             c for c in _ud.normalize('NFKD', s)
                             if not _ud.combining(c)
-                        )
-                        return sem_acento.lower()
+                        ).lower()
 
+                    def _tentar_ler(f, sep, enc):
+                        f.seek(0)
+                        return pd.read_csv(f, sep=sep, encoding=enc, dtype=str)
+
+                    # Tenta todas as combinações de separador × encoding
+                    df_upload = None
+                    for _sep in (';', ',', '\t'):
+                        for _enc in ('utf-8-sig', 'utf-8', 'latin-1', 'cp1252'):
+                            try:
+                                _df = _tentar_ler(uploaded_file, _sep, _enc)
+                                # Aceita só se tiver ≥ 2 colunas (evita falso positivo)
+                                if len(_df.columns) >= 2:
+                                    df_upload = _df
+                                    break
+                            except Exception:
+                                continue
+                        if df_upload is not None:
+                            break
+
+                    if df_upload is None:
+                        raise ValueError("Não foi possível ler o arquivo CSV.")
+
+                    # Normaliza nomes de colunas — resolve acentos corrompidos pelo Excel
                     _mapa = {'cpf': 'CPF', 'funcao': 'Função', 'departamento': 'Departamento'}
                     df_upload.columns = [
                         _mapa.get(_norm_col(c), c) for c in df_upload.columns
@@ -980,7 +992,10 @@ if menu == "🔐 Admin SSTG (Gestão)":
                     # Validações
                     colunas_obrig = {"CPF", "Função", "Departamento"}
                     if not colunas_obrig.issubset(df_upload.columns):
-                        st.error(f"❌ O arquivo deve conter as colunas: {', '.join(colunas_obrig)}")
+                        cols_encontradas = ', '.join(df_upload.columns.tolist())
+                        st.error(f"❌ Colunas obrigatórias não encontradas.\n\n"
+                                 f"**Esperado:** CPF, Função, Departamento\n\n"
+                                 f"**Encontrado no arquivo:** {cols_encontradas}")
                     else:
                         st.success(f"✅ Arquivo válido: {len(df_upload)} linhas detectadas")
                         st.dataframe(df_upload, use_container_width=True)
