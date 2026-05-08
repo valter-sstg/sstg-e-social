@@ -97,6 +97,7 @@
 - [ ] Histórico de respostas exibido
 - [ ] Export CSV de respostas funciona
 - [ ] Geração de laudo PDF funciona
+- [ ] Nome do arquivo padronizado: `Laudo_Psicossocial_{CNPJ}_v7.7_{dd-mm-aaaa}.pdf` ← **novo v7.7**
 
 ### Aba 4 — Movimentação de Pessoal
 - [ ] Admissão de novos colaboradores funciona
