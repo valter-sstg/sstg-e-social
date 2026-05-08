@@ -944,6 +944,14 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 try:
                     import unicodedata as _ud
 
+                    def _fix_double_enc(s):
+                        """Reverte dupla codificação: Excel abre UTF-8 como latin-1 e re-salva.
+                        Ex: 'FunÃ§Ã£o'.encode('latin-1').decode('utf-8') → 'Função'"""
+                        try:
+                            return str(s).encode('latin-1').decode('utf-8')
+                        except Exception:
+                            return str(s)
+
                     def _norm_col(s):
                         """Remove acentos, BOM e espaços para comparação flexível."""
                         s = str(s).strip().lstrip('﻿').lstrip('﻿')
@@ -974,10 +982,12 @@ if menu == "🔐 Admin SSTG (Gestão)":
                     if df_upload is None:
                         raise ValueError("Não foi possível ler o arquivo CSV.")
 
-                    # Normaliza nomes de colunas — resolve acentos corrompidos pelo Excel
+                    # Normaliza nomes de colunas — resolve dupla codificação e acentos
+                    # 1º reverte dupla-codificação (FunÃ§Ã£o → Função)
+                    # 2º remove acentos para comparação (funcao → cpf/funcao/departamento)
                     _mapa = {'cpf': 'CPF', 'funcao': 'Função', 'departamento': 'Departamento'}
                     df_upload.columns = [
-                        _mapa.get(_norm_col(c), c) for c in df_upload.columns
+                        _mapa.get(_norm_col(_fix_double_enc(c)), c) for c in df_upload.columns
                     ]
 
                     # Corrige CPF em notação científica (ex: 7,73E+09 → 07730000000)
