@@ -942,7 +942,16 @@ if menu == "🔐 Admin SSTG (Gestão)":
 
             if uploaded_file:
                 try:
-                    df_upload = pd.read_csv(uploaded_file, sep=';')
+                    # Tenta múltiplos encodings — cobre UTF-8, Excel BR (latin-1/cp1252) e BOM
+                    for _enc in ('utf-8-sig', 'utf-8', 'latin-1', 'cp1252'):
+                        try:
+                            uploaded_file.seek(0)
+                            df_upload = pd.read_csv(uploaded_file, sep=';', encoding=_enc)
+                            break
+                        except (UnicodeDecodeError, Exception):
+                            continue
+                    else:
+                        raise ValueError("Não foi possível ler o arquivo. Salve o CSV com encoding UTF-8 e tente novamente.")
 
                     # Validações
                     colunas_obrig = {"CPF", "Função", "Departamento"}
