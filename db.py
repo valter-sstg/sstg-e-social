@@ -9,7 +9,9 @@ import streamlit as st
 @st.cache_resource(show_spinner=False)
 def _get_sb():
     from supabase import create_client
-    return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+    url = st.secrets["SUPABASE_URL"].strip()
+    key = st.secrets["SUPABASE_KEY"].replace("\n", "").replace("\r", "").strip()
+    return create_client(url, key)
 
 
 def ping():
