@@ -1336,7 +1336,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
             st.info("Nenhuma empresa cadastrada. Faça o cadastro primeiro.")
         else:
             df_mov = normalizar_status(df_mov)
-            m1, m2, m3 = st.tabs(["➕ Admissão", "🚫 Desligamento", "✅ Reativação"])
+            m1, m2, m3, m4 = st.tabs(["➕ Admissão", "🚫 Desligamento", "🔴 Inativação", "✅ Reativação"])
 
             # ── ADMISSÃO ─────────────────────────────────────────────────────
             with m1:
@@ -1416,8 +1416,42 @@ if menu == "🔐 Admin SSTG (Gestão)":
                         else:
                             st.error(msg)
 
-            # ── REATIVAÇÃO ───────────────────────────────────────────────────
+            # ── INATIVAÇÃO TEMPORÁRIA ────────────────────────────────────────
             with m3:
+                st.markdown("#### Inativar colaborador temporariamente")
+                st.info("Use para afastamentos, licenças ou suspensões temporárias. O CPF ficará bloqueado para responder, mas poderá ser reativado posteriormente.")
+
+                col1, col2 = st.columns([2, 1])
+                cpf_inat    = col1.text_input("CPF (somente números):", max_chars=11, key="cpf_inat")
+                motivo_inat = col2.selectbox(
+                    "Motivo:", [
+                        "Licença médica", "Licença maternidade", "Licença paternidade",
+                        "Afastamento INSS", "Férias prolongadas", "Suspensão disciplinar", "Outro"
+                    ],
+                    key="motivo_inat"
+                )
+
+                if cpf_inat and len(cpf_inat) == 11:
+                    reg_inat = df_mov[df_mov['CPF'] == cpf_inat]
+                    if not reg_inat.empty:
+                        r = reg_inat.iloc[0]
+                        st.info(f"Colaborador: **{r['Empresa']}** | Função: **{r.get('Função','—')}** | Status atual: **{r.get('Status','Ativo')}**")
+                    else:
+                        st.warning("CPF não encontrado no sistema.")
+
+                if st.button("🔴 INATIVAR TEMPORARIAMENTE", use_container_width=True, key="btn_inat", type="primary"):
+                    cpf_i = cpf_inat.strip().replace(".", "").replace("-", "")
+                    if not validar_cpf_formato(cpf_i):
+                        st.error("CPF inválido.")
+                    else:
+                        ok, msg = atualizar_status_cpf(cpf_i, "Inativo", motivo_inat)
+                        if ok:
+                            st.success(msg)
+                        else:
+                            st.error(msg)
+
+            # ── REATIVAÇÃO ───────────────────────────────────────────────────
+            with m4:
                 st.markdown("#### Reativar colaborador")
                 df_inativos = df_mov[df_mov['Status'] == 'Inativo']
                 if df_inativos.empty:
