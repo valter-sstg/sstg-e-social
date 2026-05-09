@@ -2,8 +2,15 @@
 db.py - Camada de acesso ao Supabase (substitui armazenamento em CSV)
 Persistencia garantida independente de redeploys no Streamlit Cloud.
 """
+import unicodedata
 import pandas as pd
 import streamlit as st
+
+
+def _norm_col(nome: str) -> str:
+    """Remove acentos de nomes de coluna: media_comunicação → media_comunicacao."""
+    nfkd = unicodedata.normalize("NFKD", nome)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
 
 
 @st.cache_resource(show_spinner=False)
@@ -141,14 +148,9 @@ def salvar_resposta(dados):
             db_rec[k.lower()] = v
         else:
             db_rec[k.lower()] = v
-    try:
-        sb.table("respostas").upsert(db_rec, on_conflict="cpf_hash,cnpj").execute()
-    except Exception as e:
-        raise RuntimeError(
-            f"Erro Supabase ao salvar resposta.\n"
-            f"Colunas enviadas: {sorted(db_rec.keys())}\n"
-            f"Erro original: {e}"
-        ) from e
+    # Normaliza acentos em nomes de coluna (ex: media_comunicação → media_comunicacao)
+    db_rec = {_norm_col(k): v for k, v in db_rec.items()}
+    sb.table("respostas").upsert(db_rec, on_conflict="cpf_hash,cnpj").execute()
 
 
 def deletar_respostas_empresa(cnpj):
