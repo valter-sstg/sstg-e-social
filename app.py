@@ -1336,7 +1336,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
             st.info("Nenhuma empresa cadastrada. Faça o cadastro primeiro.")
         else:
             df_mov = normalizar_status(df_mov)
-            m1, m2, m3, m4 = st.tabs(["➕ Admissão", "🚫 Desligamento", "🔴 Inativação", "✅ Reativação"])
+            m1, m2, m3, m4, m5 = st.tabs(["➕ Admissão", "🚫 Desligamento", "🔴 Inativação", "✅ Reativação", "🗑️ Exclusão"])
 
             # ── ADMISSÃO ─────────────────────────────────────────────────────
             with m1:
@@ -1471,6 +1471,33 @@ if menu == "🔐 Admin SSTG (Gestão)":
                                 st.rerun()
                             else:
                                 st.error(msg)
+
+            # ── EXCLUSÃO DE CADASTRO ─────────────────────────────────────────
+            with m5:
+                st.markdown("#### Excluir colaborador cadastrado por engano")
+                st.error("⚠️ **Ação irreversível.** Use apenas para corrigir erros de cadastro. O registro será permanentemente removido do banco de dados.")
+
+                empresas_exc = df_mov.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
+                    lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
+                ).tolist()
+                empresa_exc = st.selectbox("Empresa:", empresas_exc, key="emp_exc")
+                cnpj_exc    = empresa_exc.split("CNPJ: ")[-1]
+
+                cpf_exc = st.text_input("CPF do colaborador a excluir (somente números):", max_chars=11, key="cpf_exc")
+
+                if cpf_exc and len(cpf_exc) == 11:
+                    reg_exc = df_mov[(df_mov['CPF'] == cpf_exc) & (df_mov['CNPJ'] == cnpj_exc)]
+                    if not reg_exc.empty:
+                        r = reg_exc.iloc[0]
+                        st.warning(f"Colaborador encontrado: **{r.get('Função','—')}** | Depto: **{r.get('Departamento','—')}** | Status: **{r.get('Status','Ativo')}**")
+                        confirmar = st.checkbox(f"Confirmo a exclusão definitiva do CPF `{cpf_exc}` desta empresa.", key="chk_exc")
+                        if st.button("🗑️ EXCLUIR COLABORADOR", use_container_width=True, key="btn_exc", type="primary", disabled=not confirmar):
+                            cpf_e = cpf_exc.strip().replace(".", "").replace("-", "")
+                            db.deletar_acesso_cpf(cpf_e, cnpj_exc)
+                            st.success(f"✅ CPF {cpf_exc} removido com sucesso da empresa.")
+                            st.rerun()
+                    else:
+                        st.warning("CPF não encontrado nesta empresa.")
 
     # ── ABA 5: SEGURANÇA E ACESSO RH ──────────────────────────────────────────
     with t5:

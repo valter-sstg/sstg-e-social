@@ -105,6 +105,12 @@ def atualizar_acessos_por_cnpj(cnpj, campos):
     sb.table("acessos").update(db_campos).eq("cnpj", cnpj).execute()
 
 
+def deletar_acesso_cpf(cpf: str, cnpj: str) -> None:
+    """Remove um colaborador específico (cpf+cnpj) da tabela de acessos."""
+    sb = _get_sb()
+    sb.table("acessos").delete().eq("cpf", cpf).eq("cnpj", cnpj).execute()
+
+
 def deletar_acessos_empresa(cnpj):
     sb = _get_sb()
     sb.table("acessos").delete().eq("cnpj", cnpj).execute()
