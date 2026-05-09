@@ -1,26 +1,14 @@
-﻿import streamlit as st
+import streamlit as st
 import pandas as pd
 import os
-import glob
 import hashlib
 import re
 import secrets
 import string
 import base64
-import contextlib
-import zipfile
 from datetime import datetime, date
+import db
 
-# ── Bloqueio de arquivo para operações concorrentes de CSV ───────────────────
-try:
-    from filelock import FileLock as _FileLock
-    def _csv_lock(arquivo: str):
-        """Retorna um FileLock para o CSV (timeout 10s). Previne race conditions."""
-        return _FileLock(arquivo + ".lock", timeout=10)
-except ImportError:
-    def _csv_lock(arquivo: str):
-        """Fallback: sem bloqueio se filelock não estiver instalado."""
-        return contextlib.nullcontext()
 
 try:
     from gerar_laudo import gerar_laudo_pdf
@@ -153,67 +141,21 @@ def gerar_imagem_compartilhamento_simples(empresa_nome: str, cnpj: str, app_url:
 
 COMPARTILHAMENTO_DISPONIVEL = True
 
-# ─── DIRETÓRIO DE DADOS ───────────────────────────────────────────────────────
-# DOC_DIR: sempre a pasta onde app.py está (raiz do repo), em qualquer ambiente
-DOC_DIR = os.path.dirname(os.path.abspath(__file__))
-
-IS_STREAMLIT_CLOUD = os.environ.get('STREAMLIT_SERVER_HEADLESS') == 'true'
-
-if IS_STREAMLIT_CLOUD:
-    DATA_DIR = os.path.join(DOC_DIR, "data")
-    APP_URL  = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
-else:
-    DATA_DIR = r"G:\Meu Drive\SSTG-E-Social"
-    APP_URL  = "http://192.168.77.2:8501"
-
-# URL pública para compartilhamento (sempre usa Streamlit Cloud)
+# ─── DIRETÓRIO E CONFIGURAÇÕES ──────────────────────────────────────────────
+DOC_DIR   = os.path.dirname(os.path.abspath(__file__))
+APP_URL   = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
 SHARE_URL = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
-
-def caminho(nome_arquivo: str) -> str:
-    """Caminho para arquivos de dados (CSVs, uploads)."""
-    if DATA_DIR:
-        os.makedirs(DATA_DIR, exist_ok=True)
-        return os.path.join(DATA_DIR, nome_arquivo)
-    return nome_arquivo
+SENHA_ADMIN = "Valter@sstg230914"
 
 def caminho_doc(nome_arquivo: str) -> str:
-    """Caminho para arquivos de documentação (.md, .pdf) — sempre na raiz do repo."""
     return os.path.join(DOC_DIR, nome_arquivo)
 
-# ─── CONFIGURAÇÕES ────────────────────────────────────────────────────────────
-ARQUIVO_ACESSOS  = caminho("db_acessos_autorizados.csv")
-ARQUIVO_USUARIOS = caminho("db_usuarios_operacionais.csv")
-ARQUIVO_CONFIG   = caminho("db_admin_config.csv")
-SENHA_ADMIN      = "Valter@sstg230914"   # fallback — sobrescrito pelo config se alterado via UI
-
-# ─── BACKUP COMPLETO ─────────────────────────────────────────────────────────
 def gerar_backup_zip() -> bytes:
-    """
-    Empacota todos os CSVs de dados em um único ZIP para download.
-    Inclui: acessos, usuários, config e todos os arquivos de respostas.
-    """
-    buf = _io.BytesIO()
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-        arquivos = [ARQUIVO_ACESSOS, ARQUIVO_USUARIOS, ARQUIVO_CONFIG]
-        for arq in arquivos:
-            if os.path.exists(arq):
-                zf.write(arq, os.path.basename(arq))
-        for arq in glob.glob(caminho("respostas_CNPJ_*.csv")):
-            if os.path.exists(arq):
-                zf.write(arq, os.path.basename(arq))
-    buf.seek(0)
-    return buf.getvalue()
-
-# ─── FUNÇÕES AUXILIARES ───────────────────────────────────────────────────────
+    """Exporta todos os dados do Supabase como CSVs em ZIP."""
+    return db.exportar_backup_zip()
 
 def validar_cpf_formato(cpf: str) -> bool:
     return cpf.isdigit() and len(cpf) == 11
-
-def carregar_dados(arquivo: str) -> pd.DataFrame:
-    if os.path.exists(arquivo):
-        return pd.read_csv(arquivo, sep=';', dtype=str)
-    return pd.DataFrame()
 
 def hash_cpf(cpf: str) -> str:
     return hashlib.sha256(cpf.encode()).hexdigest()
@@ -227,16 +169,12 @@ def hash_senha(senha: str) -> str:
     """Faz hash da senha para armazenamento seguro"""
     return hashlib.sha256(senha.encode()).hexdigest()
 
-# ─── USUÁRIOS OPERACIONAIS ────────────────────────────────────────────────────
+# ─── USUÁRIOS OPERACIONAIS ───────────────────────────────────────────────────
 
 def carregar_usuarios() -> pd.DataFrame:
-    """Carrega o CSV de usuários operacionais."""
-    if os.path.exists(ARQUIVO_USUARIOS):
-        return pd.read_csv(ARQUIVO_USUARIOS, sep=';', dtype=str)
-    return pd.DataFrame(columns=["Usuario", "Nome", "Senha_Hash", "Status", "Data_Criacao"])
+    return db.carregar_usuarios()
 
 def verificar_usuario_operacional(usuario: str, senha: str) -> bool:
-    """Verifica se usuário/senha operacional estão corretos e ativos."""
     df = carregar_usuarios()
     if df.empty:
         return False
@@ -246,82 +184,48 @@ def verificar_usuario_operacional(usuario: str, senha: str) -> bool:
     return df.loc[mask, 'Senha_Hash'].iloc[0] == hash_senha(senha)
 
 def criar_usuario_operacional(usuario: str, nome: str, senha: str) -> tuple:
-    """Cria novo usuário operacional. Retorna (ok, mensagem)."""
-    with _csv_lock(ARQUIVO_USUARIOS):
-        df = carregar_usuarios()
-        if not df.empty and usuario in df['Usuario'].values:
-            return False, f"Usuário '{usuario}' já existe."
-        novo = pd.DataFrame([{
-            "Usuario":      usuario.strip().lower(),
-            "Nome":         nome.strip(),
-            "Senha_Hash":   hash_senha(senha),
-            "Status":       "Ativo",
-            "Data_Criacao": datetime.now().strftime("%d/%m/%Y %H:%M")
-        }])
-        novo.to_csv(ARQUIVO_USUARIOS, mode='a', index=False, sep=';',
-                    header=not os.path.exists(ARQUIVO_USUARIOS), encoding='utf-8-sig')
+    df = carregar_usuarios()
+    if not df.empty and usuario in df['Usuario'].values:
+        return False, f"Usuário '{usuario}' já existe."
+    db.salvar_usuario({
+        "Usuario":      usuario.strip().lower(),
+        "Nome":         nome.strip(),
+        "Senha_Hash":   hash_senha(senha),
+        "Status":       "Ativo",
+        "Data_Criacao": datetime.now().strftime("%d/%m/%Y %H:%M"),
+    })
     return True, f"Usuário '{usuario}' criado com sucesso."
 
 def desativar_usuario_operacional(usuario: str) -> tuple:
-    """Desativa (não exclui) um usuário operacional."""
-    with _csv_lock(ARQUIVO_USUARIOS):
-        df = carregar_usuarios()
-        if df.empty or usuario not in df['Usuario'].values:
-            return False, f"Usuário '{usuario}' não encontrado."
-        df.loc[df['Usuario'] == usuario, 'Status'] = 'Inativo'
-        df.to_csv(ARQUIVO_USUARIOS, index=False, sep=';', encoding='utf-8-sig')
+    df = carregar_usuarios()
+    if df.empty or usuario not in df['Usuario'].values:
+        return False, f"Usuário '{usuario}' não encontrado."
+    db.atualizar_usuario_campos(usuario, {"Status": "Inativo"})
     return True, f"Usuário '{usuario}' desativado."
 
 def reativar_usuario_operacional(usuario: str) -> tuple:
-    """Reativa um usuário operacional inativo."""
-    with _csv_lock(ARQUIVO_USUARIOS):
-        df = carregar_usuarios()
-        if df.empty or usuario not in df['Usuario'].values:
-            return False, f"Usuário '{usuario}' não encontrado."
-        df.loc[df['Usuario'] == usuario, 'Status'] = 'Ativo'
-        df.to_csv(ARQUIVO_USUARIOS, index=False, sep=';', encoding='utf-8-sig')
+    df = carregar_usuarios()
+    if df.empty or usuario not in df['Usuario'].values:
+        return False, f"Usuário '{usuario}' não encontrado."
+    db.atualizar_usuario_campos(usuario, {"Status": "Ativo"})
     return True, f"Usuário '{usuario}' reativado."
 
 def get_senha_admin_hash() -> str:
-    """Retorna o hash da senha do admin. Lê do arquivo de config se existir."""
-    if os.path.exists(ARQUIVO_CONFIG):
-        df = pd.read_csv(ARQUIVO_CONFIG, sep=';', dtype=str)
-        row = df[df['Chave'] == 'senha_admin_hash']
-        if not row.empty:
-            return row.iloc[0]['Valor']
-    return hash_senha(SENHA_ADMIN)
+    h = db.get_config("senha_admin_hash")
+    return h if h else hash_senha(SENHA_ADMIN)
 
 def set_senha_admin(nova_senha: str):
-    """Grava novo hash da senha do admin no arquivo de config."""
-    h = hash_senha(nova_senha)
-    with _csv_lock(ARQUIVO_CONFIG):
-        if os.path.exists(ARQUIVO_CONFIG):
-            df = pd.read_csv(ARQUIVO_CONFIG, sep=';', dtype=str)
-            if 'senha_admin_hash' in df['Chave'].values:
-                df.loc[df['Chave'] == 'senha_admin_hash', 'Valor'] = h
-            else:
-                df = pd.concat([df, pd.DataFrame([{'Chave': 'senha_admin_hash', 'Valor': h}])], ignore_index=True)
-        else:
-            df = pd.DataFrame([{'Chave': 'senha_admin_hash', 'Valor': h}])
-        df.to_csv(ARQUIVO_CONFIG, index=False, sep=';', encoding='utf-8-sig')
+    db.set_config("senha_admin_hash", hash_senha(nova_senha))
 
 def redefinir_senha_operacional(usuario: str, nova_senha: str) -> tuple:
-    """Redefine a senha de um usuário operacional."""
-    with _csv_lock(ARQUIVO_USUARIOS):
-        df = carregar_usuarios()
-        if df.empty or usuario not in df['Usuario'].values:
-            return False, f"Usuário '{usuario}' não encontrado."
-        df.loc[df['Usuario'] == usuario, 'Senha_Hash'] = hash_senha(nova_senha)
-        df.to_csv(ARQUIVO_USUARIOS, index=False, sep=';', encoding='utf-8-sig')
+    df = carregar_usuarios()
+    if df.empty or usuario not in df['Usuario'].values:
+        return False, f"Usuário '{usuario}' não encontrado."
+    db.atualizar_usuario_campos(usuario, {"Senha_Hash": hash_senha(nova_senha)})
     return True, f"Senha do usuário '{usuario}' redefinida com sucesso."
 
 def cpf_ja_respondeu(cnpj: str, cpf: str) -> bool:
-    arq = caminho(f"respostas_CNPJ_{cnpj}.csv")
-    if os.path.exists(arq):
-        df = pd.read_csv(arq, sep=';', dtype=str)
-        if 'CPF_Hash' in df.columns:
-            return hash_cpf(cpf) in df['CPF_Hash'].values
-    return False
+    return db.cpf_respondeu(cnpj, hash_cpf(cpf))
 
 def normalizar_status(df: pd.DataFrame) -> pd.DataFrame:
     if 'Status' not in df.columns:
@@ -331,13 +235,8 @@ def normalizar_status(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def salvar_cadastro_completo(dados_emp: dict, colaboradores: list):
-    """
-    dados_emp : {CNPJ, Razão Social, Data_Inicio, Data_Fim}
-    colaboradores : list de dicts {CPF, Função, Departamento}
-    """
-    df_existente = carregar_dados(ARQUIVO_ACESSOS)
+    df_existente = db.carregar_acessos()
     novos, duplicados, invalidos = [], [], []
-
     for colab in colaboradores:
         cpf_limpo = str(colab.get('CPF', '')).strip().replace(".", "").replace("-", "")
         if not cpf_limpo:
@@ -345,66 +244,61 @@ def salvar_cadastro_completo(dados_emp: dict, colaboradores: list):
         if not validar_cpf_formato(cpf_limpo):
             invalidos.append(cpf_limpo)
             continue
-        # Duplicidade verifica CPF + CNPJ: mesmo CPF pode responder em empresas diferentes
         cnpj_atual = dados_emp['CNPJ']
         ja_nessa_empresa = (
             not df_existente.empty
-            and len(df_existente[(df_existente['CPF'] == cpf_limpo) & (df_existente['CNPJ'] == cnpj_atual)]) > 0
+            and len(df_existente[
+                (df_existente['CPF'] == cpf_limpo) &
+                (df_existente['CNPJ'] == cnpj_atual)
+            ]) > 0
         )
         if ja_nessa_empresa:
             duplicados.append(cpf_limpo)
             continue
         novos.append({
-            "CPF":                 cpf_limpo,
-            "Empresa":             dados_emp['Razão Social'],
-            "CNPJ":                dados_emp['CNPJ'],
-            "Função":              colab.get('Função', ''),
-            "Departamento":        colab.get('Departamento', ''),
+            "CPF":                  cpf_limpo,
+            "Empresa":              dados_emp['Razão Social'],
+            "CNPJ":                 dados_emp['CNPJ'],
+            "Funcao":               colab.get('Função', colab.get('Funcao', '')),
+            "Departamento":         colab.get('Departamento', ''),
             "Data_Acesso_Liberado": datetime.now().strftime("%d/%m/%Y"),
-            "Data_Inicio_Periodo": dados_emp.get('Data_Inicio', ''),
-            "Data_Fim_Periodo":    dados_emp.get('Data_Fim', ''),
-            "Status":              "Ativo",
-            "Data_Movimentacao":   "",
-            "Motivo_Movimentacao": ""
+            "Data_Inicio_Periodo":  dados_emp.get('Data_Inicio', ''),
+            "Data_Fim_Periodo":     dados_emp.get('Data_Fim', ''),
+            "Status":               "Ativo",
+            "Data_Movimentacao":    "",
+            "Motivo_Movimentacao":  "",
         })
-
     if novos:
-        df_novo = pd.DataFrame(novos)
-        with _csv_lock(ARQUIVO_ACESSOS):
-            df_novo.to_csv(
-                ARQUIVO_ACESSOS, mode='a', index=False, sep=';',
-                header=not os.path.exists(ARQUIVO_ACESSOS), encoding='utf-8-sig'
-            )
-
+        db.salvar_acessos_em_lote(novos)
     return novos, duplicados, invalidos
 
 def atualizar_status_cpf(cpf: str, novo_status: str, motivo: str = "") -> tuple:
-    with _csv_lock(ARQUIVO_ACESSOS):
-        df = carregar_dados(ARQUIVO_ACESSOS)
-        if df.empty:
-            return False, "Banco de dados vazio."
-        df = normalizar_status(df)
-        mask = df['CPF'] == cpf
-        if not mask.any():
-            return False, f"CPF {cpf} não encontrado no sistema."
-        df.loc[mask, 'Status']              = novo_status
-        df.loc[mask, 'Data_Movimentacao']   = datetime.now().strftime("%d/%m/%Y")
-        df.loc[mask, 'Motivo_Movimentacao'] = motivo
-        df.to_csv(ARQUIVO_ACESSOS, index=False, sep=';', encoding='utf-8-sig')
-        empresa = df.loc[mask, 'Empresa'].iloc[0]
+    df = db.carregar_acessos()
+    if df.empty:
+        return False, "Banco de dados vazio."
+    df = normalizar_status(df)
+    mask = df['CPF'] == cpf
+    if not mask.any():
+        return False, f"CPF {cpf} não encontrado no sistema."
+    empresa = df.loc[mask, 'Empresa'].iloc[0]
+    cnpj    = df.loc[mask, 'CNPJ'].iloc[0]
+    db.atualizar_acesso_campos(cpf, cnpj, {
+        'Status':              novo_status,
+        'Data_Movimentacao':   datetime.now().strftime("%d/%m/%Y"),
+        'Motivo_Movimentacao': motivo,
+    })
     return True, f"CPF {cpf} ({empresa}) atualizado para **{novo_status}**."
 
 def atualizar_periodo_empresa(cnpj: str, data_inicio: str, data_fim: str) -> tuple:
-    with _csv_lock(ARQUIVO_ACESSOS):
-        df = carregar_dados(ARQUIVO_ACESSOS)
-        if df.empty:
-            return False, "Banco de dados vazio."
-        mask = df['CNPJ'] == cnpj
-        if not mask.any():
-            return False, f"CNPJ {cnpj} não encontrado."
-        df.loc[mask, 'Data_Inicio_Periodo'] = data_inicio
-        df.loc[mask, 'Data_Fim_Periodo']    = data_fim
-        df.to_csv(ARQUIVO_ACESSOS, index=False, sep=';', encoding='utf-8-sig')
+    df = db.carregar_acessos()
+    if df.empty:
+        return False, "Banco de dados vazio."
+    if cnpj not in df['CNPJ'].values:
+        return False, f"CNPJ {cnpj} não encontrado."
+    db.atualizar_acessos_por_cnpj(cnpj, {
+        'Data_Inicio_Periodo': data_inicio,
+        'Data_Fim_Periodo':    data_fim,
+    })
     return True, f"Período atualizado para {data_inicio} → {data_fim}."
 
 def periodo_valido(dados: dict) -> tuple:
@@ -484,6 +378,8 @@ DIMENSOES = {
 DIMS_INVERTIDAS = {"Demandas", "Relacionamentos"}
 
 # ─── CONFIGURAÇÃO DA PÁGINA ───────────────────────────────────────────────────
+db.ping()  # acorda o banco apos hibernacao (free tier)
+
 st.set_page_config(
     page_title="SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) — Diagnóstico Psicossocial",
     layout="wide",
@@ -879,13 +775,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
                             # Gerar senha de acesso RH
                             if novos:
                                 senha_rh = gerar_senha_rh()
-                                # Salvar senha hash no arquivo de acessos (em nova coluna)
-                                with _csv_lock(ARQUIVO_ACESSOS):
-                                    df_acessos = carregar_dados(ARQUIVO_ACESSOS)
-                                    if 'Senha_RH_Hash' not in df_acessos.columns:
-                                        df_acessos['Senha_RH_Hash'] = ''
-                                    df_acessos.loc[df_acessos['CNPJ'] == cnpj_limpo, 'Senha_RH_Hash'] = hash_senha(senha_rh)
-                                    df_acessos.to_csv(ARQUIVO_ACESSOS, index=False, sep=';', encoding='utf-8-sig')
+                                db.atualizar_acessos_por_cnpj(cnpj_limpo, {"Senha_RH_Hash": hash_senha(senha_rh)})
 
                                 st.success(f"✅ {len(novos)} colaborador(es) cadastrado(s) com sucesso.")
                                 st.session_state.cnpj_registrado = cnpj_limpo
@@ -1032,13 +922,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
                                     # Gerar senha de acesso RH
                                     if novos:
                                         senha_rh = gerar_senha_rh()
-                                        # Salvar senha hash no arquivo de acessos
-                                        with _csv_lock(ARQUIVO_ACESSOS):
-                                            df_acessos = carregar_dados(ARQUIVO_ACESSOS)
-                                            if 'Senha_RH_Hash' not in df_acessos.columns:
-                                                df_acessos['Senha_RH_Hash'] = ''
-                                            df_acessos.loc[df_acessos['CNPJ'] == cnpj_limpo_csv, 'Senha_RH_Hash'] = hash_senha(senha_rh)
-                                            df_acessos.to_csv(ARQUIVO_ACESSOS, index=False, sep=';', encoding='utf-8-sig')
+                                        db.atualizar_acessos_por_cnpj(cnpj_limpo_csv, {"Senha_RH_Hash": hash_senha(senha_rh)})
 
                                         st.success(f"✅ {len(novos)} colaborador(es) cadastrado(s) com sucesso.")
                                         st.session_state.cnpj_registrado = cnpj_limpo_csv
@@ -1061,7 +945,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
         st.divider()
         st.subheader("🔗 Link do Questionário para Compartilhar")
 
-        df_emp_links = carregar_dados(ARQUIVO_ACESSOS)
+        df_emp_links = db.carregar_acessos()
         if not df_emp_links.empty:
             empresas_unicas = df_emp_links.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].values
             for _, (empresa, cnpj_emp) in enumerate(empresas_unicas):
@@ -1095,7 +979,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
         st.divider()
 
         st.subheader("Cadastro Geral de Colaboradores Autorizados")
-        df_verif = carregar_dados(ARQUIVO_ACESSOS)
+        df_verif = db.carregar_acessos()
 
         if not df_verif.empty:
             df_verif = normalizar_status(df_verif)
@@ -1171,7 +1055,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
                     # ── EXCLUIR EMPRESA INDIVIDUAL ────────────────────────────
                     with zt1:
                         st.warning("Remove **todos os acessos** e **todo o histórico de respostas** da empresa selecionada.")
-                        df_zona = carregar_dados(ARQUIVO_ACESSOS)
+                        df_zona = db.carregar_acessos()
                         if not df_zona.empty:
                             empresas_zona = df_zona.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
                                 lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
@@ -1182,8 +1066,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
 
                             # Contadores para exibir impacto
                             qtd_cpfs  = len(df_zona[df_zona['CNPJ'] == cnpj_del])
-                            arq_resp  = caminho(f"respostas_CNPJ_{cnpj_del}.csv")
-                            qtd_resp  = len(pd.read_csv(arq_resp, sep=';', dtype=str)) if os.path.exists(arq_resp) else 0
+                            qtd_resp  = len(db.carregar_respostas(cnpj_del))
 
                             col_info1, col_info2 = st.columns(2)
                             col_info1.metric("CPFs que serão removidos", qtd_cpfs)
@@ -1202,13 +1085,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
                                 elif senha_conf_del != SENHA_ADMIN:
                                     st.error("❌ Senha incorreta. Operação cancelada.")
                                 else:
-                                    # 1. Remove os CPFs da empresa no arquivo de acessos
-                                    df_zona_upd = df_zona[df_zona['CNPJ'] != cnpj_del]
-                                    with _csv_lock(ARQUIVO_ACESSOS):
-                                        df_zona_upd.to_csv(ARQUIVO_ACESSOS, index=False, sep=';', encoding='utf-8-sig')
-                                    # 2. Remove arquivo de respostas da empresa
-                                    if os.path.exists(arq_resp):
-                                        os.remove(arq_resp)
+                                    db.deletar_acessos_empresa(cnpj_del)
+                                    db.deletar_respostas_empresa(cnpj_del)
                                     st.success(f"✅ Empresa **{nome_del}** removida com sucesso. {qtd_cpfs} acesso(s) e {qtd_resp} resposta(s) apagadas.")
                                     st.rerun()
                         else:
@@ -1227,12 +1105,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
                             elif senha_conf_all != SENHA_ADMIN:
                                 st.error("❌ Senha incorreta. Operação cancelada.")
                             else:
-                                # Remove arquivo de acessos
-                                if os.path.exists(ARQUIVO_ACESSOS):
-                                    os.remove(ARQUIVO_ACESSOS)
-                                # Remove todos os arquivos de respostas por empresa
-                                for arq in glob.glob(caminho("respostas_CNPJ_*.csv")):
-                                    os.remove(arq)
+                                db.deletar_todos_acessos()
+                                db.deletar_todas_respostas()
                                 st.success("✅ Banco de dados completo resetado.")
                                 st.rerun()
         else:
@@ -1241,7 +1115,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
     # ── ABA 3: RESULTADOS ─────────────────────────────────────────────────────
     with t3:
         st.subheader("Resultados Consolidados por Empresa")
-        df_acessos = carregar_dados(ARQUIVO_ACESSOS)
+        df_acessos = db.carregar_acessos()
 
         if not df_acessos.empty:
             opcoes_empresa = df_acessos.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
@@ -1249,7 +1123,6 @@ if menu == "🔐 Admin SSTG (Gestão)":
             ).tolist()
             empresa_sel = st.selectbox("Selecione a empresa:", opcoes_empresa)
             cnpj_cod    = empresa_sel.split("CNPJ: ")[-1]
-            nome_res    = caminho(f"respostas_CNPJ_{cnpj_cod}.csv")
 
             # ── Link individualizado ──────────────────────────────────────────
             with st.expander("🔗 Link do Questionário para esta empresa"):
@@ -1313,8 +1186,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 else:
                     st.warning("Módulo de compartilhamento não disponível. Verifique se `qrcode` e `Pillow` estão instalados.")
 
-            if os.path.exists(nome_res):
-                df_res = pd.read_csv(nome_res, sep=';', dtype=str)
+            df_res = db.carregar_respostas(cnpj_cod)
+            if not df_res.empty:
 
                 total_auth = len(df_acessos[df_acessos['CNPJ'] == cnpj_cod])
                 total_resp = len(df_res)
@@ -1467,7 +1340,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
     # ── ABA 4: MOVIMENTAÇÃO DE PESSOAL ────────────────────────────────────────
     with t4:
         st.subheader("Movimentação de Pessoal")
-        df_mov = carregar_dados(ARQUIVO_ACESSOS)
+        df_mov = db.carregar_acessos()
 
         if df_mov.empty:
             st.info("Nenhuma empresa cadastrada. Faça o cadastro primeiro.")
@@ -1580,7 +1453,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
         st.subheader("🔐 Segurança e Acesso RH")
         st.info("Gere ou redefina senhas de acesso para o módulo 'Gestão das Respostas (RH)'")
 
-        df_acessos = carregar_dados(ARQUIVO_ACESSOS)
+        df_acessos = db.carregar_acessos()
 
         if not df_acessos.empty:
             # Seleção de empresa
@@ -1604,10 +1477,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
                     # Gerar nova senha
                     nova_senha = gerar_senha_rh()
 
-                    # Atualizar arquivo de acessos
-                    with _csv_lock(ARQUIVO_ACESSOS):
-                        df_acessos.loc[df_acessos['CNPJ'] == cnpj_cod, 'Senha_RH_Hash'] = hash_senha(nova_senha)
-                        df_acessos.to_csv(ARQUIVO_ACESSOS, index=False, sep=';', encoding='utf-8-sig')
+                    db.atualizar_acessos_por_cnpj(cnpj_cod, {"Senha_RH_Hash": hash_senha(nova_senha)})
 
                     st.success("✅ Nova senha gerada com sucesso!")
                     st.divider()
@@ -1887,7 +1757,7 @@ elif menu == "📊 Gestão das Respostas (RH)":
             if not cnpj_limpo or not senha_input:
                 st.error("Preencha CNPJ e senha.")
             else:
-                df_acessos = carregar_dados(ARQUIVO_ACESSOS)
+                df_acessos = db.carregar_acessos()
 
                 # Verificar se CNPJ existe
                 empresa_data = df_acessos[df_acessos['CNPJ'] == cnpj_limpo]
@@ -1919,8 +1789,7 @@ elif menu == "📊 Gestão das Respostas (RH)":
         st.rerun()
 
     cnpj_cod = st.session_state.rh_cnpj
-    nome_res = caminho(f"respostas_CNPJ_{cnpj_cod}.csv")
-    df_acessos = carregar_dados(ARQUIVO_ACESSOS)
+    df_acessos = db.carregar_acessos()
 
     # ── Link do Questionário ───────────────────────────────────────────────
     with st.expander("🔗 Link do Questionário para esta empresa"):
@@ -1988,8 +1857,8 @@ elif menu == "📊 Gestão das Respostas (RH)":
     st.divider()
     st.subheader("📈 Resultado das Respostas")
 
-    if os.path.exists(nome_res):
-        df_res = pd.read_csv(nome_res, sep=';', dtype=str)
+    df_res = db.carregar_respostas(cnpj_cod)
+    if not df_res.empty:
 
         total_auth = len(df_acessos[df_acessos['CNPJ'] == cnpj_cod])
         total_resp = len(df_res)
@@ -2119,7 +1988,7 @@ else:
 
         # Exibe empresa se veio pelo link
         if cnpj_link:
-            df_link = carregar_dados(ARQUIVO_ACESSOS)
+            df_link = db.carregar_acessos()
             if not df_link.empty:
                 emp_rows = df_link[df_link['CNPJ'] == cnpj_link]
                 if not emp_rows.empty:
@@ -2154,7 +2023,7 @@ else:
             if not validar_cpf_formato(cpf_limpo):
                 st.error("⚠️ CPF inválido. Digite apenas os 11 números.")
             else:
-                df_auth = carregar_dados(ARQUIVO_ACESSOS)
+                df_auth = db.carregar_acessos()
                 if not df_auth.empty:
                     df_auth = normalizar_status(df_auth)
                     reg = df_auth[df_auth['CPF'] == cpf_limpo]
@@ -2307,12 +2176,8 @@ else:
                     dados_salvar["Media_Geral"] = round(
                         sum(DEPARA[v] for v in respostas.values()) / len(respostas), 2
                     )
-                    nome_res = caminho(f"respostas_CNPJ_{dados_s['CNPJ']}.csv")
-                    with _csv_lock(nome_res):
-                        pd.DataFrame([dados_salvar]).to_csv(
-                            nome_res, mode='a', index=False, sep=';',
-                            header=not os.path.exists(nome_res), encoding='utf-8-sig'
-                        )
+                    dados_salvar["CNPJ"] = dados_s['CNPJ']
+                    db.salvar_resposta(dados_salvar)
                     # Limpa estado do wizard
                     st.session_state.dominio_atual = 0
                     st.session_state.respostas_salvas = {}
