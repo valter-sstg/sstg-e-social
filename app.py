@@ -1040,7 +1040,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 with st.expander("⚠️ Zona de Perigo — use com cuidado"):
                     st.error("⚠️ As ações abaixo são **irreversíveis**. Confirme com a senha do Admin SSTG antes de prosseguir.")
 
-                    zt1, zt2 = st.tabs(["🗑️ Excluir Empresa", "💣 Resetar Tudo"])
+                    zt1, zt2, zt3 = st.tabs(["🗑️ Excluir Empresa", "📊 Excluir Respostas", "💣 Resetar Tudo"])
 
                     # ── EXCLUIR EMPRESA INDIVIDUAL ────────────────────────────
                     with zt1:
@@ -1082,8 +1082,44 @@ if menu == "🔐 Admin SSTG (Gestão)":
                         else:
                             st.info("Nenhuma empresa cadastrada.")
 
-                    # ── RESETAR TUDO ──────────────────────────────────────────
+                    # ── EXCLUIR RESPOSTAS DA EMPRESA ─────────────────────────
                     with zt2:
+                        st.warning("Remove **apenas as respostas** da empresa selecionada. O cadastro de colaboradores é preservado — eles poderão responder novamente.")
+                        df_zona_r = db.carregar_acessos()
+                        if not df_zona_r.empty:
+                            empresas_zona_r = df_zona_r.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
+                                lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
+                            ).tolist()
+                            emp_del_r  = st.selectbox("Empresa:", empresas_zona_r, key="zona_emp_del_r")
+                            cnpj_del_r = emp_del_r.split("CNPJ: ")[-1]
+                            nome_del_r = emp_del_r.split(" — CNPJ:")[0].strip()
+
+                            qtd_resp_r = len(db.carregar_respostas(cnpj_del_r))
+                            st.metric("Respostas que serão apagadas", qtd_resp_r)
+
+                            if qtd_resp_r == 0:
+                                st.info("Esta empresa não possui respostas registradas.")
+                            else:
+                                st.divider()
+                                st.markdown("**Confirme digitando a senha do Admin SSTG:**")
+                                senha_conf_r = st.text_input(
+                                    "Senha Admin:", type="password", key="senha_conf_del_resp"
+                                )
+                                if st.button("📊 EXCLUIR RESPOSTAS DA EMPRESA", type="primary",
+                                             use_container_width=True, key="btn_del_respostas"):
+                                    if not senha_conf_r:
+                                        st.error("Digite a senha do Admin para confirmar.")
+                                    elif senha_conf_r != SENHA_ADMIN:
+                                        st.error("❌ Senha incorreta. Operação cancelada.")
+                                    else:
+                                        db.deletar_respostas_empresa(cnpj_del_r)
+                                        st.success(f"✅ {qtd_resp_r} resposta(s) da empresa **{nome_del_r}** apagadas. Cadastro preservado.")
+                                        st.rerun()
+                        else:
+                            st.info("Nenhuma empresa cadastrada.")
+
+                    # ── RESETAR TUDO ──────────────────────────────────────────
+                    with zt3:
                         st.warning("Remove **TODOS** os registros de acesso e **TODOS** os históricos de resposta de **todas** as empresas.")
                         senha_conf_all = st.text_input(
                             "Senha Admin para confirmar reset total:", type="password", key="senha_conf_reset_all"
