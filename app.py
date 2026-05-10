@@ -366,6 +366,46 @@ DIMENSOES = {
 }
 
 DIMS_INVERTIDAS = {"Demandas", "Relacionamentos", "Comportamentos_Ofensivos"}
+# versão lowercase (usada para comparar com nomes vindos do banco)
+_DIMS_INV_LOWER = {d.lower() for d in DIMS_INVERTIDAS}
+
+# ── Metadados de exibição por dimensão ───────────────────────────────────────
+import unicodedata as _uc
+
+# Cor específica por dimensão (chave = slug normalizado sem acento)
+_CORES_DIMS_NAMED = {
+    "cargo":                    "#5A9F62",   # verde
+    "controle":                 "#282C5B",   # azul escuro
+    "demandas":                 "#DC3B24",   # vermelho
+    "relacionamentos":          "#F4A236",   # laranja
+    "apoio_dos_colegas":        "#4A90D9",   # azul
+    "apoio_da_chefia":          "#9B59B6",   # roxo
+    "comunicacao_e_mudancas":   "#1ABC9C",   # verde-água
+    "comportamentos_ofensivos": "#C0392B",   # vermelho escuro (risco/alerta)
+}
+
+# _COL_INFO: "media_cargo" → {label, invertida, cor}
+_COL_INFO: dict = {}
+for _nd in DIMENSOES:
+    _suffix_nd = _nd.split(" ", 1)[1]
+    _chave_nd  = _suffix_nd.replace(" ", "_").lower()
+    _nfkd_nd   = "".join(
+        c for c in _uc.normalize("NFKD", _chave_nd) if not _uc.combining(c)
+    )
+    _COL_INFO["media_" + _nfkd_nd] = {
+        "label":     _suffix_nd,
+        "invertida": _chave_nd in _DIMS_INV_LOWER,
+        "cor":       _CORES_DIMS_NAMED.get(_nfkd_nd, "#888888"),
+    }
+
+
+def _chart_info(col_nome: str) -> dict:
+    """Retorna metadados de exibição para uma coluna Media_*."""
+    return _COL_INFO.get(col_nome.lower(), {
+        "label":     col_nome.replace("Media_", "").replace("_", " ").title(),
+        "invertida": False,
+        "cor":       "#888888",
+    })
 
 # ─── CONFIGURAÇÃO DA PÁGINA ───────────────────────────────────────────────────
 db.ping()  # acorda o banco apos hibernacao (free tier)
@@ -1255,16 +1295,18 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 cols_media = [c for c in df_res.columns if c.startswith('Media_') and c != 'Media_Geral']
                 if cols_media:
                     st.subheader("📈 Médias por Dimensão (escala 0 a 4)")
+                    st.caption("⚠️ Demandas, Relacionamentos e Comportamentos Ofensivos exibem valor invertido (4 − média) — barra mais alta = condição mais favorável.")
                     df_num = df_res[cols_media].apply(pd.to_numeric, errors='coerce')
                     medias = df_num.mean()
 
-                    CORES_DIMS = [
-                        "#5A9F62", "#282C5B", "#DC3B24", "#F4A236",
-                        "#4A90D9", "#9B59B6", "#1ABC9C", "#E67E22"
+                    # Usa metadados de cada dimensão (label, cor, inversão)
+                    infos  = [_chart_info(c) for c in medias.index]
+                    labels = [inf["label"] for inf in infos]
+                    values = [
+                        round(4.0 - v, 2) if inf["invertida"] else round(v, 2)
+                        for inf, v in zip(infos, medias.values)
                     ]
-                    labels = [c.replace("Media_", "").replace("_", " ") for c in medias.index]
-                    values = [round(v, 2) for v in medias.values]
-                    cores  = [CORES_DIMS[i % len(CORES_DIMS)] for i in range(len(labels))]
+                    cores  = [inf["cor"] for inf in infos]
 
                     try:
                         import plotly.graph_objects as go
@@ -1278,7 +1320,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
                         ))
                         fig_dim.update_layout(
                             yaxis=dict(
-                                title="Média (0–4)",
+                                title="Média (0–4)  ·  ↑ mais favorável",
                                 range=[0, 4.6],
                                 tickvals=[0, 1, 2, 3, 4],
                                 gridcolor="#EEEEEE",
@@ -1293,8 +1335,9 @@ if menu == "🔐 Admin SSTG (Gestão)":
                     except ImportError:
                         cols_d = st.columns(len(cols_media))
                         for i, (col_nome, val) in enumerate(medias.items()):
-                            nome_exib = col_nome.replace("Media_", "").replace("_", " ")
-                            cols_d[i].metric(nome_exib, f"{val:.2f}")
+                            inf = _chart_info(col_nome)
+                            val_exib = round(4.0 - val, 2) if inf["invertida"] else round(val, 2)
+                            cols_d[i].metric(inf["label"], f"{val_exib:.2f}")
 
                 st.divider()
                 st.subheader("Histórico de Respostas")
@@ -1328,7 +1371,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
                             for col, val in medias_laudo.items():
                                 nome_dim = col.replace("Media_", "")
                                 dim_key  = f"Dim_{nome_dim}"
-                                medias_dim[dim_key] = round(4.0 - val, 2) if nome_dim in DIMS_INVERTIDAS else val
+                                medias_dim[dim_key] = round(4.0 - val, 2) if nome_dim.lower() in _DIMS_INV_LOWER else val
 
                             dados_emp = {
                                 "Empresa":    nome_empresa,
@@ -1986,16 +2029,17 @@ elif menu == "📊 Gestão das Respostas (RH)":
         if cols_media_rh:
             st.divider()
             st.subheader("📈 Médias por Dimensão (escala 0 a 4)")
+            st.caption("⚠️ Demandas, Relacionamentos e Comportamentos Ofensivos exibem valor invertido (4 − média) — barra mais alta = condição mais favorável.")
             df_num_rh = df_res[cols_media_rh].apply(pd.to_numeric, errors='coerce')
             medias_rh = df_num_rh.mean()
 
-            CORES_DIMS = [
-                "#5A9F62", "#282C5B", "#DC3B24", "#F4A236",
-                "#4A90D9", "#9B59B6", "#1ABC9C", "#E67E22"
+            infos_rh   = [_chart_info(c) for c in medias_rh.index]
+            labels_rh  = [inf["label"] for inf in infos_rh]
+            values_rh  = [
+                round(4.0 - v, 2) if inf["invertida"] else round(v, 2)
+                for inf, v in zip(infos_rh, medias_rh.values)
             ]
-            labels_rh = [c.replace("Media_", "").replace("_", " ") for c in medias_rh.index]
-            values_rh = [round(v, 2) for v in medias_rh.values]
-            cores_rh  = [CORES_DIMS[i % len(CORES_DIMS)] for i in range(len(labels_rh))]
+            cores_rh   = [inf["cor"] for inf in infos_rh]
 
             try:
                 import plotly.graph_objects as go
@@ -2009,7 +2053,7 @@ elif menu == "📊 Gestão das Respostas (RH)":
                 ))
                 fig_rh.update_layout(
                     yaxis=dict(
-                        title="Média (0–4)",
+                        title="Média (0–4)  ·  ↑ mais favorável",
                         range=[0, 4.6],
                         tickvals=[0, 1, 2, 3, 4],
                         gridcolor="#EEEEEE",
@@ -2024,8 +2068,9 @@ elif menu == "📊 Gestão das Respostas (RH)":
             except ImportError:
                 cols_d = st.columns(len(cols_media_rh))
                 for i, (col_nome, val) in enumerate(medias_rh.items()):
-                    nome_exib = col_nome.replace("Media_", "").replace("_", " ")
-                    cols_d[i].metric(nome_exib, f"{val:.2f}")
+                    inf = _chart_info(col_nome)
+                    val_exib = round(4.0 - val, 2) if inf["invertida"] else round(val, 2)
+                    cols_d[i].metric(inf["label"], f"{val_exib:.2f}")
 
         st.divider()
         colunas_exibir_rh = [c for c in df_res.columns if c != 'CPF_Hash']
@@ -2265,6 +2310,12 @@ else:
                     )
                     dados_salvar["CNPJ"] = dados_s['CNPJ']
                     db.salvar_resposta(dados_salvar)
+                    # Guarda médias no session_state para exibir na tela final
+                    st.session_state.medias_fim = {
+                        k: v for k, v in dados_salvar.items()
+                        if k.startswith("Media_") and k != "Media_Geral"
+                    }
+                    st.session_state.media_geral_fim = dados_salvar.get("Media_Geral", 0)
                     # Limpa estado do wizard
                     st.session_state.dominio_atual = 0
                     st.session_state.respostas_salvas = {}
@@ -2283,6 +2334,37 @@ else:
             Os dados coletados serão analisados de forma <b>agregada e completamente anônima</b> pela equipe SSTG.
             </div>
         """, unsafe_allow_html=True)
+
+        # ── Exibe médias por dimensão ─────────────────────────────────────────
+        medias_fim = st.session_state.get("medias_fim", {})
+        if medias_fim:
+            st.divider()
+            st.subheader("📊 Seu perfil por dimensão")
+            st.caption("Escala de 0 a 4  ·  valores mais altos = condição mais favorável (exceto dimensões de risco, já ajustadas)")
+            # Obtém a ordem das dimensões conforme DIMENSOES
+            nomes_dim_ord = list(DIMENSOES.keys())
+            def _col_da_dim(nome_dim):
+                return "Media_" + nome_dim.split(" ", 1)[1].replace("/", "_").replace(" ", "_")
+            colunas_ord = [_col_da_dim(nd) for nd in nomes_dim_ord if _col_da_dim(nd) in medias_fim]
+            n = len(colunas_ord)
+            cols_fim = st.columns(min(n, 4))
+            for i, col_nome in enumerate(colunas_ord):
+                val = medias_fim[col_nome]
+                nome_dim_orig = nomes_dim_ord[[_col_da_dim(nd) for nd in nomes_dim_ord].index(col_nome)]
+                label = nome_dim_orig.split(" ", 1)[1] if " " in nome_dim_orig else nome_dim_orig
+                # Inverte dimensões de risco para exibição (maior = melhor)
+                nome_chave = col_nome.replace("Media_", "").lower()
+                val_exib = round(4.0 - val, 2) if nome_chave in _DIMS_INV_LOWER else val
+                if val_exib >= 3.0:
+                    delta_txt = "🟢 Favorável"
+                elif val_exib >= 2.0:
+                    delta_txt = "🟡 Moderado"
+                else:
+                    delta_txt = "🔴 Atenção"
+                cols_fim[i % 4].metric(label, f"{val_exib:.2f}", delta_txt)
+            media_geral = st.session_state.get("media_geral_fim", None)
+            if media_geral is not None:
+                st.metric("**Média Geral**", f"{media_geral:.2f}")
 
         if st.button("🔄 Voltar ao Início", use_container_width=True):
             for key in list(st.session_state.keys()):

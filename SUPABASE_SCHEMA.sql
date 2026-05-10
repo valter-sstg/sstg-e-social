@@ -37,10 +37,14 @@ CREATE TABLE IF NOT EXISTS respostas (
     media_relacionamentos    NUMERIC,
     media_apoio_dos_colegas  NUMERIC,
     media_apoio_da_chefia    NUMERIC,
-    media_comunicacao_e_mudancas NUMERIC,
-    media_geral              NUMERIC,
+    media_comunicacao_e_mudancas    NUMERIC,
+    media_comportamentos_ofensivos  NUMERIC,
+    media_geral                     NUMERIC,
     UNIQUE (cpf_hash, cnpj)
 );
+
+-- Se a tabela ja existir, adicione a coluna nova com:
+-- ALTER TABLE public.respostas ADD COLUMN IF NOT EXISTS media_comportamentos_ofensivos NUMERIC;
 
 -- 3. USUARIOS OPERACIONAIS
 CREATE TABLE IF NOT EXISTS usuarios (
