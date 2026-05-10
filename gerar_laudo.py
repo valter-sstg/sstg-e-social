@@ -10,6 +10,14 @@ from reportlab.platypus import (
 from datetime import datetime
 import io
 import os
+import unicodedata
+
+
+def _slug(s: str) -> str:
+    """Converte nome de dimensão → snake_case sem acento (ex: 'Apoio da Chefia' → 'apoio_da_chefia')."""
+    s = s.replace(" ", "_").lower()
+    nfkd = unicodedata.normalize("NFKD", s)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
 
 # ===================== CORES SSTG =====================
 C_AZUL    = colors.HexColor('#282C5B')
@@ -108,6 +116,17 @@ DIMS_ANALITICAS = {
         "agravos": "Irritabilidade, resistência às mudanças e queda de produtividade.",
         "plano": "Estabelecer fluxo de comunicação prévia ouvindo trabalhadores antes de implementar mudanças. Treinar gestores para repassar informações críticas em tempo hábil.",
         "responsavel": "Direção",
+        "prazo": "Imediato",
+    },
+    "Comportamentos Ofensivos": {
+        "questoes": ["q36", "q37"],
+        "invertida": True,
+        "label": "Comportamentos Ofensivos",
+        "severidade": "Extremamente Prejudicial",
+        "fontes": "Exposição a ameaças, agressões verbais ou físicas. Situações de assédio sexual ou condutas sexuais não desejadas no ambiente de trabalho.",
+        "agravos": "Transtorno de Estresse Pós-Traumático (TEPT), depressão, ansiedade severa e afastamentos por saúde mental.",
+        "plano": "Implantar canal de denúncias anônimo e comitê de apuração. Atualizar Código de Ética com política explícita de tolerância zero ao assédio. Capacitar lideranças em prevenção e notificação obrigatória.",
+        "responsavel": "Jurídico / RH / Direção",
         "prazo": "Imediato",
     },
 }
@@ -673,17 +692,17 @@ def build_s3(st, total_respondentes, total_autorizados=0, medias_por_dim=None):
 
             CORES_DIMS = [
                 "#5A9F62", "#282C5B", "#DC3B24", "#F4A236",
-                "#4A90D9", "#9B59B6", "#1ABC9C", "#E67E22"
+                "#4A90D9", "#9B59B6", "#1ABC9C", "#C0392B"
             ]
 
             # ── Dados ─────────────────────────────────────────────────────────
             pct_ades = (round((total_respondentes / total_autorizados) * 100, 1)
                         if total_autorizados > 0 else 0)
 
-            labels_dim  = [cfg['label'] for cfg in DIMS_ANALITICAS.values()]
-            col_keys_dim = [f"Dim_{k.replace(' ', '_')}" for k in DIMS_ANALITICAS]
-            values_dim  = [medias_por_dim.get(ck, 0.0) for ck in col_keys_dim]
-            cores_dim   = [CORES_DIMS[i % len(CORES_DIMS)] for i in range(len(labels_dim))]
+            labels_dim   = [cfg['label'] for cfg in DIMS_ANALITICAS.values()]
+            col_keys_dim = [f"Dim_{_slug(k)}" for k in DIMS_ANALITICAS]
+            values_dim   = [medias_por_dim.get(ck, 0.0) for ck in col_keys_dim]
+            cores_dim    = [CORES_DIMS[i % len(CORES_DIMS)] for i in range(len(labels_dim))]
 
             # ── Figura dashboard ──────────────────────────────────────────────
             fig = plt.figure(figsize=(12, 9.5))
@@ -858,7 +877,7 @@ def build_s4(st, medias_por_dim):
     risco_cells = []
 
     for i, (dim_key, cfg) in enumerate(DIMS_ANALITICAS.items()):
-        col_key = f"Dim_{dim_key.replace(' ', '_')}"
+        col_key = f"Dim_{_slug(dim_key)}"
         media = medias_por_dim.get(col_key, 2.0)
         classif = classificar(media)
         prob = PROB_MAP[classif]
@@ -952,7 +971,7 @@ def build_s5(st, medias_por_dim):
     rows = [header]
 
     for dim_key, cfg in DIMS_ANALITICAS.items():
-        col_key = f"Dim_{dim_key.replace(' ', '_')}"
+        col_key = f"Dim_{_slug(dim_key)}"
         media = medias_por_dim.get(col_key, 2.0)
         classif = classificar(media)
         prob = PROB_MAP[classif]
