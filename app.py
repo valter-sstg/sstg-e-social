@@ -268,6 +268,8 @@ def salvar_cadastro_completo(dados_emp: dict, colaboradores: list):
             "Status":               "Ativo",
             "Data_Movimentacao":    "",
             "Motivo_Movimentacao":  "",
+            "CNAE":                 dados_emp.get('CNAE', ''),
+            "Grau_Risco":           dados_emp.get('Grau_Risco', ''),
         })
     if novos:
         db.salvar_acessos_em_lote(novos)
@@ -762,6 +764,12 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 dt_ini = c_ini.date_input("Data de início", value=date.today(), format="DD/MM/YYYY")
                 dt_fim = c_fim.date_input("Data de encerramento", value=date.today(), format="DD/MM/YYYY")
 
+                # CNAE e Grau de Risco
+                st.markdown("**Dados para o Laudo AEP-RP**")
+                c_cnae, c_grau = st.columns(2)
+                cnae_manual  = c_cnae.text_input("CNAE Principal:", placeholder="Ex: 4711-3/02", key="cnae_manual")
+                grau_manual  = c_grau.selectbox("Grau de Risco:", ["—", "1", "2", "3", "4"], key="grau_manual")
+
                 # Tabela de colaboradores
                 st.markdown("**Colaboradores autorizados**")
                 st.caption("Preencha CPF, Função e Departamento. Clique em ➕ para adicionar linhas.")
@@ -800,6 +808,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
                                 "Razão Social": razao.strip(),
                                 "Data_Inicio": dt_ini.strftime("%d/%m/%Y"),
                                 "Data_Fim":    dt_fim.strftime("%d/%m/%Y"),
+                                "CNAE":        cnae_manual.strip() if cnae_manual else "",
+                                "Grau_Risco":  grau_manual if grau_manual != "—" else "",
                             }
                             novos, duplicados, invalidos = salvar_cadastro_completo(dados_emp, colaboradores)
 
@@ -856,6 +866,12 @@ if menu == "🔐 Admin SSTG (Gestão)":
             c_ini_csv, c_fim_csv = st.columns(2)
             dt_ini_csv = c_ini_csv.date_input("Data de início", value=date.today(), format="DD/MM/YYYY", key="dt_ini_csv")
             dt_fim_csv = c_fim_csv.date_input("Data de encerramento", value=date.today(), format="DD/MM/YYYY", key="dt_fim_csv")
+
+            # CNAE e Grau de Risco
+            st.markdown("**Dados para o Laudo AEP-RP**")
+            c_cnae_csv, c_grau_csv = st.columns(2)
+            cnae_csv_val = c_cnae_csv.text_input("CNAE Principal:", placeholder="Ex: 4711-3/02", key="cnae_csv_val")
+            grau_csv_val = c_grau_csv.selectbox("Grau de Risco:", ["—", "1", "2", "3", "4"], key="grau_csv_val")
 
             st.markdown("---")
             st.markdown("**Selecione o arquivo CSV**")
@@ -947,6 +963,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
                                         "Razão Social": razao_csv.strip(),
                                         "Data_Inicio": dt_ini_csv.strftime("%d/%m/%Y"),
                                         "Data_Fim":    dt_fim_csv.strftime("%d/%m/%Y"),
+                                        "CNAE":        cnae_csv_val.strip() if cnae_csv_val else "",
+                                        "Grau_Risco":  grau_csv_val if grau_csv_val != "—" else "",
                                     }
                                     novos, duplicados, invalidos = salvar_cadastro_completo(dados_emp_csv, colaboradores_csv)
 
@@ -1351,19 +1369,30 @@ if menu == "🔐 Admin SSTG (Gestão)":
                     csv_res, f"resultados_{cnpj_cod}.csv", "text/csv"
                 )
 
-                # ── Gerar Laudo PDF ───────────────────────────────────────────
+                # ── Gerar AEP-RP em PDF ───────────────────────────────────────
                 st.divider()
-                st.subheader("📄 Gerar Laudo de Fatores Psicossociais (PDF)")
+                st.subheader("📄 Gerar AEP-RP em PDF")
 
                 if not LAUDO_DISPONIVEL:
                     st.error("Módulo `gerar_laudo.py` não encontrado na pasta do projeto.")
                 elif cols_media:
-                    with st.expander("⚙️ Dados complementares para o laudo (opcional)", expanded=True):
-                        col_a, col_b = st.columns(2)
-                        cnae_laudo  = col_a.text_input("CNAE Principal:", placeholder="Ex: 4711-3/02", key="cnae_laudo")
-                        grau_laudo  = col_b.selectbox("Grau de Risco:", ["—", "1", "2", "3", "4"], key="grau_laudo")
+                    # Carrega CNAE e Grau de Risco do cadastro da empresa
+                    df_acessos_res = db.carregar_acessos()
+                    _row_emp = df_acessos_res[df_acessos_res['CNPJ'] == cnpj_cod]
+                    if not _row_emp.empty:
+                        _r = _row_emp.iloc[0]
+                        cnae_laudo  = str(_r.get('CNAE',       _r.get('cnae',       ''))).strip() or "—"
+                        grau_laudo  = str(_r.get('Grau_Risco', _r.get('grau_risco', ''))).strip() or "—"
+                    else:
+                        cnae_laudo, grau_laudo = "—", "—"
 
-                    if st.button("📄 Gerar Laudo PDF", type="primary", use_container_width=True):
+                    col_info_a, col_info_b = st.columns(2)
+                    col_info_a.info(f"**CNAE Principal:** {cnae_laudo}")
+                    col_info_b.info(f"**Grau de Risco:** {grau_laudo}")
+                    if cnae_laudo == "—" or grau_laudo == "—":
+                        st.caption("⚠️ CNAE ou Grau de Risco não preenchidos no cadastro desta empresa. Edite o cadastro para incluí-los.")
+
+                    if st.button("📄 Gerar AEP-RP em PDF", type="primary", use_container_width=True):
                         with st.spinner("Gerando laudo..."):
                             nome_empresa   = empresa_sel.split(" — CNPJ:")[0].strip()
                             df_num_laudo   = df_res[cols_media].apply(pd.to_numeric, errors='coerce')
@@ -1377,8 +1406,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
                             dados_emp = {
                                 "Empresa":    nome_empresa,
                                 "CNPJ":       cnpj_cod,
-                                "CNAE":       cnae_laudo or "—",
-                                "Grau_Risco": grau_laudo if grau_laudo != "—" else "—",
+                                "CNAE":       cnae_laudo,
+                                "Grau_Risco": grau_laudo,
                             }
                             logo_path = "logo_sstg.png" if os.path.exists("logo_sstg.png") else None
                             try:
@@ -1389,11 +1418,11 @@ if menu == "🔐 Admin SSTG (Gestão)":
                                     logo_path=logo_path,
                                     total_autorizados=total_auth,
                                 )
-                                st.success("Laudo gerado com sucesso!")
+                                st.success("AEP-RP gerado com sucesso!")
                                 st.download_button(
-                                    "⬇️ Baixar Laudo PDF",
+                                    "⬇️ Baixar AEP-RP PDF",
                                     pdf_bytes,
-                                    f"Laudo_Psicossocial_{cnpj_cod}_v7.7_{datetime.now().strftime('%d-%m-%Y')}.pdf",
+                                    f"AEP-RP_{cnpj_cod}_{datetime.now().strftime('%d-%m-%Y')}.pdf",
                                     "application/pdf",
                                     use_container_width=True,
                                 )
