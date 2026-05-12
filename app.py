@@ -1376,21 +1376,37 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 if not LAUDO_DISPONIVEL:
                     st.error("Módulo `gerar_laudo.py` não encontrado na pasta do projeto.")
                 elif cols_media:
-                    # Carrega CNAE e Grau de Risco do cadastro da empresa
+                    # Carrega CNAE e Grau de Risco do cadastro da empresa (pré-preenchimento)
                     df_acessos_res = db.carregar_acessos()
                     _row_emp = df_acessos_res[df_acessos_res['CNPJ'] == cnpj_cod]
                     if not _row_emp.empty:
                         _r = _row_emp.iloc[0]
-                        cnae_laudo  = str(_r.get('CNAE',       _r.get('cnae',       ''))).strip() or "—"
-                        grau_laudo  = str(_r.get('Grau_Risco', _r.get('grau_risco', ''))).strip() or "—"
+                        _cnae_default = str(_r.get('CNAE', _r.get('cnae', ''))).strip()
+                        _grau_default = str(_r.get('Grau_Risco', _r.get('grau_risco', ''))).strip()
                     else:
-                        cnae_laudo, grau_laudo = "—", "—"
+                        _cnae_default, _grau_default = '', ''
 
-                    col_info_a, col_info_b = st.columns(2)
-                    col_info_a.info(f"**CNAE Principal:** {cnae_laudo}")
-                    col_info_b.info(f"**Grau de Risco:** {grau_laudo}")
-                    if cnae_laudo == "—" or grau_laudo == "—":
-                        st.caption("⚠️ CNAE ou Grau de Risco não preenchidos no cadastro desta empresa. Edite o cadastro para incluí-los.")
+                    # Campos editáveis — pré-preenchidos com dados do cadastro
+                    with st.expander("⚙️ Dados para o Laudo AEP-RP", expanded=True):
+                        col_a, col_b = st.columns(2)
+                        cnae_laudo = col_a.text_input(
+                            "CNAE Principal:",
+                            value=_cnae_default,
+                            placeholder="Ex: 4711-3/02",
+                            key="cnae_laudo"
+                        )
+                        _opcoes_grau = ["—", "1", "2", "3", "4"]
+                        _idx_grau = _opcoes_grau.index(_grau_default) if _grau_default in _opcoes_grau else 0
+                        grau_laudo = col_b.selectbox(
+                            "Grau de Risco:",
+                            _opcoes_grau,
+                            index=_idx_grau,
+                            key="grau_laudo"
+                        )
+                        if _cnae_default or _grau_default:
+                            st.caption("✅ Dados carregados do cadastro. Edite se necessário antes de gerar.")
+                        else:
+                            st.caption("⚠️ CNAE e Grau de Risco não encontrados no cadastro desta empresa. Preencha abaixo e eles serão salvos automaticamente.")
 
                     if st.button("📄 Gerar AEP-RP em PDF", type="primary", use_container_width=True):
                         with st.spinner("Gerando laudo..."):
@@ -1403,11 +1419,24 @@ if menu == "🔐 Admin SSTG (Gestão)":
                                 dim_key  = f"Dim_{nome_dim}"
                                 medias_dim[dim_key] = round(4.0 - val, 2) if nome_dim.lower() in _DIMS_INV_LOWER else val
 
+                            _cnae_final = cnae_laudo.strip() if cnae_laudo.strip() else "—"
+                            _grau_final = grau_laudo if grau_laudo != "—" else "—"
+
+                            # Salva CNAE e Grau no cadastro para próximas emissões
+                            if _cnae_final != "—" or _grau_final != "—":
+                                try:
+                                    db.atualizar_acessos_por_cnpj(cnpj_cod, {
+                                        "CNAE":       _cnae_final if _cnae_final != "—" else _cnae_default,
+                                        "Grau_Risco": _grau_final if _grau_final != "—" else _grau_default,
+                                    })
+                                except Exception:
+                                    pass  # Não bloqueia a geração se falhar ao salvar
+
                             dados_emp = {
                                 "Empresa":    nome_empresa,
                                 "CNPJ":       cnpj_cod,
-                                "CNAE":       cnae_laudo,
-                                "Grau_Risco": grau_laudo,
+                                "CNAE":       _cnae_final,
+                                "Grau_Risco": _grau_final,
                             }
                             logo_path = "logo_sstg.png" if os.path.exists("logo_sstg.png") else None
                             try:
