@@ -211,6 +211,10 @@ def get_styles():
         'titulo_capa', fontName='Helvetica-Bold', fontSize=22,
         textColor=C_BRANCO, alignment=TA_CENTER, leading=28, spaceAfter=6
     )
+    s['titulo_capa_aep'] = ParagraphStyle(
+        'titulo_capa_aep', fontName='Helvetica-Bold', fontSize=14,
+        textColor=C_BRANCO, alignment=TA_CENTER, leading=18, spaceAfter=2
+    )
     s['subtitulo_capa'] = ParagraphStyle(
         'subtitulo_capa', fontName='Helvetica', fontSize=12,
         textColor=C_BRANCO, alignment=TA_CENTER, leading=16
@@ -337,6 +341,7 @@ def build_capa(st, empresa, cnpj, cnae, grau_risco, data_emissao, logo_path):
     hero_data = [[
         logo_cell,
         [
+            Paragraph("AEP - Avaliação Ergonômica Preliminar", st['titulo_capa_aep']),
             Paragraph("Laudo de Fatores Psicossociais", st['titulo_capa']),
             Paragraph("Anexo do Programa de Gerenciamento de Riscos — PGR", st['subtitulo_capa']),
         ]

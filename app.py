@@ -152,6 +152,7 @@ DOC_DIR   = os.path.dirname(os.path.abspath(__file__))
 APP_URL   = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
 SHARE_URL = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
 EBOOK_URL = "https://valter-contador.github.io/sstg-e-social/ebook_psicossocial.html"
+EBOOK_AEP_URL = "https://valter-contador.github.io/sstg-e-social/ebook_aep.html"
 SENHA_ADMIN = "Valter@sstg230914"
 
 def caminho_doc(nome_arquivo: str) -> str:
@@ -895,12 +896,14 @@ with st.sidebar:
             </div>
         """, unsafe_allow_html=True)
     st.markdown("<hr>", unsafe_allow_html=True)
-    menu = st.radio("Módulo:", [
+    _opcoes_menu = [
         "📋 Questionário Psicossocial",
         "🦴 Questionário Ergonômico (AEP)",
         "📊 Gestão das Respostas (RH)",
         "🔐 Admin SSTG (Gestão)"
-    ])
+    ]
+    _idx_menu = 1 if st.query_params.get("modulo", "") == "aep" else 0
+    menu = st.radio("Módulo:", _opcoes_menu, index=_idx_menu)
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown(
         "<p style='font-size:0.7em; opacity:0.5; text-align:center;'>v7.0 — DRPS AEP-RP<br>COPSOQ III + NR-17</p>",
@@ -2388,21 +2391,34 @@ elif menu == "📊 Gestão das Respostas (RH)":
     cnpj_cod = st.session_state.rh_cnpj
     df_acessos = db.carregar_acessos()
 
-    # ── Link do Questionário ───────────────────────────────────────────────
-    with st.expander("🔗 Link do Questionário para esta empresa"):
+    # ── Links dos Questionários ─────────────────────────────────────────────
+    with st.expander("🔗 Links dos Questionários para esta empresa", expanded=True):
+        st.markdown("**📋 Questionário Psicossocial (COPSOQ III)**")
         link_emp = f"{SHARE_URL}/?cnpj={cnpj_cod}"
         st.code(link_emp, language=None)
         st.caption(
-            "Copie e envie este link para os colaboradores da empresa. "
-            "Este é o link público que funciona em qualquer dispositivo, conectado à internet."
+            "Copie e envie este link para os colaboradores da empresa responderem o "
+            "Questionário Psicossocial. Funciona em qualquer dispositivo, conectado à internet."
+        )
+
+        st.divider()
+
+        st.markdown("**🦴 Questionário Ergonômico (AEP / NR-17)**")
+        link_emp_aep = f"{SHARE_URL}/?cnpj={cnpj_cod}&modulo=aep"
+        st.code(link_emp_aep, language=None)
+        st.caption(
+            "Copie e envie este link para os colaboradores da empresa responderem a "
+            "Avaliação Ergonômica (AEP). Pode ser enviado de forma independente do questionário acima."
         )
 
     # ── Card do E-book Educativo ───────────────────────────────────────────
-    with st.expander("📘 E-book Educativo — Compartilhe com os Colaboradores", expanded=True):
+    with st.expander("📘 E-books Educativos — Compartilhe com os Colaboradores", expanded=True):
         st.markdown(
-            "Envie este e-book **antes** do link do questionário. "
+            "Envie o e-book correspondente **antes** do link de cada questionário. "
             "Ele explica o que é a avaliação, garante o anonimato e incentiva a participação."
         )
+
+        st.markdown("**📋 E-book — Questionário Psicossocial**")
         st.markdown(f"""
             <div style="
                 background: linear-gradient(135deg, #282C5B 0%, #1e3a8a 60%, #5A9F62 100%);
@@ -2433,6 +2449,41 @@ elif menu == "📊 Gestão das Respostas (RH)":
         """, unsafe_allow_html=True)
         st.markdown("**Link do e-book para copiar e enviar:**")
         st.code(EBOOK_URL, language=None)
+        st.caption("💡 Sugestão: envie o e-book 2 a 3 dias antes de abrir o questionário para aumentar a adesão.")
+
+        st.divider()
+
+        st.markdown("**🦴 E-book — Questionário Ergonômico (AEP / NR-17)**")
+        st.markdown(f"""
+            <div style="
+                background: linear-gradient(135deg, #282C5B 0%, #1e3a8a 60%, #5A9F62 100%);
+                border-radius: 14px; padding: 24px 26px; color: white; margin: 8px 0 16px 0;
+                box-shadow: 0 4px 20px rgba(40,44,91,0.25);
+            ">
+                <div style="font-size:0.68em; letter-spacing:2px; opacity:0.7; text-transform:uppercase; margin-bottom:6px;">
+                    Material de apoio · SSTG E-Social
+                </div>
+                <div style="font-size:1.2em; font-weight:800; margin-bottom:8px;">
+                    🦴 Cuide do Seu Corpo no Trabalho — Avaliação Ergonômica (AEP)
+                </div>
+                <div style="opacity:0.88; font-size:0.88em; margin-bottom:16px;">
+                    E-book educativo: o que é a Avaliação Ergonômica Preliminar (NR-17), como funciona,
+                    por que é anônima e como as respostas ajudam a melhorar o posto de trabalho.
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
+                    <span style="background:rgba(255,255,255,0.15); border-radius:20px; padding:3px 10px; font-size:0.75em;">📖 Leitura rápida</span>
+                    <span style="background:rgba(255,255,255,0.15); border-radius:20px; padding:3px 10px; font-size:0.75em;">🔒 Explica o anonimato</span>
+                    <span style="background:rgba(255,255,255,0.15); border-radius:20px; padding:3px 10px; font-size:0.75em;">📱 Funciona no celular</span>
+                </div>
+                <a href="{EBOOK_AEP_URL}" target="_blank" style="
+                    display:inline-block; background:#DC3B24; color:white;
+                    text-decoration:none; font-weight:700; padding:9px 22px;
+                    border-radius:50px; font-size:0.88em;
+                ">🦴 Abrir E-book ↗</a>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown("**Link do e-book para copiar e enviar:**")
+        st.code(EBOOK_AEP_URL, language=None)
         st.caption("💡 Sugestão: envie o e-book 2 a 3 dias antes de abrir o questionário para aumentar a adesão.")
 
     # ── Gerar Imagem de Compartilhamento ───────────────────────────────────
