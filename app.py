@@ -16,6 +16,12 @@ try:
 except ImportError:
     LAUDO_DISPONIVEL = False
 
+try:
+    from gerar_laudo_aep import gerar_laudo_aep_pdf
+    LAUDO_AEP_DISPONIVEL = True
+except ImportError:
+    LAUDO_AEP_DISPONIVEL = False
+
 # ── Geração de imagem QR Code embutida (sem módulo externo) ──────────────────
 import io as _io
 import qrcode as _qrcode
@@ -109,8 +115,8 @@ def gerar_imagem_compartilhamento_simples(empresa_nome: str, cnpj: str, app_url:
 
     # Header
     draw.rectangle([(0, 0), (LARGURA, H_HEADER)], fill=COR_NAVY)
-    draw.text((MARGEM, 16),  "SSTG - DRPS  Diagn" + chr(243) + "stico de Riscos Psicossociais (NR-1)", fill=CZ_CLARO, font=f_hdr_sm)
-    draw.text((MARGEM, 50),  "SSTG - DRPS  Diagn" + chr(243) + "stico de Riscos Psicossociais",        fill=BRANCO,   font=f_hdr_lg)
+    draw.text((MARGEM, 16),  "SSTG - DRPS AEP  Diagn" + chr(243) + "stico de Riscos Psicossociais e Ergon" + chr(244) + "micos (NR-1 / NR-17)", fill=CZ_CLARO, font=f_hdr_sm)
+    draw.text((MARGEM, 50),  "SSTG - DRPS AEP  Diagn" + chr(243) + "stico de Riscos Psicossociais",        fill=BRANCO,   font=f_hdr_lg)
 
     # Empresa
     draw.text((MARGEM, y_label), "Empresa:", fill=CZ_MED, font=f_label)
@@ -227,6 +233,9 @@ def redefinir_senha_operacional(usuario: str, nova_senha: str) -> tuple:
 
 def cpf_ja_respondeu(cnpj: str, cpf: str) -> bool:
     return db.cpf_respondeu(cnpj, hash_cpf(cpf))
+
+def cpf_ja_respondeu_aep(cnpj: str, cpf: str) -> bool:
+    return db.cpf_respondeu_aep(cnpj, hash_cpf(cpf))
 
 def normalizar_status(df: pd.DataFrame) -> pd.DataFrame:
     if 'Status' not in df.columns:
@@ -402,6 +411,204 @@ for _nd in DIMENSOES:
     }
 
 
+# ─── QUESTÕES — AVALIAÇÃO ERGONÔMICA PRELIMINAR (AEP / NR-17) ────────────────
+AEP_OPCOES = ["Sim", "Não", "Parcial", "N/A"]
+
+# Perguntas em que a resposta "Sim" indica condição ADEQUADA (sem risco) —
+# para estas, "Não" indica risco. As demais são "diretas" ("Sim" = risco).
+AEP_INVERTIDAS = {6, 7, 8, 9, 10, 11, 12, 14, 17}
+
+AEP_SECOES = {
+    "A. Postura e Movimentos": {
+        "q1": {
+            "texto": "Você fica muito tempo na mesma posição durante o trabalho (sentado ou em pé)? "
+                     "Exemplo: mais de 1 hora seguida sem poder mudar de posição.",
+            "severidade": 2,
+            "risco": "Fadiga muscular estática / Dor lombar / Varizes",
+        },
+        "q2": {
+            "texto": "Você precisa dobrar ou girar o corpo, o pescoço ou a cabeça para realizar a tarefa? "
+                     "Exemplo: torcer o tronco para pegar materiais ao lado, olhar constantemente para baixo ou de lado.",
+            "severidade": 3,
+            "risco": "Sobrecarga cervical e lombar / LER-DORT",
+        },
+        "q3": {
+            "texto": "Você levanta, carrega ou descarrega peso manualmente durante o trabalho? "
+                     "Exemplo: caixas, sacos, peças, equipamentos, documentos empilhados.",
+            "severidade": 3,
+            "risco": "Lombalgias agudas e crônicas / Hérnia de disco",
+        },
+        "q4": {
+            "texto": "Você faz os mesmos movimentos repetidas vezes com os braços, mãos ou pernas? "
+                     "Exemplo: digitar, embalar, apertar, cortar, girar sempre com o mesmo gesto.",
+            "severidade": 3,
+            "risco": "LER/DORT / Tendinite / Síndrome do túnel do carpo",
+        },
+        "q5": {
+            "texto": "Você precisa fazer força intensa para realizar alguma parte do trabalho? "
+                     "Exemplo: apertar, puxar, empurrar ou sustentar algo pesado ou com resistência.",
+            "severidade": 3,
+            "risco": "Fadiga muscular / Lesão tendínea / Lombalgias",
+        },
+    },
+    "B. Mobiliário e Equipamentos": {
+        "q6": {
+            "texto": "A mesa ou bancada onde você trabalha tem altura confortável para o seu tamanho e tipo de tarefa? "
+                     "Você não precisa se curvar nem levantar demais os braços para trabalhar.",
+            "severidade": 2,
+            "risco": "Postura compensatória / Sobrecarga em ombros e coluna",
+        },
+        "q7": {
+            "texto": "A cadeira que você usa tem regulagem de altura e encosto adequados à sua estatura e à tarefa? "
+                     "Você consegue apoiar os pés no chão e manter as costas apoiadas.",
+            "severidade": 2,
+            "risco": "Compressão de raiz nervosa / Dor lombar / Fadiga postural",
+        },
+        "q8": {
+            "texto": "O computador, teclado e mouse (quando usados) estão em uma posição confortável para você? "
+                     "A tela está na altura dos olhos e o teclado/mouse permitem que os cotovelos fiquem próximos ao corpo.",
+            "severidade": 2,
+            "risco": "Síndrome cervicobraquial / Lesão por digitação / Fadiga visual",
+        },
+        "q9": {
+            "texto": "As ferramentas e equipamentos que você usa se adaptam bem ao tamanho da sua mão e ao jeito de trabalhar? "
+                     "Você não precisa forçar o punho ou apertar forte para segurar.",
+            "severidade": 2,
+            "risco": "Sobrecarga de punho e dedos / Síndrome de De Quervain",
+        },
+    },
+    "C. Condições Ambientais": {
+        "q10": {
+            "texto": "A iluminação do seu local de trabalho é adequada, sem reflexos nem sombras que atrapalhem a visão? "
+                     "Você consegue enxergar bem o que faz sem esforçar os olhos ou usar luz extra.",
+            "severidade": 1,
+            "risco": "Fadiga visual / Cefaleia / Postura compensatória",
+        },
+        "q11": {
+            "texto": "O nível de barulho no trabalho é suportável e não te atrapalha? "
+                     "Você consegue se concentrar, conversar e trabalhar sem incômodo frequente.",
+            "severidade": 2,
+            "risco": "Estresse / Dificuldade de concentração / Perda auditiva",
+        },
+        "q12": {
+            "texto": "A temperatura e a ventilação do local são confortáveis durante a jornada? "
+                     "Você não sente muito calor, muito frio nem abafamento enquanto trabalha.",
+            "severidade": 1,
+            "risco": "Fadiga por calor / Desconforto / Queda de rendimento",
+        },
+    },
+    "D. Organização do Trabalho": {
+        "q13": {
+            "texto": "O ritmo do seu trabalho é controlado por uma máquina, esteira ou meta que não permite pausas? "
+                     "Você tem liberdade de trabalhar no próprio ritmo ou é a máquina/sistema que define o tempo?",
+            "severidade": 2,
+            "risco": "Estresse psicossocial / Fadiga acelerada / Erros operacionais",
+        },
+        "q14": {
+            "texto": "Você tem pausas suficientes durante o dia para descansar e se recuperar do cansaço? "
+                     "Exemplo: intervalos para sentar, esticar o corpo, relaxar os olhos ou tomar água.",
+            "severidade": 3,
+            "risco": "Fadiga acumulada / LER-DORT / Diminuição da atenção",
+        },
+        "q15": {
+            "texto": "Você sente pressão excessiva por metas ou prazos que dificultam trabalhar com tranquilidade? "
+                     "Cobranças que geram estresse, medo de errar ou sensação de que o tempo nunca é suficiente.",
+            "severidade": 3,
+            "risco": "Síndrome de Burnout / Ansiedade / Erro humano",
+        },
+        "q16": {
+            "texto": "Sua tarefa exige atenção e concentração intensa e contínua por longos períodos? "
+                     "Você precisa ficar 100% focado por muito tempo sem poder relaxar a atenção.",
+            "severidade": 2,
+            "risco": "Fadiga cognitiva / Cefaleia / Erros críticos",
+        },
+        "q17": {
+            "texto": "Você recebeu treinamento adequado para realizar a sua função com segurança? "
+                     "Alguém te ensinou como fazer o trabalho corretamente, inclusive os cuidados com a saúde?",
+            "severidade": 3,
+            "risco": "Risco de acidente / Posturas incorretas / Baixa eficiência",
+        },
+    },
+}
+
+# Severidades pré-preenchidas {"q1": 2, "q2": 3, ...} — usadas como default ao gravar a resposta
+AEP_SEVERIDADES_DEFAULT = {
+    qid: dados["severidade"]
+    for secao in AEP_SECOES.values()
+    for qid, dados in secao.items()
+}
+
+# Cores por seção (para gráficos)
+AEP_CORES_SECOES = {
+    "A. Postura e Movimentos":      "#DC3B24",
+    "B. Mobiliário e Equipamentos": "#F4A236",
+    "C. Condições Ambientais":      "#4A90D9",
+    "D. Organização do Trabalho":   "#9B59B6",
+}
+
+
+def _classificar_gr(gr: int) -> tuple:
+    """Retorna (classificação, cor) para um Grau de Risco (Severidade x Probabilidade)."""
+    if gr >= 10:
+        return "Crítico", "#C0392B"
+    if gr >= 7:
+        return "Alto", "#F4A236"
+    if gr >= 3:
+        return "Médio", "#F1C40F"
+    return "Baixo", "#5A9F62"
+
+
+def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
+    """Consolida as respostas AEP em um inventário de riscos: para cada pergunta calcula
+    o percentual de respostas indicadoras de risco, a Probabilidade (1-4) decorrente,
+    a Severidade (pré-preenchida/ajustada) e o Grau de Risco (GR = Severidade x Probabilidade)."""
+    inventario = []
+    numero = 0
+    for secao, perguntas in AEP_SECOES.items():
+        for qid, dados in perguntas.items():
+            numero += 1
+            col = qid
+            invertida = int(qid[1:]) in AEP_INVERTIDAS
+            if col not in df_aep.columns:
+                continue
+            respostas = df_aep[col].dropna()
+            respostas = respostas[respostas.str.upper() != "N/A"]
+            total = len(respostas)
+            if total == 0:
+                continue
+            resposta_risco = "Não" if invertida else "Sim"
+            n_risco   = (respostas == resposta_risco).sum()
+            n_parcial = (respostas == "Parcial").sum()
+            pct_risco = (n_risco + n_parcial) / total
+
+            if pct_risco < 0.10:
+                prob = 1
+            elif pct_risco < 0.30:
+                prob = 2
+            elif pct_risco < 0.70:
+                prob = 3
+            else:
+                prob = 4
+
+            sev = int(severidades.get(qid, dados["severidade"]))
+            gr  = sev * prob
+            classif, cor = _classificar_gr(gr)
+
+            inventario.append({
+                "Nº":           numero,
+                "Seção":        secao,
+                "Pergunta":     dados["texto"],
+                "Risco Identificado": dados["risco"],
+                "% Risco":      round(pct_risco * 100, 1),
+                "Severidade":   sev,
+                "Probabilidade": prob,
+                "GR":           gr,
+                "Classificação": classif,
+                "Cor":          cor,
+            })
+    return inventario
+
+
 def _chart_info(col_nome: str) -> dict:
     """Retorna metadados de exibição para uma coluna Media_*."""
     return _COL_INFO.get(col_nome.lower(), {
@@ -410,11 +617,219 @@ def _chart_info(col_nome: str) -> dict:
         "cor":       "#888888",
     })
 
+def _calcular_medias_dimensao(df_res, cols_media):
+    """Calcula médias por dimensão (já com inversão aplicada) e seus metadados de exibição."""
+    df_num = df_res[cols_media].apply(pd.to_numeric, errors='coerce')
+    medias = df_num.mean()
+    infos  = [_chart_info(c) for c in medias.index]
+    labels = [inf["label"] for inf in infos]
+    values = [
+        round(4.0 - v, 2) if inf["invertida"] else round(v, 2)
+        for inf, v in zip(infos, medias.values)
+    ]
+    cores  = [inf["cor"] for inf in infos]
+    return labels, values, cores
+
+def _renderizar_grafico_medias(labels, values, cores, key):
+    """Renderiza o gráfico de barras de médias por dimensão."""
+    try:
+        import plotly.graph_objects as go
+        fig = go.Figure(go.Bar(
+            x=labels,
+            y=values,
+            marker_color=cores,
+            text=[f"{v:.2f}" for v in values],
+            textposition="outside",
+            width=0.6,
+        ))
+        fig.update_layout(
+            yaxis=dict(
+                title="Média (0–4)  ·  ↑ mais favorável",
+                range=[0, 4.6],
+                tickvals=[0, 1, 2, 3, 4],
+                gridcolor="#EEEEEE",
+            ),
+            xaxis=dict(title="", tickangle=-20),
+            plot_bgcolor="white",
+            margin=dict(t=30, b=80, l=50, r=30),
+            height=420,
+            showlegend=False,
+        )
+        st.plotly_chart(fig, use_container_width=True, key=key)
+    except ImportError:
+        cols_d = st.columns(len(labels))
+        for i, (label, val) in enumerate(zip(labels, values)):
+            cols_d[i].metric(label, f"{val:.2f}")
+
+def _bloco_grafico_dimensoes(df_res, cols_media, key_prefix):
+    """Exibe o gráfico de médias por dimensão (geral) e, opcionalmente, estratificado por Setor."""
+    st.subheader("📈 Média por Dimensão Geral (Escala Likert 0 a 4)")
+    st.caption("⚠️ Demandas, Relacionamentos e Comportamentos Ofensivos exibem valor invertido (4 − média) — barra mais alta = condição mais favorável.")
+    labels, values, cores = _calcular_medias_dimensao(df_res, cols_media)
+    _renderizar_grafico_medias(labels, values, cores, key=f"{key_prefix}_geral")
+
+    if 'Departamento' in df_res.columns:
+        setores = sorted(
+            s for s in df_res['Departamento'].dropna().astype(str).str.strip().unique() if s
+        )
+        if setores:
+            setor_sel = st.selectbox(
+                "📂 Avaliação estratificada por Setor (opcional)",
+                ["Todos os setores"] + setores,
+                key=f"{key_prefix}_setor_sel"
+            )
+            if setor_sel != "Todos os setores":
+                df_setor = df_res[df_res['Departamento'].astype(str).str.strip() == setor_sel]
+                if not df_setor.empty:
+                    st.markdown(f"**Médias por Dimensão — Setor: {setor_sel}** ({len(df_setor)} resposta(s))")
+                    labels_s, values_s, cores_s = _calcular_medias_dimensao(df_setor, cols_media)
+                    _renderizar_grafico_medias(labels_s, values_s, cores_s, key=f"{key_prefix}_setor_{setor_sel}")
+                else:
+                    st.info("Nenhuma resposta encontrada para este setor.")
+
+
+def _renderizar_grafico_secoes_aep(inventario, key):
+    """Gráfico de barras com o % médio de respostas de risco por seção (A-D)."""
+    secoes = list(AEP_SECOES.keys())
+    valores, cores = [], []
+    for secao in secoes:
+        itens = [it["% Risco"] for it in inventario if it["Seção"] == secao]
+        valores.append(round(sum(itens) / len(itens), 1) if itens else 0.0)
+        cores.append(AEP_CORES_SECOES.get(secao, "#888888"))
+    try:
+        import plotly.graph_objects as go
+        fig = go.Figure(go.Bar(
+            x=secoes, y=valores, marker_color=cores,
+            text=[f"{v:.1f}%" for v in valores],
+            textposition="outside", width=0.6,
+        ))
+        fig.update_layout(
+            yaxis=dict(title="% de respostas indicando risco", range=[0, 100], gridcolor="#EEEEEE"),
+            xaxis=dict(title="", tickangle=-10),
+            plot_bgcolor="white",
+            margin=dict(t=30, b=80, l=50, r=30),
+            height=380, showlegend=False,
+        )
+        st.plotly_chart(fig, use_container_width=True, key=key)
+    except ImportError:
+        cols_d = st.columns(len(secoes))
+        for i, (label, val) in enumerate(zip(secoes, valores)):
+            cols_d[i].metric(label, f"{val:.1f}%")
+
+
+def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostrar_laudo=False):
+    """Exibe os resultados consolidados da Avaliação Ergonômica (AEP/NR-17): adesão,
+    gráfico por seção, inventário de riscos com severidades editáveis e, opcionalmente,
+    geração do Laudo AEP em PDF."""
+    df_aep = db.carregar_respostas_aep(cnpj_cod)
+    if df_aep.empty:
+        st.info("Nenhuma resposta da Avaliação Ergonômica (AEP) registrada ainda para esta empresa.")
+        return
+
+    total_resp_aep = len(df_aep)
+    pct_aep = round((total_resp_aep / total_auth) * 100, 1) if total_auth > 0 else 0
+    c1, c2, c3 = st.columns(3)
+    c1.metric("CPFs Autorizados",        total_auth)
+    c2.metric("Respostas AEP Recebidas", total_resp_aep)
+    c3.metric("Taxa de Adesão (AEP)",    f"{pct_aep}%")
+
+    # Severidades editáveis (sessão por empresa)
+    sev_key = f"aep_severidades_{cnpj_cod}"
+    if sev_key not in st.session_state:
+        st.session_state[sev_key] = dict(AEP_SEVERIDADES_DEFAULT)
+    severidades = st.session_state[sev_key]
+
+    inventario = _calcular_inventario_aep(df_aep, severidades)
+
+    st.subheader("📊 Percentual de Respostas de Risco por Seção")
+    _renderizar_grafico_secoes_aep(inventario, key=f"{key_prefix}_aep_secoes")
+
+    st.divider()
+    st.subheader("📋 Inventário de Riscos Ergonômicos")
+    st.caption("A Severidade pode ser ajustada pelo avaliador (1=Leve, 2=Moderada, 3=Grave, 4=Crítica). "
+               "GR = Severidade × Probabilidade.")
+
+    df_inv = pd.DataFrame(inventario)
+    if not df_inv.empty:
+        if mostrar_laudo:
+            df_edit = st.data_editor(
+                df_inv[["Nº", "Seção", "Risco Identificado", "% Risco", "Severidade", "Probabilidade", "GR", "Classificação"]],
+                column_config={
+                    "Severidade": st.column_config.NumberColumn(min_value=1, max_value=4, step=1),
+                    "GR": st.column_config.NumberColumn(disabled=True),
+                    "Probabilidade": st.column_config.NumberColumn(disabled=True),
+                    "% Risco": st.column_config.NumberColumn(disabled=True, format="%.1f%%"),
+                    "Classificação": st.column_config.TextColumn(disabled=True),
+                    "Nº": st.column_config.NumberColumn(disabled=True),
+                    "Seção": st.column_config.TextColumn(disabled=True),
+                    "Risco Identificado": st.column_config.TextColumn(disabled=True),
+                },
+                hide_index=True,
+                use_container_width=True,
+                key=f"{key_prefix}_aep_editor_{cnpj_cod}",
+            )
+            # Atualiza severidades editadas e recalcula GR/classificação
+            mudou = False
+            for _, row in df_edit.iterrows():
+                qid = list(AEP_SEVERIDADES_DEFAULT.keys())[int(row["Nº"]) - 1]
+                nova_sev = int(row["Severidade"])
+                if severidades.get(qid) != nova_sev:
+                    severidades[qid] = nova_sev
+                    mudou = True
+            if mudou:
+                st.rerun()
+        else:
+            st.dataframe(
+                df_inv[["Nº", "Seção", "Risco Identificado", "% Risco", "Severidade", "Probabilidade", "GR", "Classificação"]],
+                hide_index=True, use_container_width=True,
+            )
+
+    st.divider()
+    colunas_exibir_aep = [c for c in df_aep.columns if c not in ("cpf_hash", "severidades", "id")]
+    csv_aep = df_aep[colunas_exibir_aep].to_csv(index=False, sep=';', encoding='utf-8-sig')
+    st.download_button("⬇️ Baixar respostas AEP (.csv)", csv_aep, f"respostas_aep_{cnpj_cod}.csv", "text/csv",
+                        key=f"{key_prefix}_aep_csv")
+
+    if mostrar_laudo:
+        st.divider()
+        st.subheader("📄 Gerar Laudo AEP (NR-17) em PDF")
+        if not LAUDO_AEP_DISPONIVEL:
+            st.error("Módulo `gerar_laudo_aep.py` não encontrado na pasta do projeto.")
+        elif st.button("📄 Gerar Laudo AEP em PDF", type="primary", use_container_width=True, key=f"{key_prefix}_btn_laudo_aep"):
+            with st.spinner("Gerando laudo..."):
+                dados_emp = {"Empresa": empresa_nome, "CNPJ": cnpj_cod}
+                logo_path = "logo_sstg.png" if os.path.exists("logo_sstg.png") else None
+                relatos = []
+                for col in ("relato_dor", "relato_dificuldades", "relato_sugestoes"):
+                    if col in df_aep.columns:
+                        relatos.extend([r for r in df_aep[col].dropna().tolist() if str(r).strip()])
+                try:
+                    pdf_bytes = gerar_laudo_aep_pdf(
+                        dados_empresa=dados_emp,
+                        inventario=inventario,
+                        total_respondentes=total_resp_aep,
+                        total_autorizados=total_auth,
+                        relatos=relatos,
+                        logo_path=logo_path,
+                    )
+                    st.success("Laudo AEP gerado com sucesso!")
+                    st.download_button(
+                        "⬇️ Baixar Laudo AEP PDF",
+                        pdf_bytes,
+                        f"Laudo_AEP_{cnpj_cod}_{datetime.now().strftime('%d-%m-%Y')}.pdf",
+                        "application/pdf",
+                        use_container_width=True,
+                        key=f"{key_prefix}_download_laudo_aep",
+                    )
+                except Exception as e:
+                    st.error(f"Erro ao gerar o laudo: {e}")
+
+
 # ─── CONFIGURAÇÃO DA PÁGINA ───────────────────────────────────────────────────
 db.ping()  # acorda o banco apos hibernacao (free tier)
 
 st.set_page_config(
-    page_title="SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) — Diagnóstico Psicossocial",
+    page_title="SSTG - DRPS AEP-RP Diagnóstico de Riscos Psicossociais e Ergonômicos (NR-1 / NR-17)",
     layout="wide",
     page_icon="🧠"
 )
@@ -461,7 +876,7 @@ with st.sidebar:
         st.markdown("""
             <div style="text-align:center; padding: 0 0 10px 0;">
                 <span style="font-size:1.1em; font-weight:800; color:white; letter-spacing:1px;">
-                    DRPS
+                    DRPS AEP-RP
                 </span>
             </div>
         """, unsafe_allow_html=True)
@@ -475,15 +890,20 @@ with st.sidebar:
                     GESTÃO OCUPACIONAL
                 </span><br>
                 <span style="font-size:1.1em; font-weight:800; color:white; letter-spacing:1px; margin-top:8px; display:block;">
-                    DRPS
+                    DRPS AEP-RP
                 </span>
             </div>
         """, unsafe_allow_html=True)
     st.markdown("<hr>", unsafe_allow_html=True)
-    menu = st.radio("Módulo:", ["📋 Questionário Psicossocial", "📊 Gestão das Respostas (RH)", "🔐 Admin SSTG (Gestão)"])
+    menu = st.radio("Módulo:", [
+        "📋 Questionário Psicossocial",
+        "🦴 Questionário Ergonômico (AEP)",
+        "📊 Gestão das Respostas (RH)",
+        "🔐 Admin SSTG (Gestão)"
+    ])
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown(
-        "<p style='font-size:0.7em; opacity:0.5; text-align:center;'>v6.0 — Diagnóstico Psicossocial<br>COPSOQ III</p>",
+        "<p style='font-size:0.7em; opacity:0.5; text-align:center;'>v7.0 — DRPS AEP-RP<br>COPSOQ III + NR-17</p>",
         unsafe_allow_html=True
     )
 
@@ -734,14 +1154,15 @@ if menu == "🔐 Admin SSTG (Gestão)":
             except FileNotFoundError:
                 st.sidebar.warning("Arquivo de documentação não encontrado")
 
-    t1, t2, t3, t4, t5, t6, t7 = st.tabs([
+    t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs([
         "🆕 Cadastro / Inclusão",
         "📋 Conferência e Correção",
         "📊 Resultados",
         "🔄 Movimentação de Pessoal",
         "🔐 Segurança e Acesso RH",
         "📚 Documentação",
-        "👥 Usuários"
+        "👥 Usuários",
+        "🦴 Resultados AEP"
     ])
 
     # ── ABA 1: CADASTRO ───────────────────────────────────────────────────────
@@ -836,6 +1257,12 @@ if menu == "🔐 Admin SSTG (Gestão)":
 
         # ── MÉTODO 2: IMPORTAÇÃO VIA CSV ──────────────────────────────────────
         with tab_csv:
+            st.session_state.setdefault("csv_reset_id", 0)
+            _csv_key = st.session_state.csv_reset_id
+
+            if st.session_state.get("csv_sucesso_msg"):
+                st.success(st.session_state.pop("csv_sucesso_msg"))
+
             st.markdown("### Importar Colaboradores via Arquivo CSV")
             st.info("Faça download do template, preencha com os dados dos colaboradores e envie o arquivo.")
 
@@ -858,24 +1285,24 @@ if menu == "🔐 Admin SSTG (Gestão)":
 
             # Dados da empresa
             col1, col2 = st.columns(2)
-            cnpj_csv = col1.text_input("CNPJ (somente números)", placeholder="00000000000100", key="cnpj_csv")
-            razao_csv = col2.text_input("Razão Social", key="razao_csv")
+            cnpj_csv = col1.text_input("CNPJ (somente números)", placeholder="00000000000100", key=f"cnpj_csv_{_csv_key}")
+            razao_csv = col2.text_input("Razão Social", key=f"razao_csv_{_csv_key}")
 
             # Período de aplicação
             st.markdown("**Período de aplicação do questionário**")
             c_ini_csv, c_fim_csv = st.columns(2)
-            dt_ini_csv = c_ini_csv.date_input("Data de início", value=date.today(), format="DD/MM/YYYY", key="dt_ini_csv")
-            dt_fim_csv = c_fim_csv.date_input("Data de encerramento", value=date.today(), format="DD/MM/YYYY", key="dt_fim_csv")
+            dt_ini_csv = c_ini_csv.date_input("Data de início", value=date.today(), format="DD/MM/YYYY", key=f"dt_ini_csv_{_csv_key}")
+            dt_fim_csv = c_fim_csv.date_input("Data de encerramento", value=date.today(), format="DD/MM/YYYY", key=f"dt_fim_csv_{_csv_key}")
 
             # CNAE e Grau de Risco
             st.markdown("**Dados para o Laudo AEP-RP**")
             c_cnae_csv, c_grau_csv = st.columns(2)
-            cnae_csv_val = c_cnae_csv.text_input("CNAE Principal:", placeholder="Ex: 4711-3/02", key="cnae_csv_val")
-            grau_csv_val = c_grau_csv.selectbox("Grau de Risco:", ["—", "1", "2", "3", "4"], key="grau_csv_val")
+            cnae_csv_val = c_cnae_csv.text_input("CNAE Principal:", placeholder="Ex: 4711-3/02", key=f"cnae_csv_val_{_csv_key}")
+            grau_csv_val = c_grau_csv.selectbox("Grau de Risco:", ["—", "1", "2", "3", "4"], key=f"grau_csv_val_{_csv_key}")
 
             st.markdown("---")
             st.markdown("**Selecione o arquivo CSV**")
-            uploaded_file = st.file_uploader("Escolha um arquivo CSV", type=["csv"], key="upload_csv")
+            uploaded_file = st.file_uploader("Escolha um arquivo CSV", type=["csv"], key=f"upload_csv_{_csv_key}")
 
             if uploaded_file:
                 try:
@@ -973,16 +1400,20 @@ if menu == "🔐 Admin SSTG (Gestão)":
                                         senha_rh = gerar_senha_rh()
                                         db.atualizar_acessos_por_cnpj(cnpj_limpo_csv, {"Senha_RH_Hash": hash_senha(senha_rh)})
 
-                                        st.success(f"✅ {len(novos)} colaborador(es) cadastrado(s) com sucesso.")
                                         st.session_state.cnpj_registrado = cnpj_limpo_csv
                                         st.session_state.razao_registrada = razao_csv.strip()
+                                        st.session_state.csv_sucesso_msg = (
+                                            f"✅ {len(novos)} colaborador(es) cadastrado(s) com sucesso.\n\n"
+                                            f"🔐 Credenciais de Acesso RH\n\n"
+                                            f"Empresa: {razao_csv.strip()}  |  CNPJ: {cnpj_limpo_csv}\n\n"
+                                            f"Senha de Acesso RH: {senha_rh}\n\n"
+                                            "⚠️ Anote esta senha com segurança! Esta é a única vez que ela será exibida. "
+                                            "Compartilhe com o RH da empresa."
+                                        )
 
-                                        # Exibir informações de acesso RH
-                                        st.divider()
-                                        st.subheader("🔐 Credenciais de Acesso RH")
-                                        st.info(f"Empresa: **{razao_csv.strip()}**\nCNPJ: **{cnpj_limpo_csv}**")
-                                        st.code(f"Senha de Acesso RH: {senha_rh}", language=None)
-                                        st.warning("⚠️ **Anote esta senha com segurança!** Esta é a única vez que ela será exibida. Compartilhe com o RH da empresa.")
+                                        # Limpa os campos do formulário para permitir novo cadastro
+                                        st.session_state.csv_reset_id += 1
+                                        st.rerun()
 
                                     if duplicados:
                                         st.warning(f"⚠️ CPF(s) já cadastrados: {', '.join(duplicados)}")
@@ -1015,7 +1446,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 "**Sempre faça o backup antes de qualquer atualização.**"
             )
             zip_bytes = gerar_backup_zip()
-            nome_zip  = f"backup_SSTG_DRPS_{datetime.now().strftime('%d-%m-%Y_%H%M')}.zip"
+            nome_zip  = f"backup_SSTG_DRPS_AEP_{datetime.now().strftime('%d-%m-%Y_%H%M')}.zip"
             st.download_button(
                 label="📦 Baixar Backup Completo (ZIP)",
                 data=zip_bytes,
@@ -1257,11 +1688,11 @@ if menu == "🔐 Admin SSTG (Gestão)":
 
                                 col1, col2 = st.columns(2)
                                 with col1:
-                                    whatsapp_link = f"https://wa.me/?text=Prezado(a)%20RH%2C%0A%0AConvido-o%20a%20participar%20da%20avaliação%20de%20Riscos%20Psicossociais%20(SSTG-DRPS)%20através%20do%20link%3A%20{SHARE_URL}%2F%3Fcnpj%3D{cnpj_cod}%0A%0AEsta%20é%20uma%20ferramenta%20essencial%20para%20diagnóstico%20do%20ambiente%20de%20trabalho%20conforme%20NR-1.%0A%0AObrigado!"
+                                    whatsapp_link = f"https://wa.me/?text=Prezado(a)%20RH%2C%0A%0AConvido-o%20a%20participar%20da%20avaliação%20de%20Riscos%20Psicossociais%20(SSTG-DRPS%20AEP-RP)%20através%20do%20link%3A%20{SHARE_URL}%2F%3Fcnpj%3D{cnpj_cod}%0A%0AEsta%20é%20uma%20ferramenta%20essencial%20para%20diagnóstico%20do%20ambiente%20de%20trabalho%20conforme%20NR-1.%0A%0AObrigado!"
                                     st.markdown(f'<a href="{whatsapp_link}" target="_blank"><button style="width:100%; padding:10px; background-color:#25D366; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📱 Enviar via WhatsApp</button></a>', unsafe_allow_html=True)
 
                                 with col2:
-                                    email_link = f"mailto:?subject=Avaliação de Riscos Psicossociais - SSTG DRPS&body=Prezado(a) RH,%0A%0AConvido-o a participar da avaliação de Riscos Psicossociais (SSTG-DRPS) conforme NR-1.%0A%0ALink para acesso:%0A{SHARE_URL}/?cnpj={cnpj_cod}%0A%0AEsta avaliação é fundamental para diagnóstico do ambiente de trabalho.%0A%0AObrigado!"
+                                    email_link = f"mailto:?subject=Avaliação de Riscos Psicossociais - SSTG DRPS AEP-RP&body=Prezado(a) RH,%0A%0AConvido-o a participar da avaliação de Riscos Psicossociais (SSTG-DRPS AEP-RP) conforme NR-1.%0A%0ALink para acesso:%0A{SHARE_URL}/?cnpj={cnpj_cod}%0A%0AEsta avaliação é fundamental para diagnóstico do ambiente de trabalho.%0A%0AObrigado!"
                                     st.markdown(f'<a href="{email_link}"><button style="width:100%; padding:10px; background-color:#0078D4; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📧 Enviar via Email</button></a>', unsafe_allow_html=True)
 
                                 st.caption("💡 Dica: Use esta imagem em emails, WhatsApp, Telegram ou redes sociais para aumentar a adesão ao questionário.")
@@ -1313,50 +1744,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 # Médias por dimensão — gráfico de barras coloridas
                 cols_media = [c for c in df_res.columns if c.startswith('Media_') and c != 'Media_Geral']
                 if cols_media:
-                    st.subheader("📈 Médias por Dimensão (escala 0 a 4)")
-                    st.caption("⚠️ Demandas, Relacionamentos e Comportamentos Ofensivos exibem valor invertido (4 − média) — barra mais alta = condição mais favorável.")
-                    df_num = df_res[cols_media].apply(pd.to_numeric, errors='coerce')
-                    medias = df_num.mean()
-
-                    # Usa metadados de cada dimensão (label, cor, inversão)
-                    infos  = [_chart_info(c) for c in medias.index]
-                    labels = [inf["label"] for inf in infos]
-                    values = [
-                        round(4.0 - v, 2) if inf["invertida"] else round(v, 2)
-                        for inf, v in zip(infos, medias.values)
-                    ]
-                    cores  = [inf["cor"] for inf in infos]
-
-                    try:
-                        import plotly.graph_objects as go
-                        fig_dim = go.Figure(go.Bar(
-                            x=labels,
-                            y=values,
-                            marker_color=cores,
-                            text=[f"{v:.2f}" for v in values],
-                            textposition="outside",
-                            width=0.6,
-                        ))
-                        fig_dim.update_layout(
-                            yaxis=dict(
-                                title="Média (0–4)  ·  ↑ mais favorável",
-                                range=[0, 4.6],
-                                tickvals=[0, 1, 2, 3, 4],
-                                gridcolor="#EEEEEE",
-                            ),
-                            xaxis=dict(title="", tickangle=-20),
-                            plot_bgcolor="white",
-                            margin=dict(t=30, b=80, l=50, r=30),
-                            height=420,
-                            showlegend=False,
-                        )
-                        st.plotly_chart(fig_dim, use_container_width=True)
-                    except ImportError:
-                        cols_d = st.columns(len(cols_media))
-                        for i, (col_nome, val) in enumerate(medias.items()):
-                            inf = _chart_info(col_nome)
-                            val_exib = round(4.0 - val, 2) if inf["invertida"] else round(val, 2)
-                            cols_d[i].metric(inf["label"], f"{val_exib:.2f}")
+                    _bloco_grafico_dimensoes(df_res, cols_media, key_prefix="admin")
 
                 st.divider()
                 st.subheader("Histórico de Respostas")
@@ -1681,7 +2069,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
 
     # ── ABA 6: DOCUMENTAÇÃO ───────────────────────────────────────────────────
     with t6:
-        st.subheader("📚 Documentação SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1)")
+        st.subheader("📚 Documentação SSTG - DRPS AEP-RP Diagnóstico de Riscos Psicossociais e Ergonômicos (NR-1 / NR-17)")
         st.info("Acesse os guias e tutoriais disponíveis. Use o menu da barra lateral para selecionar.")
 
         docs = {
@@ -1922,6 +2310,32 @@ if menu == "🔐 Admin SSTG (Gestão)":
                     set_senha_admin(s_nova)
                     st.success("✅ Senha do administrador alterada com sucesso!")
 
+    # ── ABA 8: RESULTADOS AEP (NR-17) ─────────────────────────────────────────
+    with t8:
+        st.subheader("Resultados da Avaliação Ergonômica (AEP / NR-17)")
+        df_acessos_aep = db.carregar_acessos()
+
+        if not df_acessos_aep.empty:
+            opcoes_empresa_aep = df_acessos_aep.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
+                lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
+            ).tolist()
+            empresa_sel_aep = st.selectbox("Selecione a empresa:", opcoes_empresa_aep, key="aep_admin_empresa_sel")
+            cnpj_cod_aep    = empresa_sel_aep.split("CNPJ: ")[-1]
+            nome_empresa_aep = empresa_sel_aep.split(" — CNPJ:")[0].strip()
+
+            with st.expander("🔗 Link do Questionário AEP para esta empresa"):
+                link_emp_aep = f"{SHARE_URL}/?cnpj={cnpj_cod_aep}&modulo=aep"
+                st.code(link_emp_aep, language=None)
+                st.caption(
+                    "Copie e envie este link para o RH da empresa repassar aos colaboradores responderem "
+                    "a Avaliação Ergonômica (AEP). No app, selecione o módulo '🦴 Questionário Ergonômico (AEP)'."
+                )
+
+            total_auth_aep = len(df_acessos_aep[df_acessos_aep['CNPJ'] == cnpj_cod_aep])
+            _bloco_resultados_aep(cnpj_cod_aep, total_auth_aep, key_prefix="admin", empresa_nome=nome_empresa_aep, mostrar_laudo=True)
+        else:
+            st.info("Nenhuma empresa cadastrada. Faça o cadastro primeiro.")
+
 # =============================================================================
 # MÓDULO GESTÃO DAS RESPOSTAS (RH)
 # =============================================================================
@@ -2066,11 +2480,11 @@ elif menu == "📊 Gestão das Respostas (RH)":
 
                         col1, col2 = st.columns(2)
                         with col1:
-                            whatsapp_link = f"https://wa.me/?text=Prezado(a)%20Colaborador(a)%2C%0A%0AConvido-o%20a%20participar%20da%20avaliação%20de%20Riscos%20Psicossociais%20(SSTG-DRPS)%20através%20do%20link%3A%20{SHARE_URL}%2F%3Fcnpj%3D{cnpj_cod}%0A%0AEsta%20é%20uma%20ferramenta%20essencial%20para%20diagnóstico%20do%20ambiente%20de%20trabalho%20conforme%20NR-1.%0A%0AObrigado!"
+                            whatsapp_link = f"https://wa.me/?text=Prezado(a)%20Colaborador(a)%2C%0A%0AConvido-o%20a%20participar%20da%20avaliação%20de%20Riscos%20Psicossociais%20(SSTG-DRPS%20AEP-RP)%20através%20do%20link%3A%20{SHARE_URL}%2F%3Fcnpj%3D{cnpj_cod}%0A%0AEsta%20é%20uma%20ferramenta%20essencial%20para%20diagnóstico%20do%20ambiente%20de%20trabalho%20conforme%20NR-1.%0A%0AObrigado!"
                             st.markdown(f'<a href="{whatsapp_link}" target="_blank"><button style="width:100%; padding:10px; background-color:#25D366; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📱 Enviar via WhatsApp</button></a>', unsafe_allow_html=True)
 
                         with col2:
-                            email_link = f"mailto:?subject=Convite - Avaliação de Riscos Psicossociais&body=Prezado(a) Colaborador(a),%0A%0AConvidamos-o a participar da avaliação de Riscos Psicossociais (SSTG-DRPS).%0A%0ALink para acesso:%0A{SHARE_URL}/?cnpj={cnpj_cod}%0A%0AEsta avaliação é fundamental para diagnóstico do ambiente de trabalho conforme NR-1.%0A%0AObrigado!"
+                            email_link = f"mailto:?subject=Convite - Avaliação de Riscos Psicossociais&body=Prezado(a) Colaborador(a),%0A%0AConvidamos-o a participar da avaliação de Riscos Psicossociais (SSTG-DRPS AEP-RP).%0A%0ALink para acesso:%0A{SHARE_URL}/?cnpj={cnpj_cod}%0A%0AEsta avaliação é fundamental para diagnóstico do ambiente de trabalho conforme NR-1.%0A%0AObrigado!"
                             st.markdown(f'<a href="{email_link}"><button style="width:100%; padding:10px; background-color:#0078D4; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📧 Enviar via Email</button></a>', unsafe_allow_html=True)
 
                         st.caption("💡 Dica: Use esta imagem em emails, WhatsApp, Telegram ou redes sociais para aumentar a adesão ao questionário.")
@@ -2125,49 +2539,7 @@ elif menu == "📊 Gestão das Respostas (RH)":
         cols_media_rh = [c for c in df_res.columns if c.startswith('Media_') and c != 'Media_Geral']
         if cols_media_rh:
             st.divider()
-            st.subheader("📈 Médias por Dimensão (escala 0 a 4)")
-            st.caption("⚠️ Demandas, Relacionamentos e Comportamentos Ofensivos exibem valor invertido (4 − média) — barra mais alta = condição mais favorável.")
-            df_num_rh = df_res[cols_media_rh].apply(pd.to_numeric, errors='coerce')
-            medias_rh = df_num_rh.mean()
-
-            infos_rh   = [_chart_info(c) for c in medias_rh.index]
-            labels_rh  = [inf["label"] for inf in infos_rh]
-            values_rh  = [
-                round(4.0 - v, 2) if inf["invertida"] else round(v, 2)
-                for inf, v in zip(infos_rh, medias_rh.values)
-            ]
-            cores_rh   = [inf["cor"] for inf in infos_rh]
-
-            try:
-                import plotly.graph_objects as go
-                fig_rh = go.Figure(go.Bar(
-                    x=labels_rh,
-                    y=values_rh,
-                    marker_color=cores_rh,
-                    text=[f"{v:.2f}" for v in values_rh],
-                    textposition="outside",
-                    width=0.6,
-                ))
-                fig_rh.update_layout(
-                    yaxis=dict(
-                        title="Média (0–4)  ·  ↑ mais favorável",
-                        range=[0, 4.6],
-                        tickvals=[0, 1, 2, 3, 4],
-                        gridcolor="#EEEEEE",
-                    ),
-                    xaxis=dict(title="", tickangle=-20),
-                    plot_bgcolor="white",
-                    margin=dict(t=30, b=80, l=50, r=30),
-                    height=420,
-                    showlegend=False,
-                )
-                st.plotly_chart(fig_rh, use_container_width=True)
-            except ImportError:
-                cols_d = st.columns(len(cols_media_rh))
-                for i, (col_nome, val) in enumerate(medias_rh.items()):
-                    inf = _chart_info(col_nome)
-                    val_exib = round(4.0 - val, 2) if inf["invertida"] else round(val, 2)
-                    cols_d[i].metric(inf["label"], f"{val_exib:.2f}")
+            _bloco_grafico_dimensoes(df_res, cols_media_rh, key_prefix="rh")
 
         st.divider()
         colunas_exibir_rh = [c for c in df_res.columns if c != 'CPF_Hash']
@@ -2176,10 +2548,16 @@ elif menu == "📊 Gestão das Respostas (RH)":
     else:
         st.info("Nenhuma resposta registrada ainda para esta empresa.")
 
+    # ── Resultados AEP (Avaliação Ergonômica) ──────────────────────────────
+    st.divider()
+    st.subheader("🦴 Resultados — Avaliação Ergonômica (AEP / NR-17)")
+    total_auth_rh = len(df_acessos[df_acessos['CNPJ'] == cnpj_cod])
+    _bloco_resultados_aep(cnpj_cod, total_auth_rh, key_prefix="rh", empresa_nome=st.session_state.rh_empresa, mostrar_laudo=False)
+
 # =============================================================================
 # MÓDULO QUESTIONÁRIO PSICOSSOCIAL
 # =============================================================================
-else:
+elif menu == "📋 Questionário Psicossocial":
     if 'passo' not in st.session_state:
         st.session_state.passo = "login"
 
@@ -2192,7 +2570,7 @@ else:
 
         st.markdown("""
             <div class="hero-sstg">
-                <h1>DRPS - Diagnóstico de Riscos Psicossociais</h1>
+                <h1>DRPS AEP-RP - Diagnóstico de Riscos Psicossociais</h1>
                 <p>Protocolo COPSOQ III — Diagnóstico do Ambiente de Trabalho<br>mensurado com a Escala de Avaliação (Likert)</p>
                 <div class="trust-row">
                     <div class="trust-badge">
@@ -2464,6 +2842,194 @@ else:
                 st.metric("**Média Geral**", f"{media_geral:.2f}")
 
         if st.button("🔄 Voltar ao Início", use_container_width=True):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
+
+# =============================================================================
+# MÓDULO QUESTIONÁRIO ERGONÔMICO (AEP / NR-17)
+# =============================================================================
+else:
+    if 'passo_aep' not in st.session_state:
+        st.session_state.passo_aep = "login"
+
+    # ── TELA DE LOGIN ─────────────────────────────────────────────────────────
+    if st.session_state.passo_aep == "login":
+        params    = st.query_params
+        cnpj_link = params.get("cnpj", "")
+
+        st.markdown("""
+            <div class="hero-sstg">
+                <h1>AEP — Avaliação Ergonômica Preliminar</h1>
+                <p>Avaliação de Ergonomia do Posto de Trabalho — NR-17<br>Sua percepção sobre postura, mobiliário, ambiente e organização do trabalho</p>
+                <div class="trust-row">
+                    <div class="trust-badge">
+                        <div class="icon">🔒</div>
+                        <div class="label">100% Confidencial</div>
+                    </div>
+                    <div class="trust-badge">
+                        <div class="icon">👤</div>
+                        <div class="label">Totalmente Anônimo</div>
+                    </div>
+                    <div class="trust-badge">
+                        <div class="icon">⏱️</div>
+                        <div class="label">~8 minutos</div>
+                    </div>
+                    <div class="trust-badge">
+                        <div class="icon">🦴</div>
+                        <div class="label">NR-17 / PGR</div>
+                    </div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+        if cnpj_link:
+            df_link = db.carregar_acessos()
+            if not df_link.empty:
+                emp_rows = df_link[df_link['CNPJ'] == cnpj_link]
+                if not emp_rows.empty:
+                    nome_emp_link = emp_rows.iloc[0]['Empresa']
+                    st.info(f"🏢 Você está respondendo a Avaliação Ergonômica de: **{nome_emp_link}**")
+
+        st.markdown("""
+            <div class="mensagem-motivadora">
+            <b>Participe da nossa avaliação ergonômica do posto de trabalho!</b><br>
+            É rápida, totalmente anônima e essencial para identificarmos melhorias no seu ambiente de trabalho.<br><br>
+            🔒 <b>100% Confidencial:</b> Suas respostas individuais são protegidas e nunca expostas.<br>
+            ✨ <b>Foco na Verdade:</b> Responda com base no que realmente acontece no seu dia a dia.
+            </div>
+        """, unsafe_allow_html=True)
+
+        col_cpf, col_btn = st.columns([3, 1])
+        cpf_in_aep = col_cpf.text_input(
+            "Digite seu CPF (somente os 11 números, sem pontos ou traços):",
+            max_chars=11,
+            placeholder="00000000000",
+            key="cpf_in_aep"
+        )
+        with col_btn:
+            st.markdown("<br>", unsafe_allow_html=True)
+            acessar_aep = st.button("ACESSAR ▶", use_container_width=True, type="primary", key="btn_acessar_aep")
+
+        if acessar_aep:
+            cpf_limpo = cpf_in_aep.strip().replace(".", "").replace("-", "")
+            if not validar_cpf_formato(cpf_limpo):
+                st.error("⚠️ CPF inválido. Digite apenas os 11 números.")
+            else:
+                df_auth = db.carregar_acessos()
+                if not df_auth.empty:
+                    df_auth = normalizar_status(df_auth)
+                    reg = df_auth[df_auth['CPF'] == cpf_limpo]
+                    if not reg.empty:
+                        dados = reg.iloc[0].to_dict()
+                        if dados.get('Status', 'Ativo') == 'Inativo':
+                            st.error("❌ Seu acesso está inativo. Procure o RH ou a equipe SSTG.")
+                        else:
+                            ok_periodo, msg_periodo = periodo_valido(dados)
+                            if not ok_periodo:
+                                st.error(msg_periodo)
+                            elif cpf_ja_respondeu_aep(dados['CNPJ'], cpf_limpo):
+                                st.warning("⚠️ Você já participou desta avaliação ergonômica. Obrigado!")
+                            else:
+                                st.session_state.dados_sessao_aep = dados
+                                st.session_state.passo_aep = "quest"
+                                st.rerun()
+                    else:
+                        st.error("❌ CPF não autorizado. Procure o RH ou a equipe SSTG.")
+                else:
+                    st.error("Nenhuma empresa cadastrada no sistema. Contate a equipe SSTG.")
+
+    # ── QUESTIONÁRIO AEP (página única) ───────────────────────────────────────
+    elif st.session_state.passo_aep == "quest":
+        dados_s  = st.session_state.dados_sessao_aep
+        empresa  = dados_s['Empresa']
+        funcao   = dados_s.get('Função', '')
+        depto    = dados_s.get('Departamento', '')
+        cpf_resp = dados_s['CPF']
+        caption  = f"Organização: {empresa}"
+        if funcao: caption += f"  |  Função: {funcao}"
+        if depto:  caption += f"  |  Departamento: {depto}"
+
+        st.title("🦴 Avaliação Ergonômica Preliminar (AEP)")
+        st.caption(caption)
+        st.caption("Como responder: ✓ **Sim** = acontece ou existe | ✗ **Não** = não acontece | **Parcial** = acontece às vezes ou em parte | **N/A** = não se aplica à sua função")
+        st.divider()
+
+        respostas_aep = {}
+        for secao, perguntas in AEP_SECOES.items():
+            st.markdown(f"### {secao}")
+            for qid, dados_q in perguntas.items():
+                chave = f"{cpf_resp}_aep_{qid}"
+                val_salvo = st.session_state.get(chave)
+                idx_inicial = AEP_OPCOES.index(val_salvo) if val_salvo in AEP_OPCOES else None
+                resp = st.radio(f"**{dados_q['texto']}**", AEP_OPCOES, horizontal=True,
+                                 key=chave, index=idx_inicial)
+                respostas_aep[qid] = resp
+            st.divider()
+
+        st.markdown("### Relato do Trabalhador")
+        relato_dor = st.text_area(
+            "Você sente dor, desconforto ou cansaço no corpo durante ou após o trabalho? "
+            "Se sim, descreva o local (costas, pescoço, ombro, braço, mão, perna...) e quando acontece.",
+            key=f"{cpf_resp}_aep_relato_dor"
+        )
+        relato_dificuldades = st.text_area(
+            "Quais são as principais dificuldades que você encontra para realizar suas tarefas?",
+            key=f"{cpf_resp}_aep_relato_dificuldades"
+        )
+        relato_sugestoes = st.text_area(
+            "Você tem alguma outra observação ou sugestão de melhoria para o seu posto de trabalho?",
+            key=f"{cpf_resp}_aep_relato_sugestoes"
+        )
+
+        st.divider()
+        nao_resp = [qid for qid, val in respostas_aep.items() if val is None]
+        total_q  = sum(len(p) for p in AEP_SECOES.values())
+        st.progress((total_q - len(nao_resp)) / total_q,
+                    text=f"Progresso: {total_q - len(nao_resp)} de {total_q} perguntas respondidas")
+
+        if nao_resp:
+            st.warning(f"⚠️ Responda as {len(nao_resp)} pergunta(s) pendente(s) para finalizar.")
+
+        if st.button("✅ FINALIZAR E ENVIAR AVALIAÇÃO", use_container_width=True,
+                      type="primary", disabled=bool(nao_resp)):
+            dados_salvar = {
+                "cpf_hash":            hash_cpf(cpf_resp),
+                "cnpj":                dados_s['CNPJ'],
+                "empresa":             empresa,
+                "departamento":        depto,
+                "funcao_posto":        funcao,
+                "data":                date.today().isoformat(),
+                "relato_dor":          relato_dor,
+                "relato_dificuldades": relato_dificuldades,
+                "relato_sugestoes":    relato_sugestoes,
+                "severidades":         AEP_SEVERIDADES_DEFAULT,
+            }
+            for qid in respostas_aep:
+                dados_salvar[qid] = respostas_aep[qid]
+
+            db.salvar_resposta_aep(dados_salvar)
+
+            for secao in AEP_SECOES.values():
+                for qid in secao:
+                    st.session_state.pop(f"{cpf_resp}_aep_{qid}", None)
+            st.session_state.passo_aep = "fim"
+            st.rerun()
+
+    # ── TELA FINAL ────────────────────────────────────────────────────────────
+    elif st.session_state.passo_aep == "fim":
+        st.title("✅ Avaliação Ergonômica Concluída!")
+        st.balloons()
+        st.success("Sua avaliação foi enviada com sucesso!")
+        st.markdown("""
+            <div class="mensagem-motivadora">
+            <b>Muito obrigado pela sua participação!</b><br><br>
+            Suas respostas contribuirão para a melhoria das condições ergonômicas do seu posto de trabalho.
+            Os dados coletados serão analisados de forma <b>agregada e completamente anônima</b> pela equipe SSTG.
+            </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("🔄 Voltar ao Início", use_container_width=True, key="btn_voltar_aep"):
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()

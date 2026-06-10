@@ -169,6 +169,42 @@ def deletar_todas_respostas():
     sb.table("respostas").delete().neq("id", 0).execute()
 
 
+def cpf_respondeu_aep(cnpj, cpf_hash):
+    sb = _get_sb()
+    res = (sb.table("respostas_aep")
+             .select("cpf_hash")
+             .eq("cnpj", cnpj)
+             .eq("cpf_hash", cpf_hash)
+             .execute())
+    return bool(res.data)
+
+
+def salvar_resposta_aep(dados):
+    """Grava uma resposta do questionário AEP (NR-17). `dados` usa chaves em snake_case
+    (cpf_hash, cnpj, empresa, departamento, funcao_posto, avaliador, descricao_atividade,
+    data, q1..q17, relato_dor, relato_dificuldades, relato_sugestoes, severidades)."""
+    sb = _get_sb()
+    sb.table("respostas_aep").upsert(dados, on_conflict="cpf_hash,cnpj").execute()
+
+
+def carregar_respostas_aep(cnpj):
+    sb = _get_sb()
+    res = sb.table("respostas_aep").select("*").eq("cnpj", cnpj).execute()
+    if not res.data:
+        return pd.DataFrame()
+    return pd.DataFrame(res.data).drop(columns=["id"], errors="ignore")
+
+
+def deletar_respostas_aep_empresa(cnpj):
+    sb = _get_sb()
+    sb.table("respostas_aep").delete().eq("cnpj", cnpj).execute()
+
+
+def deletar_todas_respostas_aep():
+    sb = _get_sb()
+    sb.table("respostas_aep").delete().neq("id", 0).execute()
+
+
 def listar_cnpjs_com_respostas():
     sb = _get_sb()
     res = sb.table("respostas").select("cnpj").execute()
@@ -234,5 +270,9 @@ def exportar_backup_zip():
             if not df_r.empty:
                 zf.writestr(f"respostas_CNPJ_{cnpj}.csv",
                             df_r.to_csv(index=False, sep=";", encoding="utf-8-sig"))
+            df_aep = carregar_respostas_aep(cnpj)
+            if not df_aep.empty:
+                zf.writestr(f"respostas_AEP_CNPJ_{cnpj}.csv",
+                            df_aep.to_csv(index=False, sep=";", encoding="utf-8-sig"))
     buf.seek(0)
     return buf.getvalue()

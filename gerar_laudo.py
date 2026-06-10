@@ -266,6 +266,10 @@ def get_styles():
         'table_cell', fontName='Helvetica', fontSize=8,
         textColor=colors.HexColor('#333333'), leading=11, alignment=TA_LEFT
     )
+    s['table_cell_justify'] = ParagraphStyle(
+        'table_cell_justify', fontName='Helvetica', fontSize=8,
+        textColor=colors.HexColor('#333333'), leading=11, alignment=TA_JUSTIFY
+    )
     s['table_cell_center'] = ParagraphStyle(
         'table_cell_center', fontName='Helvetica', fontSize=8,
         textColor=colors.HexColor('#333333'), leading=11, alignment=TA_CENTER
@@ -533,7 +537,7 @@ def build_s1(st, empresa, cnpj, cnae, grau_risco, data_laudo, data_pgr="—", st
     el.append(_subtitulo("1.3. Responsáveis pela Elaboração", st))
     dados3 = [
         ["Responsável Técnico 1 — Nome:",    RESP_NOME],
-        ["Cargo:",                            "Engenheiro de Segurança do Trabalho"],
+        ["Cargo:",                            "Ergonomista/Técnico Segurança do Trabalho"],
         ["Registro Profissional (MTE):",      RESP_MTE],
         ["Registro Profissional (CREA):",     RESP_CREA],
         ["Responsável Técnico 2 — Nome:",    RESP2_NOME],
@@ -662,9 +666,12 @@ def build_s3(st, total_respondentes, total_autorizados=0, medias_por_dim=None):
          Paragraph("Classificação COPSOQ III", st['table_header']),
          Paragraph("Probabilidade (BS 8800)", st['table_header']),
          Paragraph("Interpretação", st['table_header'])],
-        ["0,00 — 1,49", "ALTO", "Excessiva", "Trabalhadores frequentemente expostos. Ação imediata necessária."],
-        ["1,50 — 2,99", "MODERADO", "Significante", "Exposição recorrente. Medidas preventivas recomendadas."],
-        ["3,00 — 4,00", "BAIXO", "Pequena", "Exposição eventual. Manter e monitorar controles atuais."],
+        ["0,00 — 1,49", "ALTO", "Excessiva",
+         Paragraph("Trabalhadores frequentemente expostos. Ação imediata necessária.", st['table_cell_justify'])],
+        ["1,50 — 2,99", "MODERADO", "Significante",
+         Paragraph("Exposição recorrente. Medidas preventivas recomendadas.", st['table_cell_justify'])],
+        ["3,00 — 4,00", "BAIXO", "Pequena",
+         Paragraph("Exposição eventual. Manter e monitorar controles atuais.", st['table_cell_justify'])],
     ]
     tc = Table(class_data, colWidths=[4*cm, 3.5*cm, 4*cm, 7*cm])
     tc.setStyle(TableStyle([
