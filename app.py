@@ -1188,8 +1188,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 # CNAE e Grau de Risco
                 st.markdown("**Dados para o Laudo AEP-RP**")
                 c_cnae, c_grau = st.columns(2)
-                cnae_manual  = c_cnae.text_input("CNAE Principal:", placeholder="Ex: 4711-3/02", key="cnae_manual")
-                grau_manual  = c_grau.selectbox("Grau de Risco:", ["—", "1", "2", "3", "4"], key="grau_manual")
+                cnae_manual  = c_cnae.text_input("CNAE Principal: *", placeholder="Ex: 4711-3/02", key="cnae_manual")
+                grau_manual  = c_grau.selectbox("Grau de Risco: *", ["—", "1", "2", "3", "4"], key="grau_manual")
 
                 # Tabela de colaboradores
                 st.markdown("**Colaboradores autorizados**")
@@ -1217,6 +1217,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
                     cnpj_limpo = cnpj.strip().replace(".", "").replace("/", "").replace("-", "")
                     if not cnpj_limpo or not razao.strip():
                         st.error("Preencha CNPJ e Razão Social.")
+                    elif not cnae_manual.strip() or grau_manual == "—":
+                        st.error("Preencha o CNAE Principal e o Grau de Risco (campos obrigatórios para o Laudo).")
                     elif dt_fim < dt_ini:
                         st.error("A data de encerramento não pode ser anterior à data de início.")
                     else:
@@ -1229,8 +1231,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
                                 "Razão Social": razao.strip(),
                                 "Data_Inicio": dt_ini.strftime("%d/%m/%Y"),
                                 "Data_Fim":    dt_fim.strftime("%d/%m/%Y"),
-                                "CNAE":        cnae_manual.strip() if cnae_manual else "",
-                                "Grau_Risco":  grau_manual if grau_manual != "—" else "",
+                                "CNAE":        cnae_manual.strip(),
+                                "Grau_Risco":  grau_manual,
                             }
                             novos, duplicados, invalidos = salvar_cadastro_completo(dados_emp, colaboradores)
 
@@ -1297,8 +1299,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
             # CNAE e Grau de Risco
             st.markdown("**Dados para o Laudo AEP-RP**")
             c_cnae_csv, c_grau_csv = st.columns(2)
-            cnae_csv_val = c_cnae_csv.text_input("CNAE Principal:", placeholder="Ex: 4711-3/02", key=f"cnae_csv_val_{_csv_key}")
-            grau_csv_val = c_grau_csv.selectbox("Grau de Risco:", ["—", "1", "2", "3", "4"], key=f"grau_csv_val_{_csv_key}")
+            cnae_csv_val = c_cnae_csv.text_input("CNAE Principal: *", placeholder="Ex: 4711-3/02", key=f"cnae_csv_val_{_csv_key}")
+            grau_csv_val = c_grau_csv.selectbox("Grau de Risco: *", ["—", "1", "2", "3", "4"], key=f"grau_csv_val_{_csv_key}")
 
             st.markdown("---")
             st.markdown("**Selecione o arquivo CSV**")
@@ -1378,6 +1380,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
                             cnpj_limpo_csv = cnpj_csv.strip().replace(".", "").replace("/", "").replace("-", "")
                             if not cnpj_limpo_csv or not razao_csv.strip():
                                 st.error("Preencha CNPJ e Razão Social.")
+                            elif not cnae_csv_val.strip() or grau_csv_val == "—":
+                                st.error("Preencha o CNAE Principal e o Grau de Risco (campos obrigatórios para o Laudo).")
                             elif dt_fim_csv < dt_ini_csv:
                                 st.error("A data de encerramento não pode ser anterior à data de início.")
                             else:
@@ -1390,8 +1394,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
                                         "Razão Social": razao_csv.strip(),
                                         "Data_Inicio": dt_ini_csv.strftime("%d/%m/%Y"),
                                         "Data_Fim":    dt_fim_csv.strftime("%d/%m/%Y"),
-                                        "CNAE":        cnae_csv_val.strip() if cnae_csv_val else "",
-                                        "Grau_Risco":  grau_csv_val if grau_csv_val != "—" else "",
+                                        "CNAE":        cnae_csv_val.strip(),
+                                        "Grau_Risco":  grau_csv_val,
                                     }
                                     novos, duplicados, invalidos = salvar_cadastro_completo(dados_emp_csv, colaboradores_csv)
 
@@ -1764,7 +1768,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 if not LAUDO_DISPONIVEL:
                     st.error("Módulo `gerar_laudo.py` não encontrado na pasta do projeto.")
                 elif cols_media:
-                    # Carrega CNAE e Grau de Risco do cadastro da empresa (pré-preenchimento)
+                    # Carrega CNAE e Grau de Risco do cadastro da empresa
                     df_acessos_res = db.carregar_acessos()
                     _row_emp = df_acessos_res[df_acessos_res['CNPJ'] == cnpj_cod]
                     if not _row_emp.empty:
@@ -1774,27 +1778,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
                     else:
                         _cnae_default, _grau_default = '', ''
 
-                    # Campos editáveis — pré-preenchidos com dados do cadastro
-                    with st.expander("⚙️ Dados para o Laudo AEP-RP", expanded=True):
-                        col_a, col_b = st.columns(2)
-                        cnae_laudo = col_a.text_input(
-                            "CNAE Principal:",
-                            value=_cnae_default,
-                            placeholder="Ex: 4711-3/02",
-                            key="cnae_laudo"
-                        )
-                        _opcoes_grau = ["—", "1", "2", "3", "4"]
-                        _idx_grau = _opcoes_grau.index(_grau_default) if _grau_default in _opcoes_grau else 0
-                        grau_laudo = col_b.selectbox(
-                            "Grau de Risco:",
-                            _opcoes_grau,
-                            index=_idx_grau,
-                            key="grau_laudo"
-                        )
-                        if _cnae_default or _grau_default:
-                            st.caption("✅ Dados carregados do cadastro. Edite se necessário antes de gerar.")
-                        else:
-                            st.caption("⚠️ CNAE e Grau de Risco não encontrados no cadastro desta empresa. Preencha abaixo e eles serão salvos automaticamente.")
+                    st.caption(f"CNAE Principal: **{_cnae_default or '—'}** | Grau de Risco: **{_grau_default or '—'}** "
+                                "(dados do cadastro da empresa)")
 
                     if st.button("📄 Gerar AEP-RP em PDF", type="primary", use_container_width=True):
                         with st.spinner("Gerando laudo..."):
@@ -1807,18 +1792,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
                                 dim_key  = f"Dim_{nome_dim}"
                                 medias_dim[dim_key] = round(4.0 - val, 2) if nome_dim.lower() in _DIMS_INV_LOWER else val
 
-                            _cnae_final = cnae_laudo.strip() if cnae_laudo.strip() else "—"
-                            _grau_final = grau_laudo if grau_laudo != "—" else "—"
-
-                            # Salva CNAE e Grau no cadastro para próximas emissões
-                            if _cnae_final != "—" or _grau_final != "—":
-                                try:
-                                    db.atualizar_acessos_por_cnpj(cnpj_cod, {
-                                        "CNAE":       _cnae_final if _cnae_final != "—" else _cnae_default,
-                                        "Grau_Risco": _grau_final if _grau_final != "—" else _grau_default,
-                                    })
-                                except Exception:
-                                    pass  # Não bloqueia a geração se falhar ao salvar
+                            _cnae_final = _cnae_default if _cnae_default else "—"
+                            _grau_final = _grau_default if _grau_default else "—"
 
                             dados_emp = {
                                 "Empresa":    nome_empresa,
@@ -2345,6 +2320,25 @@ elif menu == "📊 Gestão das Respostas (RH)":
         st.session_state.rh_cnpj = None
 
     if not st.session_state.rh_logado:
+        # ── Acesso livre para Admin master (sem necessidade de senha RH) ───────
+        if st.session_state.get('admin_logado') and st.session_state.get('admin_perfil') == 'admin':
+            st.success("🔓 Acesso Admin Master — selecione a empresa para acessar diretamente, sem senha.")
+            df_acessos_admin = db.carregar_acessos()
+            if not df_acessos_admin.empty:
+                df_emp_admin = df_acessos_admin.drop_duplicates(subset=["CNPJ"])
+                opcoes_emp_admin = {
+                    f"{row['Empresa']} — CNPJ: {row['CNPJ']}": row['CNPJ']
+                    for _, row in df_emp_admin.iterrows()
+                }
+                emp_sel_admin = st.selectbox("Empresa:", list(opcoes_emp_admin.keys()), key="rh_admin_empresa_sel")
+                if st.button("🔓 Acessar como Admin", use_container_width=True, key="rh_admin_acesso_btn"):
+                    cnpj_sel_admin = opcoes_emp_admin[emp_sel_admin]
+                    st.session_state.rh_logado = True
+                    st.session_state.rh_cnpj = cnpj_sel_admin
+                    st.session_state.rh_empresa = df_emp_admin[df_emp_admin['CNPJ'] == cnpj_sel_admin].iloc[0]['Empresa']
+                    st.rerun()
+            st.divider()
+
         st.title("🔐 Acesso RH — Gestão de Respostas")
         st.info("Insira o CNPJ e a senha de acesso fornecida pela SSTG Admin.")
 
@@ -2615,6 +2609,22 @@ elif menu == "📋 Questionário Psicossocial":
             </div>
         """, unsafe_allow_html=True)
 
+        # ── Acesso livre para Admin master (pré-visualização, sem salvar) ──────
+        if st.session_state.get('admin_logado') and st.session_state.get('admin_perfil') == 'admin':
+            with st.expander("🔓 Acesso Admin Master — Pré-visualizar Questionário"):
+                df_acessos_prev = db.carregar_acessos()
+                if not df_acessos_prev.empty:
+                    opcoes_prev = {
+                        f"{row['Empresa']} — {row.get('Função','')} — CPF: {row['CPF']}": row.to_dict()
+                        for _, row in df_acessos_prev.iterrows()
+                    }
+                    sel_prev = st.selectbox("Colaborador:", list(opcoes_prev.keys()), key="psico_admin_prev_sel")
+                    if st.button("🔓 Pré-visualizar como Admin", use_container_width=True, key="psico_admin_prev_btn"):
+                        st.session_state.dados_sessao = opcoes_prev[sel_prev]
+                        st.session_state._admin_preview = True
+                        st.session_state.passo = "quest"
+                        st.rerun()
+
         col_cpf, col_btn = st.columns([3, 1])
         cpf_in = col_cpf.text_input(
             "Digite seu CPF (somente os 11 números, sem pontos ou traços):",
@@ -2784,7 +2794,8 @@ elif menu == "📋 Questionário Psicossocial":
                         sum(DEPARA[v] for v in respostas.values()) / len(respostas), 2
                     )
                     dados_salvar["CNPJ"] = dados_s['CNPJ']
-                    db.salvar_resposta(dados_salvar)
+                    if not st.session_state.get('_admin_preview'):
+                        db.salvar_resposta(dados_salvar)
                     # Guarda médias no session_state para exibir na tela final
                     st.session_state.medias_fim = {
                         k: v for k, v in dados_salvar.items()
@@ -2799,6 +2810,8 @@ elif menu == "📋 Questionário Psicossocial":
 
     # ── TELA FINAL ────────────────────────────────────────────────────────────
     elif st.session_state.passo == "fim":
+        if st.session_state.get('_admin_preview'):
+            st.info("🔓 Pré-visualização do Admin Master — esta resposta NÃO foi salva no banco de dados.")
         st.title("✅ Avaliação Concluída!")
         st.balloons()
         st.success("Sua avaliação foi enviada com sucesso!")
@@ -2899,6 +2912,22 @@ else:
             ✨ <b>Foco na Verdade:</b> Responda com base no que realmente acontece no seu dia a dia.
             </div>
         """, unsafe_allow_html=True)
+
+        # ── Acesso livre para Admin master (pré-visualização, sem salvar) ──────
+        if st.session_state.get('admin_logado') and st.session_state.get('admin_perfil') == 'admin':
+            with st.expander("🔓 Acesso Admin Master — Pré-visualizar Avaliação Ergonômica"):
+                df_acessos_prev_aep = db.carregar_acessos()
+                if not df_acessos_prev_aep.empty:
+                    opcoes_prev_aep = {
+                        f"{row['Empresa']} — {row.get('Função','')} — CPF: {row['CPF']}": row.to_dict()
+                        for _, row in df_acessos_prev_aep.iterrows()
+                    }
+                    sel_prev_aep = st.selectbox("Colaborador:", list(opcoes_prev_aep.keys()), key="aep_admin_prev_sel")
+                    if st.button("🔓 Pré-visualizar como Admin", use_container_width=True, key="aep_admin_prev_btn"):
+                        st.session_state.dados_sessao_aep = opcoes_prev_aep[sel_prev_aep]
+                        st.session_state._admin_preview = True
+                        st.session_state.passo_aep = "quest"
+                        st.rerun()
 
         col_cpf, col_btn = st.columns([3, 1])
         cpf_in_aep = col_cpf.text_input(
@@ -3008,7 +3037,8 @@ else:
             for qid in respostas_aep:
                 dados_salvar[qid] = respostas_aep[qid]
 
-            db.salvar_resposta_aep(dados_salvar)
+            if not st.session_state.get('_admin_preview'):
+                db.salvar_resposta_aep(dados_salvar)
 
             for secao in AEP_SECOES.values():
                 for qid in secao:
@@ -3018,6 +3048,8 @@ else:
 
     # ── TELA FINAL ────────────────────────────────────────────────────────────
     elif st.session_state.passo_aep == "fim":
+        if st.session_state.get('_admin_preview'):
+            st.info("🔓 Pré-visualização do Admin Master — esta resposta NÃO foi salva no banco de dados.")
         st.title("✅ Avaliação Ergonômica Concluída!")
         st.balloons()
         st.success("Sua avaliação foi enviada com sucesso!")
