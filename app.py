@@ -126,7 +126,8 @@ def gerar_imagem_compartilhamento_simples(empresa_nome: str, cnpj: str, app_url:
         y_cur += H_LINHA
 
     # QR Code
-    link   = f"{app_url}/?cnpj={cnpj}"
+    sep  = "&" if "?" in app_url else "?"
+    link = f"{app_url}{sep}cnpj={cnpj}"
     qr_obj = _qrcode.QRCode(version=1, error_correction=_qrcode.constants.ERROR_CORRECT_H, box_size=10, border=2)
     qr_obj.add_data(link)
     qr_obj.make(fit=True)
@@ -153,6 +154,8 @@ APP_URL   = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
 SHARE_URL = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
 EBOOK_URL = "https://valter-contador.github.io/sstg-e-social/ebook_psicossocial.html"
 EBOOK_AEP_URL = "https://valter-contador.github.io/sstg-e-social/ebook_aep.html"
+QUEST_PSICOSSOCIAL_URL = "https://valter-contador.github.io/sstg-e-social/questionario_psicossocial.html"
+QUEST_AEP_URL = "https://valter-contador.github.io/sstg-e-social/questionario_aep.html"
 SENHA_ADMIN = "Valter@sstg230914"
 
 def caminho_doc(nome_arquivo: str) -> str:
@@ -1436,7 +1439,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
         if not df_emp_links.empty:
             empresas_unicas = df_emp_links.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].values
             for _, (empresa, cnpj_emp) in enumerate(empresas_unicas):
-                link = f"{SHARE_URL}/?cnpj={cnpj_emp}"
+                link = f"{QUEST_PSICOSSOCIAL_URL}?cnpj={cnpj_emp}"
                 col_empr, col_link = st.columns([2, 3])
                 col_empr.write(f"**{empresa}**")
                 col_link.code(link)
@@ -1649,7 +1652,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
 
             # ── Link individualizado ──────────────────────────────────────────
             with st.expander("🔗 Link do Questionário para esta empresa"):
-                link_emp = f"{SHARE_URL}/?cnpj={cnpj_cod}"
+                link_emp = f"{QUEST_PSICOSSOCIAL_URL}?cnpj={cnpj_cod}"
                 st.code(link_emp, language=None)
                 st.caption(
                     "Copie e envie este link para o RH da empresa repassar aos colaboradores. "
@@ -1672,7 +1675,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
                                     img_bytes = gerar_imagem_compartilhamento_simples(
                                         empresa_nome=nome_empresa,
                                         cnpj=cnpj_cod,
-                                        app_url=SHARE_URL
+                                        app_url=QUEST_PSICOSSOCIAL_URL
                                     )
 
                                 st.success("Imagem gerada com sucesso!")
@@ -1695,11 +1698,11 @@ if menu == "🔐 Admin SSTG (Gestão)":
 
                                 col1, col2 = st.columns(2)
                                 with col1:
-                                    whatsapp_link = f"https://wa.me/?text=Prezado(a)%20RH%2C%0A%0AConvido-o%20a%20participar%20da%20avaliação%20de%20Riscos%20Psicossociais%20(SSTG-DRPS%20AEP-RP)%20através%20do%20link%3A%20{SHARE_URL}%2F%3Fcnpj%3D{cnpj_cod}%0A%0AEsta%20é%20uma%20ferramenta%20essencial%20para%20diagnóstico%20do%20ambiente%20de%20trabalho%20conforme%20NR-1.%0A%0AObrigado!"
+                                    whatsapp_link = f"https://wa.me/?text=Prezado(a)%20RH%2C%0A%0AConvido-o%20a%20participar%20da%20avaliação%20de%20Riscos%20Psicossociais%20(SSTG-DRPS%20AEP-RP)%20através%20do%20link%3A%20{QUEST_PSICOSSOCIAL_URL}%3Fcnpj%3D{cnpj_cod}%0A%0AEsta%20é%20uma%20ferramenta%20essencial%20para%20diagnóstico%20do%20ambiente%20de%20trabalho%20conforme%20NR-1.%0A%0AObrigado!"
                                     st.markdown(f'<a href="{whatsapp_link}" target="_blank"><button style="width:100%; padding:10px; background-color:#25D366; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📱 Enviar via WhatsApp</button></a>', unsafe_allow_html=True)
 
                                 with col2:
-                                    email_link = f"mailto:?subject=Avaliação de Riscos Psicossociais - SSTG DRPS AEP-RP&body=Prezado(a) RH,%0A%0AConvido-o a participar da avaliação de Riscos Psicossociais (SSTG-DRPS AEP-RP) conforme NR-1.%0A%0ALink para acesso:%0A{SHARE_URL}/?cnpj={cnpj_cod}%0A%0AEsta avaliação é fundamental para diagnóstico do ambiente de trabalho.%0A%0AObrigado!"
+                                    email_link = f"mailto:?subject=Avaliação de Riscos Psicossociais - SSTG DRPS AEP-RP&body=Prezado(a) RH,%0A%0AConvido-o a participar da avaliação de Riscos Psicossociais (SSTG-DRPS AEP-RP) conforme NR-1.%0A%0ALink para acesso:%0A{QUEST_PSICOSSOCIAL_URL}?cnpj={cnpj_cod}%0A%0AEsta avaliação é fundamental para diagnóstico do ambiente de trabalho.%0A%0AObrigado!"
                                     st.markdown(f'<a href="{email_link}"><button style="width:100%; padding:10px; background-color:#0078D4; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📧 Enviar via Email</button></a>', unsafe_allow_html=True)
 
                                 st.caption("💡 Dica: Use esta imagem em emails, WhatsApp, Telegram ou redes sociais para aumentar a adesão ao questionário.")
@@ -2302,7 +2305,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
             nome_empresa_aep = empresa_sel_aep.split(" — CNPJ:")[0].strip()
 
             with st.expander("🔗 Link do Questionário AEP para esta empresa"):
-                link_emp_aep = f"{SHARE_URL}/?cnpj={cnpj_cod_aep}&modulo=aep"
+                link_emp_aep = f"{QUEST_AEP_URL}?cnpj={cnpj_cod_aep}"
                 st.code(link_emp_aep, language=None)
                 st.caption(
                     "Copie e envie este link para o RH da empresa repassar aos colaboradores responderem "
@@ -2394,7 +2397,7 @@ elif menu == "📊 Gestão das Respostas (RH)":
     # ── Links dos Questionários ─────────────────────────────────────────────
     with st.expander("🔗 Links dos Questionários para esta empresa", expanded=True):
         st.markdown("**📋 Questionário Psicossocial (COPSOQ III)**")
-        link_emp = f"{SHARE_URL}/?cnpj={cnpj_cod}"
+        link_emp = f"{QUEST_PSICOSSOCIAL_URL}?cnpj={cnpj_cod}"
         st.code(link_emp, language=None)
         st.caption(
             "Copie e envie este link para os colaboradores da empresa responderem o "
@@ -2404,7 +2407,7 @@ elif menu == "📊 Gestão das Respostas (RH)":
         st.divider()
 
         st.markdown("**🦴 Questionário Ergonômico (AEP / NR-17)**")
-        link_emp_aep = f"{SHARE_URL}/?cnpj={cnpj_cod}&modulo=aep"
+        link_emp_aep = f"{QUEST_AEP_URL}?cnpj={cnpj_cod}"
         st.code(link_emp_aep, language=None)
         st.caption(
             "Copie e envie este link para os colaboradores da empresa responderem a "
@@ -2502,7 +2505,7 @@ elif menu == "📊 Gestão das Respostas (RH)":
                             img_bytes = gerar_imagem_compartilhamento_simples(
                                 empresa_nome=nome_empresa,
                                 cnpj=cnpj_cod,
-                                app_url=SHARE_URL
+                                app_url=QUEST_PSICOSSOCIAL_URL
                             )
 
                         st.success("Imagem gerada com sucesso!")
@@ -2525,11 +2528,11 @@ elif menu == "📊 Gestão das Respostas (RH)":
 
                         col1, col2 = st.columns(2)
                         with col1:
-                            whatsapp_link = f"https://wa.me/?text=Prezado(a)%20Colaborador(a)%2C%0A%0AConvido-o%20a%20participar%20da%20avaliação%20de%20Riscos%20Psicossociais%20(SSTG-DRPS%20AEP-RP)%20através%20do%20link%3A%20{SHARE_URL}%2F%3Fcnpj%3D{cnpj_cod}%0A%0AEsta%20é%20uma%20ferramenta%20essencial%20para%20diagnóstico%20do%20ambiente%20de%20trabalho%20conforme%20NR-1.%0A%0AObrigado!"
+                            whatsapp_link = f"https://wa.me/?text=Prezado(a)%20Colaborador(a)%2C%0A%0AConvido-o%20a%20participar%20da%20avaliação%20de%20Riscos%20Psicossociais%20(SSTG-DRPS%20AEP-RP)%20através%20do%20link%3A%20{QUEST_PSICOSSOCIAL_URL}%3Fcnpj%3D{cnpj_cod}%0A%0AEsta%20é%20uma%20ferramenta%20essencial%20para%20diagnóstico%20do%20ambiente%20de%20trabalho%20conforme%20NR-1.%0A%0AObrigado!"
                             st.markdown(f'<a href="{whatsapp_link}" target="_blank"><button style="width:100%; padding:10px; background-color:#25D366; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📱 Enviar via WhatsApp</button></a>', unsafe_allow_html=True)
 
                         with col2:
-                            email_link = f"mailto:?subject=Convite - Avaliação de Riscos Psicossociais&body=Prezado(a) Colaborador(a),%0A%0AConvidamos-o a participar da avaliação de Riscos Psicossociais (SSTG-DRPS AEP-RP).%0A%0ALink para acesso:%0A{SHARE_URL}/?cnpj={cnpj_cod}%0A%0AEsta avaliação é fundamental para diagnóstico do ambiente de trabalho conforme NR-1.%0A%0AObrigado!"
+                            email_link = f"mailto:?subject=Convite - Avaliação de Riscos Psicossociais&body=Prezado(a) Colaborador(a),%0A%0AConvidamos-o a participar da avaliação de Riscos Psicossociais (SSTG-DRPS AEP-RP).%0A%0ALink para acesso:%0A{QUEST_PSICOSSOCIAL_URL}?cnpj={cnpj_cod}%0A%0AEsta avaliação é fundamental para diagnóstico do ambiente de trabalho conforme NR-1.%0A%0AObrigado!"
                             st.markdown(f'<a href="{email_link}"><button style="width:100%; padding:10px; background-color:#0078D4; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📧 Enviar via Email</button></a>', unsafe_allow_html=True)
 
                         st.caption("💡 Dica: Use esta imagem em emails, WhatsApp, Telegram ou redes sociais para aumentar a adesão ao questionário.")
