@@ -19,14 +19,36 @@ from gerar_laudo import (
 
 # ===================== AÇÕES POR CLASSIFICAÇÃO (NR-17 / NR-01) =====================
 ACAO_POR_CLASSIFICACAO = {
-    "Crítico":  ("Intervenção imediata. Paralisação da atividade se necessário. "
-                  "Comunicar CIPA e médico do trabalho.", colors.HexColor('#C0392B')),
-    "Alto":     ("Controle imediato. Medidas de engenharia e/ou administrativas em até 30 dias.",
-                  C_LARANJA),
-    "Médio":    ("Elaborar plano de ação com prazo de até 90 dias. Incluir no PGR.",
-                  C_AMARELO),
-    "Baixo":    ("Monitoramento periódico semestral. Sem necessidade de intervenção imediata.",
-                  C_VERDE),
+    "Crítico": {
+        "acao": "Intervenção imediata. Paralisação da atividade se necessário. "
+                "Comunicar CIPA e médico do trabalho.",
+        "justificativa": "Faixa de GR entre 10 e 16 e/ou percentual de respostas indicadoras de "
+                "risco superior a 98% da média das respostas, evidenciando quase unanimidade na "
+                "percepção do risco pelos trabalhadores e exigindo ação corretiva imediata.",
+        "prazo": "Imediato",
+        "cor": colors.HexColor('#C0392B'),
+    },
+    "Alto": {
+        "acao": "Controle imediato. Medidas de engenharia e/ou administrativas em até 30 dias.",
+        "justificativa": "Faixa de GR entre 7 e 9, correspondente a probabilidade provável a "
+                "muito provável de dano à saúde, demandando controle em curto prazo.",
+        "prazo": "30 dias",
+        "cor": C_LARANJA,
+    },
+    "Médio": {
+        "acao": "Elaborar plano de ação com prazo de até 90 dias. Incluir no PGR.",
+        "justificativa": "Faixa de GR entre 3 e 6, correspondente a probabilidade possível a "
+                "provável, devendo ser tratado de forma planejada dentro do PGR.",
+        "prazo": "90 dias",
+        "cor": C_AMARELO,
+    },
+    "Baixo": {
+        "acao": "Monitoramento periódico semestral. Sem necessidade de intervenção imediata.",
+        "justificativa": "Faixa de GR entre 1 e 2, correspondente a baixa probabilidade de "
+                "ocorrência, mantido sob monitoramento periódico.",
+        "prazo": "Monitoramento semestral",
+        "cor": C_VERDE,
+    },
 }
 
 
@@ -99,7 +121,8 @@ def build_capa_aep(st, empresa, cnpj, data_emissao, logo_path):
         ("Razão Social:", empresa),
         ("CNPJ:", cnpj),
         ("Data de Emissão:", data_emissao),
-        ("Norma de Referência:", "NR-17 (Portaria MTE 1.117/2023) e NR-01 (Portaria MTE 672/2021)"),
+        ("Norma de Referência:", "NR-17 (Portaria MTE 1.117/2023) e NR-01 (Portaria MTE 672/2021, "
+                                  "atualizada pela Portaria MTE nº 765/2025)"),
         ("Responsável Técnico:", RESP_NOME),
         ("MTE:", RESP_MTE),
         ("CREA:", RESP_CREA),
@@ -113,30 +136,76 @@ def build_capa_aep(st, empresa, cnpj, data_emissao, logo_path):
     return elementos
 
 
-# ===================== SEÇÃO 2: METODOLOGIA =====================
+# ===================== SEÇÃO 2: ESCOPO DA AVALIAÇÃO ERGONÔMICA =====================
+
+def build_escopo_aep(st):
+    el = []
+    el.append(_titulo_secao("2. Escopo da Avaliação Ergonômica", st))
+    el.append(Paragraph(
+        "A presente AEP abrange os ambientes de trabalho da organização avaliada, com atividades "
+        "realizadas presencialmente e remotamente.", st['body']))
+    el.append(Paragraph("A avaliação contemplou:", st['body']))
+    for item in [
+        "análise da organização do trabalho;",
+        "avaliação da carga cognitiva;",
+        "avaliação das demandas operacionais;",
+        "análise das condições organizacionais;",
+        "identificação de fatores ergonômicos relacionados ao trabalho;",
+        "percepção dos trabalhadores, e suas rotinas laborais.",
+    ]:
+        el.append(Paragraph(f"• {item}", st['lista']))
+    return el
+
+
+# ===================== SEÇÃO 3: PARTICIPAÇÃO DOS TRABALHADORES =====================
+
+def build_participacao_aep(st):
+    el = []
+    el.append(_titulo_secao("3. Participação dos Trabalhadores", st))
+    el.append(Paragraph("A organização assegurou:", st['body']))
+    for item in [
+        "participação dos trabalhadores;",
+        "escuta ativa;",
+        "confidencialidade;",
+        "consulta durante a avaliação;",
+        "acesso às informações relevantes.",
+    ]:
+        el.append(Paragraph(f"• {item}", st['lista']))
+    el.append(Spacer(1, 0.1*cm))
+    el.append(Paragraph(
+        "A participação dos trabalhadores deverá permanecer contínua no ciclo de melhoria do GRO.",
+        st['body']))
+    return el
+
+
+# ===================== SEÇÃO 4: METODOLOGIA =====================
 
 def build_metodologia_aep(st, total_respondentes, total_autorizados):
     el = []
-    el.append(_titulo_secao("2. Metodologia de Avaliação", st))
+    el.append(_titulo_secao("4. Metodologia de Avaliação", st))
 
     pct = round((total_respondentes / total_autorizados) * 100, 1) if total_autorizados else 0
-    el.append(_subtitulo("2.1. Participação", st))
+    el.append(_subtitulo("4.1. Participação", st))
     el.append(_tabela_dados([
         ("Colaboradores Autorizados:", total_autorizados),
         ("Respostas Recebidas:", total_respondentes),
         ("Taxa de Adesão:", f"{pct}%"),
     ]))
 
-    el.append(_subtitulo("2.2. Critério de Pontuação", st))
+    el.append(_subtitulo("4.2. Critério de Pontuação", st))
     el.append(Paragraph(
         "O questionário aplicado contém 17 perguntas distribuídas em 4 seções: A) Postura e Movimentos, "
         "B) Mobiliário e Equipamentos, C) Condições Ambientais e D) Organização do Trabalho. "
         "Cada resposta foi classificada como indicadora de risco (“Sim” nas perguntas diretas ou "
         "“Não” nas perguntas invertidas), parcialmente de risco (“Parcial”) ou sem risco. "
+        "Quando há identificação do setor/departamento do respondente, o percentual de respostas "
+        "indicadoras de risco de cada pergunta é apurado pela média dos percentuais obtidos em "
+        "cada setor, de modo que setores com menor número de respondentes tenham o mesmo peso "
+        "que setores maiores na definição da faixa de risco. "
         "O percentual de respostas indicadoras de risco para cada pergunta determina a Probabilidade (1 a 4).",
         st['body']))
 
-    el.append(_subtitulo("2.3. Escala de Probabilidade", st))
+    el.append(_subtitulo("4.3. Escala de Probabilidade", st))
     dados_prob = [["Nível", "Classificação", "% de respostas de risco"]]
     dados_prob += [
         ["1", "Improvável", "< 10%"],
@@ -159,17 +228,21 @@ def build_metodologia_aep(st, total_respondentes, total_autorizados):
     el.append(t)
     el.append(Spacer(1, 0.2*cm))
 
-    el.append(_subtitulo("2.4. Grau de Risco (GR = Severidade × Probabilidade)", st))
+    el.append(_subtitulo("4.4. Grau de Risco (GR = Severidade × Probabilidade)", st))
     el.append(Paragraph(
         "A Severidade (1=Leve, 2=Moderada, 3=Grave, 4=Crítica) é definida pelo avaliador com base no potencial "
         "de dano à saúde de cada fator de risco ergonômico. O Grau de Risco resulta da multiplicação entre "
-        "Severidade e Probabilidade, sendo classificado conforme a tabela abaixo:", st['body']))
+        "Severidade e Probabilidade, sendo classificado conforme a tabela abaixo. "
+        "Independentemente do GR calculado, o fator de risco é classificado como “Crítico” sempre que o "
+        "percentual médio de respostas indicadoras de risco (entre os setores avaliados) for superior a 98%, "
+        "dada a quase unanimidade da percepção de risco pelos trabalhadores.", st['body']))
 
     dados_gr = [["Faixa de GR", "Classificação", "Ação Recomendada"]]
-    for classif, (acao, _cor) in ACAO_POR_CLASSIFICACAO.items():
-        faixa = {"Crítico": "10 — 16", "Alto": "7 — 9", "Médio": "3 — 6", "Baixo": "1 — 2"}[classif]
-        dados_gr.append([faixa, classif, acao])
-    t2 = Table(dados_gr, colWidths=[2.5*cm, 3*cm, 13*cm])
+    for classif, info in ACAO_POR_CLASSIFICACAO.items():
+        faixa = {"Crítico": "10 — 16 (ou % risco > 98%)", "Alto": "7 — 9", "Médio": "3 — 6", "Baixo": "1 — 2"}[classif]
+        texto_acao = f"{info['acao']} {info['justificativa']}"
+        dados_gr.append([faixa, classif, Paragraph(texto_acao, st['table_cell'])])
+    t2 = Table(dados_gr, colWidths=[3.3*cm, 2.5*cm, 12.7*cm])
     t2.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), C_AZUL),
         ('TEXTCOLOR', (0, 0), (-1, 0), C_BRANCO),
@@ -178,6 +251,7 @@ def build_metodologia_aep(st, total_respondentes, total_autorizados):
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [C_BRANCO, C_CINZAC]),
         ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#dddddd')),
         ('ALIGN', (0, 0), (1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('TOPPADDING', (0, 0), (-1, -1), 5),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
     ]))
@@ -185,11 +259,11 @@ def build_metodologia_aep(st, total_respondentes, total_autorizados):
     return el
 
 
-# ===================== SEÇÃO 3: INVENTÁRIO DE RISCOS =====================
+# ===================== SEÇÃO 5: INVENTÁRIO DE RISCOS =====================
 
 def build_inventario_aep(st, inventario):
     el = []
-    el.append(_titulo_secao("3. Inventário de Riscos Ergonômicos", st))
+    el.append(_titulo_secao("5. Inventário de Riscos Ergonômicos", st))
     el.append(Paragraph(
         "A tabela a seguir consolida, para cada fator de risco avaliado, o percentual de respostas que "
         "indicaram a presença do risco, a Severidade, a Probabilidade e o Grau de Risco (GR) resultante.",
@@ -233,27 +307,27 @@ def build_inventario_aep(st, inventario):
     return el
 
 
-# ===================== SEÇÃO 4: MATRIZ CONSOLIDADA E PLANO DE AÇÃO =====================
+# ===================== SEÇÃO 6: MATRIZ CONSOLIDADA E PLANO DE AÇÃO =====================
 
 def build_plano_acao_aep(st, inventario):
     el = []
-    el.append(_titulo_secao("4. Matriz Consolidada e Plano de Ação", st))
+    el.append(_titulo_secao("6. Matriz Consolidada e Plano de Ação", st))
 
     contagem = {"Crítico": 0, "Alto": 0, "Médio": 0, "Baixo": 0}
     for item in inventario:
         contagem[item["Classificação"]] += 1
 
-    el.append(_subtitulo("4.1. Distribuição dos Riscos por Classificação", st))
+    el.append(_subtitulo("6.1. Distribuição dos Riscos por Classificação", st))
     linha_chips = []
     for classif, qtd in contagem.items():
-        _, cor = ACAO_POR_CLASSIFICACAO[classif]
+        cor = ACAO_POR_CLASSIFICACAO[classif]["cor"]
         linha_chips.append(_chip(f"{classif}: {qtd}", cor))
     chips_table = Table([linha_chips], colWidths=[4.6*cm]*4)
     chips_table.setStyle(TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER')]))
     el.append(chips_table)
     el.append(Spacer(1, 0.3*cm))
 
-    el.append(_subtitulo("4.2. Plano de Ação — Riscos Médio, Alto e Crítico", st))
+    el.append(_subtitulo("6.2. Plano de Ação — Riscos Médio, Alto e Crítico", st))
     riscos_relevantes = [it for it in inventario if it["Classificação"] != "Baixo"]
     if not riscos_relevantes:
         el.append(Paragraph("Nenhum risco classificado como Médio, Alto ou Crítico foi identificado nesta avaliação.", st['body']))
@@ -263,8 +337,9 @@ def build_plano_acao_aep(st, inventario):
         dados = [cab]
         cores_linhas = []
         for item in riscos_relevantes:
-            acao, cor = ACAO_POR_CLASSIFICACAO[item["Classificação"]]
-            prazo = {"Crítico": "Imediato", "Alto": "30 dias", "Médio": "90 dias"}[item["Classificação"]]
+            info = ACAO_POR_CLASSIFICACAO[item["Classificação"]]
+            acao = info["acao"]
+            prazo = info["prazo"]
             dados.append([
                 Paragraph(item["Risco Identificado"], st['table_cell']),
                 str(item["GR"]),
@@ -302,13 +377,50 @@ def build_plano_acao_aep(st, inventario):
     return el
 
 
-# ===================== SEÇÃO 5: RELATOS E CONCLUSÃO =====================
+# ===================== SEÇÃO 7: NECESSIDADE DE AET =====================
 
-def build_conclusao_aep(st, empresa, relatos):
+def build_necessidade_aet(st, inventario):
     el = []
-    el.append(_titulo_secao("5. Relatos dos Trabalhadores e Conclusão", st))
+    el.append(_titulo_secao("7. Necessidade de Análise Ergonômica do Trabalho (AET)", st))
+    el.append(Paragraph(
+        "Uma avaliação contínua da necessidade de Análise Ergonômica do Trabalho — AET, será aplicável:",
+        st['body']))
+    for item in [
+        "em caso de adoecimento;",
+        "aumento de afastamentos;",
+        "queixas recorrentes;",
+        "alterações organizacionais relevantes;",
+        "aumento da demanda operacional.",
+    ]:
+        el.append(Paragraph(f"• {item}", st['lista']))
 
-    el.append(_subtitulo("5.1. Relatos Coletados (Seção 3 do Questionário)", st))
+    el.append(Spacer(1, 0.2*cm))
+    riscos_criticos = [it for it in inventario if it["Classificação"] == "Crítico"]
+    if riscos_criticos:
+        nomes = "; ".join(it["Risco Identificado"] for it in riscos_criticos)
+        el.append(Paragraph(
+            f"Com base nos resultados desta AEP, foram identificados {len(riscos_criticos)} fator(es) de "
+            f"risco classificado(s) como <b>Crítico</b> ({nomes}), o que indica a presença de uma das "
+            "condições acima descritas. Recomenda-se, portanto, a realização de Análise Ergonômica do "
+            "Trabalho — AET para o(s) fator(es) de risco crítico(s) identificado(s), conforme item 17.3.2 "
+            "da NR-17.", st['body']))
+    else:
+        el.append(Paragraph(
+            "Com base nos resultados desta AEP, não foram identificados fatores de risco classificados "
+            "como <b>Crítico</b>, não havendo, no momento, indicativos das condições que demandariam a "
+            "realização de Análise Ergonômica do Trabalho — AET, conforme item 17.3.2 da NR-17. A "
+            "necessidade de AET deverá, contudo, ser reavaliada continuamente conforme os critérios "
+            "acima.", st['body']))
+    return el
+
+
+# ===================== SEÇÃO 8: RELATOS E CONCLUSÃO =====================
+
+def build_conclusao_aep(st, empresa, relatos, inventario):
+    el = []
+    el.append(_titulo_secao("8. Relatos dos Trabalhadores e Conclusão", st))
+
+    el.append(_subtitulo("8.1. Relatos Coletados (Seção 3 do Questionário)", st))
     relatos_validos = [r.strip() for r in relatos if r and r.strip()]
     if relatos_validos:
         for relato in relatos_validos[:30]:
@@ -317,14 +429,29 @@ def build_conclusao_aep(st, empresa, relatos):
         el.append(Paragraph("Nenhum relato adicional foi registrado pelos respondentes.", st['body']))
 
     el.append(Spacer(1, 0.2*cm))
-    el.append(_subtitulo("5.2. Conclusão", st))
+    el.append(_subtitulo("8.2. Conclusão", st))
+
+    riscos_criticos = [it for it in inventario if it["Classificação"] == "Crítico"]
+    if riscos_criticos:
+        conclusao_aet = (
+            "Diante da identificação de fator(es) de risco classificado(s) como <b>Crítico</b>, recomenda-se "
+            "a realização de Análise Ergonômica do Trabalho — AET para aprofundamento da avaliação e "
+            "definição de medidas de controle específicas, conforme detalhado na Seção 7 deste laudo."
+        )
+    else:
+        conclusao_aet = (
+            "Não foram identificados fatores de risco classificados como <b>Crítico</b> nesta avaliação, "
+            "concluindo-se pela não recomendação de Análise Ergonômica do Trabalho — AET no presente "
+            "momento, conforme detalhado na Seção 7 deste laudo."
+        )
+
     el.append(Paragraph(
         f"A presente Avaliação Ergonômica Preliminar (AEP) da empresa <b>{empresa}</b> identificou os fatores "
-        "de risco ergonômicos descritos no Inventário de Riscos (Seção 3), classificados conforme a Matriz "
-        "Severidade × Probabilidade (Seção 4). Recomenda-se a implementação do Plano de Ação proposto, "
-        "priorizando os riscos classificados como Alto e Crítico, e a revisão periódica deste inventário "
-        "após qualquer alteração de processo, layout, equipamento ou força de trabalho, e no mínimo a cada "
-        "2 anos, conforme NR-01.", st['body']))
+        "de risco ergonômicos descritos no Inventário de Riscos (Seção 5), classificados conforme a Matriz "
+        "Severidade × Probabilidade (Seção 4.4). Recomenda-se a implementação do Plano de Ação proposto "
+        "(Seção 6), priorizando os riscos classificados como Alto e Crítico. " + conclusao_aet + " "
+        "Recomenda-se, ainda, a revisão periódica deste inventário após qualquer alteração de processo, "
+        "layout, equipamento ou força de trabalho, e no mínimo a cada 2 anos, conforme NR-01.", st['body']))
 
     el.append(Spacer(1, 1*cm))
     el.append(HRFlowable(width="40%", thickness=0.8, color=C_CINZA))
@@ -377,10 +504,13 @@ def gerar_laudo_aep_pdf(
 
     story = []
     story += build_capa_aep(st, empresa, cnpj, data_emissao, logo_path)
+    story += build_escopo_aep(st)
+    story += build_participacao_aep(st)
     story += build_metodologia_aep(st, total_respondentes, total_autorizados)
     story += build_inventario_aep(st, inventario)
     story += build_plano_acao_aep(st, inventario)
-    story += build_conclusao_aep(st, empresa, relatos)
+    story += build_necessidade_aet(st, inventario)
+    story += build_conclusao_aep(st, empresa, relatos, inventario)
 
     doc.build(story, onFirstPage=_callback, onLaterPages=_callback)
     buffer.seek(0)

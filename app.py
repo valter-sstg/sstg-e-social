@@ -551,8 +551,14 @@ AEP_CORES_SECOES = {
 }
 
 
-def _classificar_gr(gr: int) -> tuple:
-    """Retorna (classificação, cor) para um Grau de Risco (Severidade x Probabilidade)."""
+def _classificar_gr(gr: int, pct_risco: float = 0.0) -> tuple:
+    """Retorna (classificação, cor) para um Grau de Risco (Severidade x Probabilidade).
+
+    Independentemente do GR calculado, um fator de risco é classificado como "Crítico"
+    quando a média de respostas indicadoras de risco (entre os setores avaliados)
+    ultrapassar 98%, dada a quase unanimidade da percepção de risco pelos trabalhadores."""
+    if pct_risco > 0.98:
+        return "Crítico", "#C0392B"
     if gr >= 10:
         return "Crítico", "#C0392B"
     if gr >= 7:
@@ -565,9 +571,32 @@ def _classificar_gr(gr: int) -> tuple:
 def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
     """Consolida as respostas AEP em um inventário de riscos: para cada pergunta calcula
     o percentual de respostas indicadoras de risco, a Probabilidade (1-4) decorrente,
-    a Severidade (pré-preenchida/ajustada) e o Grau de Risco (GR = Severidade x Probabilidade)."""
+    a Severidade (pré-preenchida/ajustada) e o Grau de Risco (GR = Severidade x Probabilidade).
+
+    Quando há informação de setor/departamento, o percentual de risco de cada pergunta é
+    calculado pela MÉDIA dos percentuais de cada setor (não pelo total bruto de respostas),
+    de modo que setores menores tenham o mesmo peso que setores maiores na faixa de risco."""
     inventario = []
     numero = 0
+
+    col_setor = "departamento" if "departamento" in df_aep.columns else None
+    setores = []
+    if col_setor:
+        setores = sorted({
+            s for s in df_aep[col_setor].astype(str).str.strip().tolist()
+            if s and s.lower() != "nan"
+        })
+
+    def _pct_risco_subset(df_sub, col, resposta_risco):
+        respostas = df_sub[col].dropna()
+        respostas = respostas[respostas.str.upper() != "N/A"]
+        total = len(respostas)
+        if total == 0:
+            return None
+        n_risco   = (respostas == resposta_risco).sum()
+        n_parcial = (respostas == "Parcial").sum()
+        return (n_risco + n_parcial) / total
+
     for secao, perguntas in AEP_SECOES.items():
         for qid, dados in perguntas.items():
             numero += 1
@@ -575,15 +604,22 @@ def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
             invertida = int(qid[1:]) in AEP_INVERTIDAS
             if col not in df_aep.columns:
                 continue
-            respostas = df_aep[col].dropna()
-            respostas = respostas[respostas.str.upper() != "N/A"]
-            total = len(respostas)
-            if total == 0:
-                continue
             resposta_risco = "Não" if invertida else "Sim"
-            n_risco   = (respostas == resposta_risco).sum()
-            n_parcial = (respostas == "Parcial").sum()
-            pct_risco = (n_risco + n_parcial) / total
+
+            if setores:
+                pcts = []
+                for setor in setores:
+                    df_setor = df_aep[df_aep[col_setor].astype(str).str.strip() == setor]
+                    p = _pct_risco_subset(df_setor, col, resposta_risco)
+                    if p is not None:
+                        pcts.append(p)
+                if not pcts:
+                    continue
+                pct_risco = sum(pcts) / len(pcts)
+            else:
+                pct_risco = _pct_risco_subset(df_aep, col, resposta_risco)
+                if pct_risco is None:
+                    continue
 
             if pct_risco < 0.10:
                 prob = 1
@@ -596,7 +632,7 @@ def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
 
             sev = int(severidades.get(qid, dados["severidade"]))
             gr  = sev * prob
-            classif, cor = _classificar_gr(gr)
+            classif, cor = _classificar_gr(gr, pct_risco)
 
             inventario.append({
                 "Nº":           numero,
