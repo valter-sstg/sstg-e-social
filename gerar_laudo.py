@@ -173,6 +173,15 @@ ACAO_NECESSARIA = {
     "Intolerável": "SIM",
 }
 
+def _acao_necessaria(nivel, media):
+    # Nível "Moderado" só requer ação quando a média ainda está dentro da
+    # faixa COPSOQ "Moderado" (≤ 2,98); médias acima disso (classif. "Baixo"
+    # ou melhor) não justificam plano de ação, mesmo que a Severidade eleve
+    # o BS 8800 para "Moderado".
+    if nivel == "Moderado" and media > 2.98:
+        return "NÃO"
+    return ACAO_NECESSARIA.get(nivel, "SIM")
+
 # ===================== FUNÇÕES AUXILIARES =====================
 
 def classificar(media: float) -> str:
@@ -493,14 +502,16 @@ def build_sumario(st):
     el = []
     el.append(_titulo_secao("SUMÁRIO", st))
     itens = [
-        ("1.", "Escopo da DRPS - Diagnóstico de Riscos Psicossociais"),
+        ("1.", "Escopo do DRPS - Diagnóstico de Riscos Psicossociais"),
         ("2.", "Participação dos Trabalhadores"),
-        ("3.", "Identificação"),
-        ("4.", "Contexto Legal e Justificativa"),
-        ("5.", "Metodologia de Avaliação"),
-        ("6.", "Inventário de Riscos Psicossociais"),
-        ("7.", "Plano de Ação"),
-        ("8.", "Conclusão"),
+        ("3.", "Integração com o PCMSO"),
+        ("4.", "Necessidade de AET"),
+        ("5.", "Identificação"),
+        ("6.", "Contexto Legal e Justificativa"),
+        ("7.", "Metodologia de Avaliação"),
+        ("8.", "Inventário de Riscos Psicossociais"),
+        ("9.", "Plano de Ação"),
+        ("10.", "Conclusão"),
     ]
     rows = [[Paragraph(n, st['sumario_num']), Paragraph(t, st['sumario_item'])] for n, t in itens]
     t = Table(rows, colWidths=[1.5*cm, 17*cm])
@@ -519,7 +530,7 @@ def build_sumario(st):
 
 def build_escopo_drps(st):
     el = []
-    el.append(_titulo_secao("1. Escopo da DRPS - Diagnóstico de Riscos Psicossociais", st))
+    el.append(_titulo_secao("1. Escopo do DRPS - Diagnóstico de Riscos Psicossociais", st))
     el.append(Paragraph(
         "A presente DRPS abrange os ambientes de trabalho da organização avaliada, com atividades "
         "realizadas presencialmente e remotamente.", st['body']))
@@ -554,17 +565,62 @@ def build_participacao_drps(st):
     el.append(Paragraph(
         "A participação dos trabalhadores deverá permanecer contínua no ciclo de melhoria do GRO.",
         st['body']))
+    return el
+
+
+# ===================== SEÇÃO 3: INTEGRAÇÃO COM O PCMSO =====================
+
+def build_pcmso_drps(st):
+    el = []
+    el.append(_titulo_secao("3. Integração com o PCMSO", st))
+    el.append(Paragraph("Os resultados desta DRPS deverão, quando identificados, subsidiar:", st['body']))
+    for item in [
+        "vigilância epidemiológica ocupacional;",
+        "acompanhamento clínico;",
+        "monitoramento de transtornos mentais relacionados ao trabalho;",
+        "avaliação de absenteísmo;",
+        "investigação de adoecimentos ocupacionais;",
+        "planejamento médico preventivo.",
+    ]:
+        el.append(Paragraph(f"• {item}", st['lista']))
+    el.append(Spacer(1, 0.1*cm))
+    el.append(Paragraph("O PCMSO deverá considerar:", st['body']))
+    for item in [
+        "fatores psicossociais identificados;",
+        "indicadores de fadiga mental;",
+        "afastamentos previdenciários.",
+    ]:
+        el.append(Paragraph(f"• {item}", st['lista']))
+    return el
+
+
+# ===================== SEÇÃO 4: NECESSIDADE DE AET =====================
+
+def build_necessidade_aet_drps(st):
+    el = []
+    el.append(_titulo_secao("4. Necessidade de AET", st))
+    el.append(Paragraph(
+        "Uma avaliação contínua da necessidade de Análise Ergonômica do Trabalho — AET, será aplicável:",
+        st['body']))
+    for item in [
+        "em caso de adoecimento;",
+        "aumento de afastamentos;",
+        "queixas recorrentes;",
+        "alterações organizacionais relevantes;",
+        "aumento da demanda operacional.",
+    ]:
+        el.append(Paragraph(f"• {item}", st['lista']))
     el.append(PageBreak())
     return el
 
 
-# ===================== SEÇÃO 3: IDENTIFICAÇÃO =====================
+# ===================== SEÇÃO 5: IDENTIFICAÇÃO =====================
 
-def build_s1(st, empresa, cnpj, cnae, grau_risco, data_laudo, data_pgr="—", status_pgr="Vigente"):
+def build_s1(st, empresa, cnpj, cnae, grau_risco, data_laudo, status_pgr="Vigente"):
     el = []
-    el.append(_titulo_secao("3. IDENTIFICAÇÃO", st))
+    el.append(_titulo_secao("5. IDENTIFICAÇÃO", st))
 
-    el.append(_subtitulo("3.1. Dados da Unidade Operacional", st))
+    el.append(_subtitulo("5.1. Dados da Unidade Operacional", st))
     dados = [
         ["Razão Social:", empresa],
         ["CNPJ:", cnpj],
@@ -574,17 +630,16 @@ def build_s1(st, empresa, cnpj, cnae, grau_risco, data_laudo, data_pgr="—", st
     el.append(_tabela_dados(dados))
     el.append(Spacer(1, 0.3*cm))
 
-    el.append(_subtitulo("3.2. Referência do Documento Principal (PGR)", st))
+    el.append(_subtitulo("5.2. Referência do Documento Principal (PGR)", st))
     dados2 = [
         ["Título do Documento Principal:", "Programa de Gerenciamento de Riscos — PGR"],
-        ["Data de Emissão do PGR Base:", data_pgr],
         ["Responsável Técnico pelo PGR Base:", RESP_NOME],
         ["Status do PGR Base:", status_pgr],
     ]
     el.append(_tabela_dados(dados2))
     el.append(Spacer(1, 0.3*cm))
 
-    el.append(_subtitulo("3.3. Responsáveis pela Elaboração", st))
+    el.append(_subtitulo("5.3. Responsáveis pela Elaboração", st))
     dados3 = [
         ["Responsável Técnico 1 — Nome:",    RESP_NOME],
         ["Cargo:",                            "Ergonomista/Técnico Segurança do Trabalho"],
@@ -604,9 +659,9 @@ def build_s1(st, empresa, cnpj, cnae, grau_risco, data_laudo, data_pgr="—", st
 
 def build_s2(st):
     el = []
-    el.append(_titulo_secao("4. CONTEXTO LEGAL E JUSTIFICATIVA", st))
+    el.append(_titulo_secao("6. CONTEXTO LEGAL E JUSTIFICATIVA", st))
 
-    el.append(_subtitulo("4.1. Amparo Normativo", st))
+    el.append(_subtitulo("6.1. Amparo Normativo", st))
     el.append(Paragraph(
         "Este documento fundamenta-se na <b>NR-01 (Disposições Gerais e Gerenciamento de Riscos Ocupacionais)</b>, "
         "que estabelece a obrigatoriedade de o gerenciamento de riscos abranger, além dos agentes físicos, químicos "
@@ -617,7 +672,7 @@ def build_s2(st):
         "Vale ressaltar que os fatores psicossociais encontram-se classificados dentro do grupo de agentes ergonômicos.",
         st['body']))
 
-    el.append(_subtitulo("4.2. Da Integração ao PGR", st))
+    el.append(_subtitulo("6.2. Da Integração ao PGR", st))
     el.append(Paragraph(
         "Em conformidade com o subitem <b>1.5.3.1.3</b>, o Programa de Gerenciamento de Riscos (PGR) deve contemplar "
         "ou estar integrado com planos, programas e outros documentos previstos na legislação de SST. "
@@ -629,17 +684,17 @@ def build_s2(st):
     ]:
         el.append(Paragraph(f"• {item}", st['lista']))
 
-    el.append(_subtitulo("4.3. Objetivo deste Documento", st))
+    el.append(_subtitulo("6.3. Objetivo deste Documento", st))
     el.append(Paragraph(
         "O presente documento tem como objetivo identificar perigos e avaliar riscos especificamente voltados à "
         "saúde mental e organização do trabalho, visando prevenir lesões e agravos à saúde. A implementação destas "
         "medidas de prevenção segue a ordem de prioridade estabelecida na norma, priorizando a eliminação de "
         "fatores de risco e a adoção de medidas administrativas ou de organização do trabalho.", st['body']))
 
-    el.append(_subtitulo("4.4. Declaração de Vinculação", st))
+    el.append(_subtitulo("6.4. Declaração de Vinculação", st))
     el.append(Paragraph(
         "A organização declara que este documento complementar é parte indissociável do <b>PGR identificado no "
-        "Item 3.2</b>. Toda a documentação encontra-se datada e assinada sob a responsabilidade da organização, "
+        "Item 5.2</b>. Toda a documentação encontra-se datada e assinada sob a responsabilidade da organização, "
         "permanecendo disponível aos trabalhadores, seus representantes e à Inspeção do Trabalho.", st['body']))
     el.append(PageBreak())
     return el
@@ -648,9 +703,9 @@ def build_s2(st):
 
 def build_s3(st, total_respondentes, total_autorizados=0, medias_por_dim=None):
     el = []
-    el.append(_titulo_secao("5. METODOLOGIA DE AVALIAÇÃO", st))
+    el.append(_titulo_secao("7. METODOLOGIA DE AVALIAÇÃO", st))
 
-    el.append(_subtitulo("5.1. Base Científica e Ferramenta de Coleta", st))
+    el.append(_subtitulo("7.1. Base Científica e Ferramenta de Coleta", st))
     el.append(Paragraph(
         "Para a identificação dos perigos e avaliação dos riscos psicossociais, foi utilizado o "
         "<b>Questionário de Fatores Psicossociais COPSOQ III</b> (Copenhagen Psychosocial Questionnaire — versão III), "
@@ -663,7 +718,7 @@ def build_s3(st, total_respondentes, total_autorizados=0, medias_por_dim=None):
         "de forma anônima e voluntária por meio de sistema digital com controle de duplicidade.",
         st['body']))
 
-    el.append(_subtitulo("5.2. Categorias Analisadas", st))
+    el.append(_subtitulo("7.2. Categorias Analisadas", st))
     el.append(Paragraph(
         "A avaliação consiste em <b>35 questões</b> que rastreiam o nível de exposição dos trabalhadores em "
         "<b>7 dimensões críticas</b>:", st['body']))
@@ -679,7 +734,7 @@ def build_s3(st, total_respondentes, total_autorizados=0, medias_por_dim=None):
     for nome, desc in dims_desc:
         el.append(Paragraph(f"• <b>{nome}:</b> {desc}", st['lista']))
 
-    el.append(_subtitulo("5.3. Escala de Respostas e Pontuação (Escala Likert)", st))
+    el.append(_subtitulo("7.3. Escala de Respostas e Pontuação (Escala Likert)", st))
     likert_data = [
         [Paragraph("Resposta", st['table_header']), Paragraph("Pontuação", st['table_header']),
          Paragraph("Interpretação", st['table_header'])],
@@ -704,7 +759,7 @@ def build_s3(st, total_respondentes, total_autorizados=0, medias_por_dim=None):
     el.append(tl)
     el.append(Spacer(1, 0.2*cm))
 
-    el.append(_subtitulo("5.4. Critérios de Avaliação de Risco", st))
+    el.append(_subtitulo("7.4. Critérios de Avaliação de Risco", st))
     el.append(Paragraph(
         "Em conformidade com o subitem <b>1.5.4.4.2.1</b> da NR-01, o nível de risco é determinado pela "
         "frequência das respostas, calculando-se a <b>média aritmética</b> por dimensão de todos os respondentes. "
@@ -750,7 +805,7 @@ def build_s3(st, total_respondentes, total_autorizados=0, medias_por_dim=None):
 
     # ── Gráficos de análise (página 6, antes do Inventário de Riscos) ─────────
     el.append(Spacer(1, 0.5*cm))
-    el.append(_subtitulo("5.5. Análise Gráfica dos Resultados", st))
+    el.append(_subtitulo("7.5. Análise Gráfica dos Resultados", st))
     el.append(Paragraph(
         "Os gráficos abaixo sintetizam a adesão à pesquisa e as médias obtidas por dimensão, "
         "facilitando a visualização rápida do panorama psicossocial da organização.", st['body']))
@@ -932,7 +987,7 @@ def build_s3(st, total_respondentes, total_autorizados=0, medias_por_dim=None):
 
 def build_s4(st, medias_por_dim):
     el = []
-    el.append(_titulo_secao("6. INVENTÁRIO DE RISCOS PSICOSSOCIAIS", st))
+    el.append(_titulo_secao("8. INVENTÁRIO DE RISCOS PSICOSSOCIAIS", st))
     el.append(Paragraph(
         "Este inventário consolida a identificação dos perigos e a avaliação dos riscos ocupacionais de natureza "
         "psicossocial levantados nesta unidade, com base na percepção direta dos trabalhadores coletada por meio do "
@@ -968,7 +1023,7 @@ def build_s4(st, medias_por_dim):
             classif, prob = "Alto", "Excessiva"
         sev = cfg["severidade"]
         nivel = bs8800_nivel(sev, prob)
-        plano = ACAO_NECESSARIA.get(nivel, "SIM")
+        plano = _acao_necessaria(nivel, media)
 
         row = [
             Paragraph(f"<b>{cfg['label']}</b>\n\nMédia: {media:.2f} | <b>{classif}</b>",
@@ -1045,7 +1100,7 @@ PLANO_SEM_CANAL = {
 
 def build_s5(st, medias_por_dim):
     el = []
-    el.append(_titulo_secao("7. PLANO DE AÇÃO", st))
+    el.append(_titulo_secao("9. PLANO DE AÇÃO", st))
     el.append(Paragraph(
         "As medidas de prevenção abaixo foram propostas com base na classificação de risco obtida no Inventário. "
         "A organização deve acompanhar o desempenho dessas medidas para verificar sua eficácia e realizar "
@@ -1076,7 +1131,7 @@ def build_s5(st, medias_por_dim):
             classif, prob = "Alto", "Excessiva"
         nivel = bs8800_nivel(cfg["severidade"], prob)
 
-        if ACAO_NECESSARIA.get(nivel, "SIM") == "NÃO":
+        if _acao_necessaria(nivel, media) == "NÃO":
             continue
 
         plano_texto = cfg["plano"]
@@ -1134,7 +1189,7 @@ def build_s5(st, medias_por_dim):
 
 def build_s6(st, empresa, medias_por_dim=None):
     el = []
-    el.append(_titulo_secao("8. CONCLUSÃO", st))
+    el.append(_titulo_secao("10. CONCLUSÃO", st))
     el.append(Paragraph(
         f"A elaboração deste documento complementar de Fatores Psicossociais para a organização "
         f"<b>{empresa}</b> reafirma o compromisso com o Gerenciamento de Riscos Ocupacionais (GRO) integral, "
@@ -1143,7 +1198,7 @@ def build_s6(st, empresa, medias_por_dim=None):
         "indissociáveis da segurança e saúde no trabalho.", st['body']))
     el.append(Paragraph(
         "Ressalta-se que a eficácia deste documento depende da implementação fiel do <b>Plano de Ação "
-        "(Item 7)</b>. A organização deve assegurar que as medidas propostas sejam acompanhadas de forma "
+        "(Item 9)</b>. A organização deve assegurar que as medidas propostas sejam acompanhadas de forma "
         "planejada, com a participação ativa dos trabalhadores e da CIPA, quando houver.", st['body']))
 
     riscos_intoleraveis = []
@@ -1362,6 +1417,8 @@ def gerar_laudo_pdf(
     story += build_sumario(st)
     story += build_escopo_drps(st)
     story += build_participacao_drps(st)
+    story += build_pcmso_drps(st)
+    story += build_necessidade_aet_drps(st)
     story += build_s1(st, empresa, cnpj, cnae, grau, data_emissao)
     story += build_s2(st)
     story += build_s3(st, total_respondentes, total_autorizados, medias_por_dim)
