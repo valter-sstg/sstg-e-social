@@ -977,14 +977,10 @@ with st.sidebar:
 # =============================================================================
 if menu == "🏠 Início":
     st.markdown("""
-        <div style="background:#282C5B; border-radius:18px; padding:40px 32px 32px 32px;
-                    text-align:center; margin-bottom:8px; box-shadow:0 8px 32px rgba(40,44,91,0.25);">
-            <h1 style="color:white !important; font-size:2.4em !important; margin:0 0 10px 0; letter-spacing:2px;">
-                DRE - DRPS</h1>
-            <p style="color:rgba(255,255,255,0.92); font-size:1.2em; margin:0 0 6px 0;">
-                Gestão integrada de riscos ergonômicos e psicossociais, do questionário ao PGR</p>
-            <p style="color:#9FD8A5; font-size:1.0em; font-weight:600; margin:0;">
-                Em atendimento à NR-01 e à NR-17</p>
+        <div class="hero-sstg" style="margin-bottom:8px;">
+            <h1>DRE - DRPS</h1>
+            <p>Gestão integrada de riscos ergonômicos e psicossociais, do questionário ao PGR</p>
+            <p class="hero-nr">Em atendimento à NR-01 e à NR-17</p>
         </div>
         <div style="height:6px; background:#5A9F62; border-radius:3px; margin-bottom:30px;"></div>
     """, unsafe_allow_html=True)
