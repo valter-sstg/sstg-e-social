@@ -433,7 +433,7 @@ AEP_SECOES = {
         "q2": {
             "texto": "Você precisa dobrar ou girar o corpo, o pescoço ou a cabeça para realizar a tarefa? "
                      "Exemplo: torcer o tronco para pegar materiais ao lado, olhar constantemente para baixo ou de lado.",
-            "severidade": 3,
+            "severidade": 2,
             "risco": "Sobrecarga cervical e lombar / LER-DORT",
         },
         "q3": {
@@ -535,12 +535,37 @@ AEP_SECOES = {
     },
 }
 
-# Severidades pré-preenchidas {"q1": 2, "q2": 3, ...} — usadas como default ao gravar a resposta
+# Severidades pré-preenchidas {"q1": 2, "q2": 2, ...} — usadas como default ao gravar a resposta
 AEP_SEVERIDADES_DEFAULT = {
     qid: dados["severidade"]
     for secao in AEP_SECOES.values()
     for qid, dados in secao.items()
 }
+
+# Severidades pré-calibradas pelo responsável técnico em função do grau de risco da
+# atividade econômica da organização (NR-4, campo Grau_Risco do cadastro da empresa):
+# cada pergunta tem (severidade para empresas de GR 1-2, severidade para empresas de GR 3-4)
+AEP_SEVERIDADES_RT = {
+    "q1":  (2, 2), "q2":  (2, 3), "q3":  (3, 4), "q4":  (3, 3), "q5":  (3, 4),
+    "q6":  (2, 2), "q7":  (2, 2), "q8":  (2, 2), "q9":  (2, 3),
+    "q10": (1, 1), "q11": (2, 3), "q12": (1, 2),
+    "q13": (2, 3), "q14": (3, 3), "q15": (3, 3), "q16": (2, 3), "q17": (3, 4),
+}
+
+# Setores com menos respondentes que este mínimo são agrupados em um único conjunto
+# no cálculo da média por setor (representatividade estatística e anonimato)
+MIN_RESPONDENTES_SETOR = 3
+
+
+def _severidades_por_grau_empresa(grau_risco) -> tuple:
+    """Retorna ({qid: severidade}, faixa) conforme o grau de risco da atividade econômica
+    (NR-4) informado no cadastro da empresa. Sem grau cadastrado, usa a coluna GR 1-2."""
+    try:
+        col = 1 if int(str(grau_risco).strip()) >= 3 else 0
+    except (ValueError, TypeError):
+        col = 0
+    faixa = "3-4" if col == 1 else "1-2"
+    return {qid: vals[col] for qid, vals in AEP_SEVERIDADES_RT.items()}, faixa
 
 # Cores por seção (para gráficos)
 AEP_CORES_SECOES = {
@@ -551,40 +576,53 @@ AEP_CORES_SECOES = {
 }
 
 
-def _classificar_gr(gr: int, pct_risco: float = 0.0) -> tuple:
-    """Retorna (classificação, cor) para um Grau de Risco (Severidade x Probabilidade).
+def _classificar_gr(gr: float, pct_risco: float = 0.0) -> tuple:
+    """Retorna (classificação, cor) para um Grau de Risco (Severidade x Probabilidade contínua).
 
     A classificação "Crítico" é reservada exclusivamente para os casos em que a média de
     respostas indicadoras de risco (entre os setores avaliados) ultrapassar 98%, dada a
     quase unanimidade da percepção de risco pelos trabalhadores — independentemente do GR
-    calculado. Os demais casos seguem a faixa de GR, sendo o GR 7-16 classificado como "Alto"."""
+    calculado. Faixas do GR contínuo (1,0 a 16,0): Baixo <= 4,0 | Médio > 4,0 a 8,0 |
+    Alto > 8,0. Regra de piso: % de risco >= 70% nunca classifica abaixo de "Médio"."""
     if pct_risco > 0.98:
         return "Crítico", "#C0392B"
-    if gr >= 7:
+    if gr > 8:
         return "Alto", "#F4A236"
-    if gr >= 3:
+    if gr > 4 or pct_risco >= 0.70:
         return "Médio", "#F1C40F"
     return "Baixo", "#5A9F62"
 
 
 def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
     """Consolida as respostas AEP em um inventário de riscos: para cada pergunta calcula
-    o percentual de respostas indicadoras de risco, a Probabilidade (1-4) decorrente,
-    a Severidade (pré-preenchida/ajustada) e o Grau de Risco (GR = Severidade x Probabilidade).
+    o percentual de respostas indicadoras de risco ("Parcial" pondera 0,5), a Probabilidade
+    contínua decorrente (Prob = 1 + 3 x %risco, de 1,00 a 4,00), a Severidade pré-calibrada
+    pelo responsável técnico e o Grau de Risco (GR = Severidade x Probabilidade, 1,0 a 16,0).
 
     Quando há informação de setor/departamento, o percentual de risco de cada pergunta é
     calculado pela MÉDIA dos percentuais de cada setor (não pelo total bruto de respostas),
-    de modo que setores menores tenham o mesmo peso que setores maiores na faixa de risco."""
+    de modo que setores menores tenham o mesmo peso que setores maiores na faixa de risco.
+    Setores com menos de MIN_RESPONDENTES_SETOR respondentes são agrupados em um único
+    conjunto no cálculo, preservando representatividade estatística e anonimato."""
     inventario = []
     numero = 0
 
     col_setor = "departamento" if "departamento" in df_aep.columns else None
-    setores = []
+    grupos = []  # DataFrames que atuam como "setores" na média (pequenos são agregados)
     if col_setor:
         setores = sorted({
             s for s in df_aep[col_setor].astype(str).str.strip().tolist()
             if s and s.lower() != "nan"
         })
+        pequenos = []
+        for setor in setores:
+            df_setor = df_aep[df_aep[col_setor].astype(str).str.strip() == setor]
+            if len(df_setor) >= MIN_RESPONDENTES_SETOR:
+                grupos.append(df_setor)
+            else:
+                pequenos.append(df_setor)
+        if pequenos:
+            grupos.append(pd.concat(pequenos))
 
     def _pct_risco_subset(df_sub, col, resposta_risco):
         respostas = df_sub[col].dropna()
@@ -594,7 +632,7 @@ def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
             return None
         n_risco   = (respostas == resposta_risco).sum()
         n_parcial = (respostas == "Parcial").sum()
-        return (n_risco + n_parcial) / total
+        return (n_risco + 0.5 * n_parcial) / total
 
     for secao, perguntas in AEP_SECOES.items():
         for qid, dados in perguntas.items():
@@ -605,11 +643,10 @@ def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
                 continue
             resposta_risco = "Não" if invertida else "Sim"
 
-            if setores:
+            if grupos:
                 pcts = []
-                for setor in setores:
-                    df_setor = df_aep[df_aep[col_setor].astype(str).str.strip() == setor]
-                    p = _pct_risco_subset(df_setor, col, resposta_risco)
+                for df_grupo in grupos:
+                    p = _pct_risco_subset(df_grupo, col, resposta_risco)
                     if p is not None:
                         pcts.append(p)
                 if not pcts:
@@ -620,17 +657,9 @@ def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
                 if pct_risco is None:
                     continue
 
-            if pct_risco < 0.10:
-                prob = 1
-            elif pct_risco < 0.30:
-                prob = 2
-            elif pct_risco < 0.70:
-                prob = 3
-            else:
-                prob = 4
-
-            sev = int(severidades.get(qid, dados["severidade"]))
-            gr  = sev * prob
+            prob = round(1 + 3 * pct_risco, 2)
+            sev  = int(severidades.get(qid, dados["severidade"]))
+            gr   = round(sev * prob, 1)
             classif, cor = _classificar_gr(gr, pct_risco)
 
             inventario.append({
@@ -758,7 +787,8 @@ def _renderizar_grafico_secoes_aep(inventario, key):
 
 def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostrar_laudo=False):
     """Exibe os resultados consolidados da Avaliação Ergonômica (AEP/NR-17): adesão,
-    gráfico por seção, inventário de riscos com severidades editáveis e, opcionalmente,
+    gráfico por seção, inventário de riscos com severidades pré-calibradas pelo
+    responsável técnico (conforme o grau de risco da empresa) e, opcionalmente,
     geração do Laudo AEP em PDF."""
     df_aep = db.carregar_respostas_aep(cnpj_cod)
     if df_aep.empty:
@@ -772,11 +802,14 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
     c2.metric("Respostas AEP Recebidas", total_resp_aep)
     c3.metric("Taxa de Adesão (AEP)",    f"{pct_aep}%")
 
-    # Severidades editáveis (sessão por empresa)
-    sev_key = f"aep_severidades_{cnpj_cod}"
-    if sev_key not in st.session_state:
-        st.session_state[sev_key] = dict(AEP_SEVERIDADES_DEFAULT)
-    severidades = st.session_state[sev_key]
+    # Severidades pré-calibradas conforme o grau de risco da atividade (cadastro da empresa)
+    df_acessos_aep = db.carregar_acessos()
+    grau_risco_emp = ""
+    if not df_acessos_aep.empty:
+        _emp_aep = df_acessos_aep[df_acessos_aep['CNPJ'] == cnpj_cod]
+        if not _emp_aep.empty:
+            grau_risco_emp = str(_emp_aep.iloc[0].get('Grau_Risco', '')).strip()
+    severidades, faixa_sev = _severidades_por_grau_empresa(grau_risco_emp)
 
     inventario = _calcular_inventario_aep(df_aep, severidades)
 
@@ -785,43 +818,17 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
 
     st.divider()
     st.subheader("📋 Inventário de Riscos Ergonômicos")
-    st.caption("A Severidade pode ser ajustada pelo avaliador (1=Leve, 2=Moderada, 3=Grave, 4=Crítica). "
-               "GR = Severidade × Probabilidade.")
+    st.caption(f"Grau de risco da empresa (NR-4): **{grau_risco_emp or '—'}** — severidades pré-calibradas "
+               f"pelo responsável técnico para empresas de grau de risco {faixa_sev} "
+               "(1=Leve, 2=Moderada, 3=Grave, 4=Crítica). "
+               "Probabilidade contínua = 1 + 3 × %risco. GR = Severidade × Probabilidade.")
 
     df_inv = pd.DataFrame(inventario)
     if not df_inv.empty:
-        if mostrar_laudo:
-            df_edit = st.data_editor(
-                df_inv[["Nº", "Seção", "Risco Identificado", "% Risco", "Severidade", "Probabilidade", "GR", "Classificação"]],
-                column_config={
-                    "Severidade": st.column_config.NumberColumn(min_value=1, max_value=4, step=1),
-                    "GR": st.column_config.NumberColumn(disabled=True),
-                    "Probabilidade": st.column_config.NumberColumn(disabled=True),
-                    "% Risco": st.column_config.NumberColumn(disabled=True, format="%.1f%%"),
-                    "Classificação": st.column_config.TextColumn(disabled=True),
-                    "Nº": st.column_config.NumberColumn(disabled=True),
-                    "Seção": st.column_config.TextColumn(disabled=True),
-                    "Risco Identificado": st.column_config.TextColumn(disabled=True),
-                },
-                hide_index=True,
-                use_container_width=True,
-                key=f"{key_prefix}_aep_editor_{cnpj_cod}",
-            )
-            # Atualiza severidades editadas e recalcula GR/classificação
-            mudou = False
-            for _, row in df_edit.iterrows():
-                qid = list(AEP_SEVERIDADES_DEFAULT.keys())[int(row["Nº"]) - 1]
-                nova_sev = int(row["Severidade"])
-                if severidades.get(qid) != nova_sev:
-                    severidades[qid] = nova_sev
-                    mudou = True
-            if mudou:
-                st.rerun()
-        else:
-            st.dataframe(
-                df_inv[["Nº", "Seção", "Risco Identificado", "% Risco", "Severidade", "Probabilidade", "GR", "Classificação"]],
-                hide_index=True, use_container_width=True,
-            )
+        st.dataframe(
+            df_inv[["Nº", "Seção", "Risco Identificado", "% Risco", "Severidade", "Probabilidade", "GR", "Classificação"]],
+            hide_index=True, use_container_width=True,
+        )
 
     st.divider()
     colunas_exibir_aep = [c for c in df_aep.columns if c not in ("cpf_hash", "severidades", "id")]
@@ -836,7 +843,7 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
             st.error("Módulo `gerar_laudo_aep.py` não encontrado na pasta do projeto.")
         elif st.button("📄 Gerar Laudo AEP em PDF", type="primary", use_container_width=True, key=f"{key_prefix}_btn_laudo_aep"):
             with st.spinner("Gerando laudo..."):
-                dados_emp = {"Empresa": empresa_nome, "CNPJ": cnpj_cod}
+                dados_emp = {"Empresa": empresa_nome, "CNPJ": cnpj_cod, "Grau_Risco": grau_risco_emp or "—"}
                 logo_path = "logo_sstg.png" if os.path.exists("logo_sstg.png") else None
                 relatos = []
                 for col in ("relato_dor", "relato_dificuldades", "relato_sugestoes"):

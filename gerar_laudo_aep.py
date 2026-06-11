@@ -34,31 +34,38 @@ ACAO_POR_CLASSIFICACAO = {
         "cor": colors.HexColor('#C0392B'),
     },
     "Alto": {
-        "faixa": "7 — 16",
-        "faixa_desc": "Combinação de Severidade e Probabilidade que resulta em GR entre 7 e 16, "
-                "correspondente a probabilidade provável a muito provável de dano à saúde.",
+        "faixa": "GR > 8,0 — 16,0",
+        "faixa_desc": "Combinação de Severidade e Probabilidade contínua que resulta em GR "
+                "superior a 8,0, correspondente a probabilidade provável a muito provável "
+                "de dano à saúde.",
         "acao": "Controle imediato. Medidas de engenharia e/ou administrativas em até 30 dias.",
-        "justificativa": "Faixa de GR entre 7 e 16, correspondente a probabilidade provável a "
+        "justificativa": "Faixa de GR superior a 8,0, correspondente a probabilidade provável a "
                 "muito provável de dano à saúde, demandando controle em curto prazo.",
         "prazo": "30 dias",
         "cor": C_LARANJA,
     },
     "Médio": {
-        "faixa": "3 — 6",
-        "faixa_desc": "Combinação de Severidade e Probabilidade que resulta em GR entre 3 e 6, "
-                "correspondente a probabilidade possível a provável de dano à saúde.",
+        "faixa": "GR > 4,0 — 8,0 (ou % risco ≥ 70%)",
+        "faixa_desc": "Combinação de Severidade e Probabilidade contínua que resulta em GR "
+                "superior a 4,0 e até 8,0, correspondente a probabilidade possível a provável "
+                "de dano à saúde. Adicionalmente, todo fator com percentual de respostas "
+                "indicadoras de risco igual ou superior a 70% é classificado, no mínimo, "
+                "como Médio, independentemente do GR calculado.",
         "acao": "Elaborar plano de ação com prazo de até 90 dias. Incluir no PGR.",
-        "justificativa": "Faixa de GR entre 3 e 6, correspondente a probabilidade possível a "
-                "provável, devendo ser tratado de forma planejada dentro do PGR.",
+        "justificativa": "Faixa de GR superior a 4,0 e até 8,0 (ou percentual de respostas "
+                "indicadoras de risco igual ou superior a 70%), correspondente a probabilidade "
+                "possível a provável, devendo ser tratado de forma planejada dentro do PGR.",
         "prazo": "90 dias",
         "cor": C_AMARELO,
     },
     "Baixo": {
-        "faixa": "1 — 2",
-        "faixa_desc": "Combinação de Severidade e Probabilidade que resulta em GR entre 1 e 2, "
-                "correspondente a baixa probabilidade de ocorrência de dano à saúde.",
+        "faixa": "GR ≤ 4,0",
+        "faixa_desc": "Combinação de Severidade e Probabilidade contínua que resulta em GR de "
+                "até 4,0, correspondente a baixa probabilidade de ocorrência de dano à saúde. "
+                "Inclui os fatores sem respostas indicadoras de risco, nos quais a Probabilidade "
+                "é 1,00 e o GR equivale à própria Severidade.",
         "acao": "Monitoramento periódico semestral. Sem necessidade de intervenção imediata.",
-        "justificativa": "Faixa de GR entre 1 e 2, correspondente a baixa probabilidade de "
+        "justificativa": "Faixa de GR de até 4,0, correspondente a baixa probabilidade de "
                 "ocorrência, mantido sob monitoramento periódico.",
         "prazo": "Monitoramento semestral",
         "cor": C_VERDE,
@@ -93,7 +100,7 @@ def _header_footer_aep(canvas_obj, doc, empresa=""):
 
 # ===================== SEÇÃO 1: CAPA / IDENTIFICAÇÃO =====================
 
-def build_capa_aep(st, empresa, cnpj, data_emissao, logo_path):
+def build_capa_aep(st, empresa, cnpj, data_emissao, logo_path, grau_risco="—"):
     elementos = []
 
     logo_cell = ""
@@ -134,6 +141,7 @@ def build_capa_aep(st, empresa, cnpj, data_emissao, logo_path):
     elementos.append(_tabela_dados([
         ("Razão Social:", empresa),
         ("CNPJ:", cnpj),
+        ("Grau de Risco da Atividade (NR-4):", grau_risco),
         ("Data de Emissão:", data_emissao),
         ("Norma de Referência:", "NR-17 (Portaria MTE 1.117/2023) e NR-01 (Portaria MTE 672/2021, "
                                   "atualizada pela Portaria MTE nº 765/2025)"),
@@ -194,7 +202,7 @@ def build_participacao_aep(st):
 
 # ===================== SEÇÃO 4: METODOLOGIA =====================
 
-def build_metodologia_aep(st, total_respondentes, total_autorizados):
+def build_metodologia_aep(st, total_respondentes, total_autorizados, grau_risco_empresa="—"):
     el = []
     el.append(_titulo_secao("4. Metodologia de Avaliação", st))
 
@@ -211,23 +219,36 @@ def build_metodologia_aep(st, total_respondentes, total_autorizados):
         "O questionário aplicado contém 17 perguntas distribuídas em 4 seções: A) Postura e Movimentos, "
         "B) Mobiliário e Equipamentos, C) Condições Ambientais e D) Organização do Trabalho. "
         "Cada resposta foi classificada como indicadora de risco (“Sim” nas perguntas diretas ou "
-        "“Não” nas perguntas invertidas), parcialmente de risco (“Parcial”) ou sem risco. "
+        "“Não” nas perguntas invertidas), parcialmente indicadora de risco (“Parcial”, ponderada "
+        "com peso 0,5) ou sem risco; respostas “N/A” são excluídas do cálculo. "
         "Quando há identificação do setor/departamento do respondente, o percentual de respostas "
         "indicadoras de risco de cada pergunta é apurado pela média dos percentuais obtidos em "
         "cada setor, de modo que setores com menor número de respondentes tenham o mesmo peso "
-        "que setores maiores na definição da faixa de risco. "
-        "O percentual de respostas indicadoras de risco para cada pergunta determina a Probabilidade (1 a 4).",
+        "que setores maiores na definição da faixa de risco; setores com menos de 3 respondentes "
+        "são agrupados em um único conjunto no cálculo, preservando a representatividade "
+        "estatística e o anonimato das respostas. "
+        "O percentual de respostas indicadoras de risco de cada pergunta determina a Probabilidade, "
+        "apurada de forma contínua (1,00 a 4,00 — Seção 4.3).",
         st['body']))
 
-    el.append(_subtitulo("4.3. Escala de Probabilidade", st))
-    dados_prob = [["Nível", "Classificação", "% de respostas de risco"]]
+    el.append(_subtitulo("4.3. Probabilidade Contínua", st))
+    el.append(Paragraph(
+        "A Probabilidade é apurada de forma contínua e proporcional ao percentual de respostas "
+        "indicadoras de risco, pela fórmula <b>Probabilidade = 1 + 3 × (% de risco)</b>, variando "
+        "de 1,00 (nenhuma resposta indicadora de risco) a 4,00 (unanimidade na percepção do risco). "
+        "A escala contínua elimina saltos de classificação nos limites entre faixas, assegurando que "
+        "pequenas variações no percentual de respostas produzam variações igualmente pequenas no "
+        "Grau de Risco. Exemplos de referência:",
+        st['body']))
+    dados_prob = [["% de respostas de risco", "Probabilidade resultante", "Interpretação"]]
     dados_prob += [
-        ["1", "Improvável", "< 10%"],
-        ["2", "Possível", "10% — 30%"],
-        ["3", "Provável", "30% — 70%"],
-        ["4", "Muito Provável", "> 70%"],
+        ["0%", "1,00", "Improvável"],
+        ["25%", "1,75", "Pouco provável"],
+        ["50%", "2,50", "Possível"],
+        ["75%", "3,25", "Provável"],
+        ["100%", "4,00", "Muito provável"],
     ]
-    t = Table(dados_prob, colWidths=[2.5*cm, 6*cm, 10*cm])
+    t = Table(dados_prob, colWidths=[5.5*cm, 5.5*cm, 7.5*cm])
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), C_AZUL),
         ('TEXTCOLOR', (0, 0), (-1, 0), C_BRANCO),
@@ -244,9 +265,15 @@ def build_metodologia_aep(st, total_respondentes, total_autorizados):
 
     el.append(_subtitulo("4.4. Grau de Risco (GR = Severidade × Probabilidade)", st))
     el.append(Paragraph(
-        "A Severidade (1=Leve, 2=Moderada, 3=Grave, 4=Crítica) é definida pelo avaliador com base no potencial "
-        "de dano à saúde de cada fator de risco ergonômico. O Grau de Risco resulta da multiplicação entre "
-        "Severidade e Probabilidade, sendo classificado conforme a tabela abaixo. "
+        "A Severidade (1=Leve, 2=Moderada, 3=Grave, 4=Crítica) é pré-calibrada pelo responsável técnico "
+        "para cada um dos 17 fatores de risco avaliados, com base no potencial de dano à saúde e no grau "
+        "de risco da atividade econômica da organização (NR-4, conforme cadastro): empresas de grau de "
+        "risco 1 ou 2 utilizam a calibração de menor exposição e empresas de grau de risco 3 ou 4 a "
+        f"calibração de maior exposição. A organização avaliada possui grau de risco <b>{grau_risco_empresa}</b>. "
+        "O Grau de Risco resulta da multiplicação entre Severidade e Probabilidade contínua, variando de "
+        "1,0 a 16,0 (expresso com uma casa decimal), e é classificado conforme a tabela abaixo. "
+        "Como regra de piso, fatores com percentual de respostas indicadoras de risco igual ou superior a "
+        "70% são classificados, no mínimo, como Médio. "
         "A classificação “Crítico” é reservada às situações insuportáveis, atribuída exclusivamente quando o "
         "percentual médio de respostas indicadoras de risco (entre os setores avaliados) for superior a 98%, "
         "dada a quase unanimidade da percepção de risco pelos trabalhadores, independentemente do GR calculado.",
@@ -294,8 +321,8 @@ def build_inventario_aep(st, inventario):
             Paragraph(item["Risco Identificado"], st['table_cell']),
             f"{item['% Risco']:.1f}%",
             str(item["Severidade"]),
-            str(item["Probabilidade"]),
-            str(item["GR"]),
+            f"{item['Probabilidade']:.2f}",
+            f"{item['GR']:.1f}",
             item["Classificação"],
         ])
         cores_linhas.append(colors.HexColor(item["Cor"]))
@@ -357,7 +384,7 @@ def build_plano_acao_aep(st, inventario):
             prazo = info["prazo"]
             dados.append([
                 Paragraph(item["Risco Identificado"], st['table_cell']),
-                str(item["GR"]),
+                f"{item['GR']:.1f}",
                 item["Classificação"],
                 Paragraph(acao, st['table_cell']),
                 prazo,
@@ -503,7 +530,7 @@ def gerar_laudo_aep_pdf(
     """
     Gera o Laudo de Avaliação Ergonômica Preliminar (AEP / NR-17) em PDF e retorna os bytes.
 
-    dados_empresa: dict com chaves 'Empresa', 'CNPJ'
+    dados_empresa: dict com chaves 'Empresa', 'CNPJ' e 'Grau_Risco' (grau de risco NR-4 do cadastro)
     inventario: lista de dicts retornada por _calcular_inventario_aep (app_cloud.py)
     total_respondentes / total_autorizados: contagens para cálculo de adesão
     relatos: lista de strings com os relatos abertos dos trabalhadores
@@ -511,6 +538,7 @@ def gerar_laudo_aep_pdf(
     buffer = io.BytesIO()
     empresa = dados_empresa.get("Empresa", "—")
     cnpj    = dados_empresa.get("CNPJ", "—")
+    grau_risco = str(dados_empresa.get("Grau_Risco", "—") or "—")
     data_emissao = datetime.now().strftime("%d/%m/%Y")
     relatos = relatos or []
 
@@ -533,10 +561,10 @@ def gerar_laudo_aep_pdf(
             _header_footer_aep(canvas_obj, doc_obj, empresa)
 
     story = []
-    story += build_capa_aep(st, empresa, cnpj, data_emissao, logo_path)
+    story += build_capa_aep(st, empresa, cnpj, data_emissao, logo_path, grau_risco)
     story += build_escopo_aep(st)
     story += build_participacao_aep(st)
-    story += build_metodologia_aep(st, total_respondentes, total_autorizados)
+    story += build_metodologia_aep(st, total_respondentes, total_autorizados, grau_risco)
     story += build_inventario_aep(st, inventario)
     story += build_plano_acao_aep(st, inventario)
     story += build_necessidade_aet(st, inventario)
