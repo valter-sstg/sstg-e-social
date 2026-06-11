@@ -554,12 +554,11 @@ AEP_CORES_SECOES = {
 def _classificar_gr(gr: int, pct_risco: float = 0.0) -> tuple:
     """Retorna (classificação, cor) para um Grau de Risco (Severidade x Probabilidade).
 
-    Independentemente do GR calculado, um fator de risco é classificado como "Crítico"
-    quando a média de respostas indicadoras de risco (entre os setores avaliados)
-    ultrapassar 98%, dada a quase unanimidade da percepção de risco pelos trabalhadores."""
+    A classificação "Crítico" é reservada exclusivamente para os casos em que a média de
+    respostas indicadoras de risco (entre os setores avaliados) ultrapassar 98%, dada a
+    quase unanimidade da percepção de risco pelos trabalhadores — independentemente do GR
+    calculado. Os demais casos seguem a faixa de GR, sendo o GR 7-16 classificado como "Alto"."""
     if pct_risco > 0.98:
-        return "Crítico", "#C0392B"
-    if gr >= 10:
         return "Crítico", "#C0392B"
     if gr >= 7:
         return "Alto", "#F4A236"
@@ -3092,10 +3091,6 @@ else:
             "Se sim, descreva o local (costas, pescoço, ombro, braço, mão, perna...) e quando acontece.",
             key=f"{cpf_resp}_aep_relato_dor"
         )
-        relato_dificuldades = st.text_area(
-            "Quais são as principais dificuldades que você encontra para realizar suas tarefas?",
-            key=f"{cpf_resp}_aep_relato_dificuldades"
-        )
         relato_sugestoes = st.text_area(
             "Você tem alguma outra observação ou sugestão de melhoria para o seu posto de trabalho?",
             key=f"{cpf_resp}_aep_relato_sugestoes"
@@ -3120,7 +3115,6 @@ else:
                 "funcao_posto":        funcao,
                 "data":                date.today().isoformat(),
                 "relato_dor":          relato_dor,
-                "relato_dificuldades": relato_dificuldades,
                 "relato_sugestoes":    relato_sugestoes,
                 "severidades":         AEP_SEVERIDADES_DEFAULT,
             }

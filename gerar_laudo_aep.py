@@ -20,22 +20,33 @@ from gerar_laudo import (
 # ===================== AÇÕES POR CLASSIFICAÇÃO (NR-17 / NR-01) =====================
 ACAO_POR_CLASSIFICACAO = {
     "Crítico": {
-        "acao": "Intervenção imediata. Paralisação da atividade se necessário. "
-                "Comunicar CIPA e médico do trabalho.",
-        "justificativa": "Faixa de GR entre 10 e 16 e/ou percentual de respostas indicadoras de "
-                "risco superior a 98% da média das respostas, evidenciando quase unanimidade na "
-                "percepção do risco pelos trabalhadores e exigindo ação corretiva imediata.",
+        "faixa": "% risco > 98% (qualquer GR)",
+        "faixa_desc": "Atribuída independentemente do GR sempre que o percentual médio de "
+                "respostas indicadoras de risco superar 98%, configurando quase unanimidade "
+                "na percepção de risco pelos trabalhadores.",
+        "acao": "Intervenção imediata. Realizar Análise Ergonômica do Trabalho (AET) para "
+                "avaliação aprofundada do fator de risco. Comunicar CIPA e médico do trabalho.",
+        "justificativa": "Percentual de respostas indicadoras de risco superior a 98% da média "
+                "das respostas, evidenciando quase unanimidade na percepção do risco pelos "
+                "trabalhadores e configurando situação insuportável que exige avaliação "
+                "aprofundada por meio de AET.",
         "prazo": "Imediato",
         "cor": colors.HexColor('#C0392B'),
     },
     "Alto": {
+        "faixa": "7 — 16",
+        "faixa_desc": "Combinação de Severidade e Probabilidade que resulta em GR entre 7 e 16, "
+                "correspondente a probabilidade provável a muito provável de dano à saúde.",
         "acao": "Controle imediato. Medidas de engenharia e/ou administrativas em até 30 dias.",
-        "justificativa": "Faixa de GR entre 7 e 9, correspondente a probabilidade provável a "
+        "justificativa": "Faixa de GR entre 7 e 16, correspondente a probabilidade provável a "
                 "muito provável de dano à saúde, demandando controle em curto prazo.",
         "prazo": "30 dias",
         "cor": C_LARANJA,
     },
     "Médio": {
+        "faixa": "3 — 6",
+        "faixa_desc": "Combinação de Severidade e Probabilidade que resulta em GR entre 3 e 6, "
+                "correspondente a probabilidade possível a provável de dano à saúde.",
         "acao": "Elaborar plano de ação com prazo de até 90 dias. Incluir no PGR.",
         "justificativa": "Faixa de GR entre 3 e 6, correspondente a probabilidade possível a "
                 "provável, devendo ser tratado de forma planejada dentro do PGR.",
@@ -43,6 +54,9 @@ ACAO_POR_CLASSIFICACAO = {
         "cor": C_AMARELO,
     },
     "Baixo": {
+        "faixa": "1 — 2",
+        "faixa_desc": "Combinação de Severidade e Probabilidade que resulta em GR entre 1 e 2, "
+                "correspondente a baixa probabilidade de ocorrência de dano à saúde.",
         "acao": "Monitoramento periódico semestral. Sem necessidade de intervenção imediata.",
         "justificativa": "Faixa de GR entre 1 e 2, correspondente a baixa probabilidade de "
                 "ocorrência, mantido sob monitoramento periódico.",
@@ -233,16 +247,17 @@ def build_metodologia_aep(st, total_respondentes, total_autorizados):
         "A Severidade (1=Leve, 2=Moderada, 3=Grave, 4=Crítica) é definida pelo avaliador com base no potencial "
         "de dano à saúde de cada fator de risco ergonômico. O Grau de Risco resulta da multiplicação entre "
         "Severidade e Probabilidade, sendo classificado conforme a tabela abaixo. "
-        "Independentemente do GR calculado, o fator de risco é classificado como “Crítico” sempre que o "
+        "A classificação “Crítico” é reservada às situações insuportáveis, atribuída exclusivamente quando o "
         "percentual médio de respostas indicadoras de risco (entre os setores avaliados) for superior a 98%, "
-        "dada a quase unanimidade da percepção de risco pelos trabalhadores.", st['body']))
+        "dada a quase unanimidade da percepção de risco pelos trabalhadores, independentemente do GR calculado.",
+        st['body']))
 
     dados_gr = [["Faixa de GR", "Classificação", "Ação Recomendada"]]
     for classif, info in ACAO_POR_CLASSIFICACAO.items():
-        faixa = {"Crítico": "10 — 16 (ou % risco > 98%)", "Alto": "7 — 9", "Médio": "3 — 6", "Baixo": "1 — 2"}[classif]
+        texto_faixa = f"<b>{info['faixa']}</b><br/>{info['faixa_desc']}"
         texto_acao = f"{info['acao']} {info['justificativa']}"
-        dados_gr.append([faixa, classif, Paragraph(texto_acao, st['table_cell'])])
-    t2 = Table(dados_gr, colWidths=[3.3*cm, 2.5*cm, 12.7*cm])
+        dados_gr.append([Paragraph(texto_faixa, st['table_cell']), classif, Paragraph(texto_acao, st['table_cell'])])
+    t2 = Table(dados_gr, colWidths=[5*cm, 2.2*cm, 11.3*cm])
     t2.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), C_AZUL),
         ('TEXTCOLOR', (0, 0), (-1, 0), C_BRANCO),
@@ -453,10 +468,25 @@ def build_conclusao_aep(st, empresa, relatos, inventario):
         "Recomenda-se, ainda, a revisão periódica deste inventário após qualquer alteração de processo, "
         "layout, equipamento ou força de trabalho, e no mínimo a cada 2 anos, conforme NR-01.", st['body']))
 
-    el.append(Spacer(1, 1*cm))
-    el.append(HRFlowable(width="40%", thickness=0.8, color=C_CINZA))
-    el.append(Paragraph(RESP_NOME, st['body_bold']))
-    el.append(Paragraph(f"Engenheiro de Segurança do Trabalho — MTE {RESP_MTE} / CREA {RESP_CREA}", st['body']))
+    el.append(Spacer(1, 1.5*cm))
+    assinaturas = Table([
+        ["", ""],
+        [
+            Paragraph(f"<b>{RESP_NOME}</b><br/>MTE: {RESP_MTE}<br/>CREA: {RESP_CREA}", st['body']),
+            Paragraph("<b>Representante Legal da Organização</b><br/>Nome: "
+                      "______________________________<br/>CPF: ______________________________",
+                      st['body']),
+        ],
+    ], colWidths=[9*cm, 9*cm])
+    assinaturas.setStyle(TableStyle([
+        ('LINEABOVE', (0, 1), (-1, 1), 0.8, C_CINZA),
+        ('TOPPADDING', (0, 1), (-1, 1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 30),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (1, 0), (1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (0, -1), 20),
+    ]))
+    el.append(assinaturas)
     return el
 
 
