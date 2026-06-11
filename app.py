@@ -672,6 +672,7 @@ def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
                 "Probabilidade": prob,
                 "GR":           gr,
                 "Classificação": classif,
+                "Plano?":       "SIM" if classif in ("Alto", "Crítico") else "NÃO",
                 "Cor":          cor,
             })
     return inventario
@@ -821,12 +822,13 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
     st.caption(f"Grau de risco da empresa (NR-4): **{grau_risco_emp or '—'}** — severidades pré-calibradas "
                f"pelo responsável técnico para empresas de grau de risco {faixa_sev} "
                "(1=Leve, 2=Moderada, 3=Grave, 4=Crítica). "
-               "Probabilidade contínua = 1 + 3 × %risco. GR = Severidade × Probabilidade.")
+               "Probabilidade contínua = 1 + 3 × %risco. GR = Severidade × Probabilidade. "
+               "Plano? = SIM (classificação Alto ou Crítico) indica destaque no Plano de Ação do laudo.")
 
     df_inv = pd.DataFrame(inventario)
     if not df_inv.empty:
         st.dataframe(
-            df_inv[["Nº", "Seção", "Risco Identificado", "% Risco", "Severidade", "Probabilidade", "GR", "Classificação"]],
+            df_inv[["Nº", "Seção", "Risco Identificado", "% Risco", "Severidade", "Probabilidade", "GR", "Classificação", "Plano?"]],
             hide_index=True, use_container_width=True,
         )
 
@@ -1202,15 +1204,15 @@ if menu == "🔐 Admin SSTG (Gestão)":
             except FileNotFoundError:
                 st.sidebar.warning("Arquivo de documentação não encontrado")
 
-    t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs([
+    t1, t2, t3, t8, t4, t5, t6, t7 = st.tabs([
         "🆕 Cadastro / Inclusão",
         "📋 Conferência e Correção",
-        "📊 Resultados",
+        "📊 Resultados RP",
+        "🦴 Resultados AEP",
         "🔄 Movimentação de Pessoal",
         "🔐 Segurança e Acesso RH",
         "📚 Documentação",
-        "👥 Usuários",
-        "🦴 Resultados AEP"
+        "👥 Usuários"
     ])
 
     # ── ABA 1: CADASTRO ───────────────────────────────────────────────────────
@@ -1528,8 +1530,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
             st.divider()
 
             empresas_lista = ["Todas"] + df_verif['Empresa'].unique().tolist()
-            filtro     = st.selectbox("Filtrar por empresa:", empresas_lista, key="filtro_conf")
-            df_filtrado = df_verif if filtro == "Todas" else df_verif[df_verif['Empresa'] == filtro]
+            filtro     = st.selectbox("Filtrar por empresa:", empresas_lista, key="filtro_conf", index=None, placeholder="Digite o nome da empresa (em branco = todas)...")
+            df_filtrado = df_verif if filtro in (None, "Todas") else df_verif[df_verif['Empresa'] == filtro]
 
             # Colunas a exibir (oculta colunas internas)
             cols_show = [c for c in df_filtrado.columns if c not in ('Setores_Base', 'Funções_Base')]
@@ -1546,37 +1548,40 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 empresas_per = df_verif.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
                     lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
                 ).tolist()
-                emp_per = st.selectbox("Empresa:", empresas_per, key="emp_periodo")
-                cnpj_per = emp_per.split("CNPJ: ")[-1]
+                emp_per = st.selectbox("Empresa:", empresas_per, key="emp_periodo", index=None, placeholder="Digite o nome da empresa...")
+                if not emp_per:
+                    st.info("👆 Digite ou selecione a empresa para continuar.")
+                else:
+                    cnpj_per = emp_per.split("CNPJ: ")[-1]
 
-                # Busca datas atuais
-                linha_ref = df_verif[df_verif['CNPJ'] == cnpj_per].iloc[0]
-                def parse_date(s, fallback):
-                    try:
-                        return datetime.strptime(str(s), "%d/%m/%Y").date()
-                    except Exception:
-                        return fallback
+                    # Busca datas atuais
+                    linha_ref = df_verif[df_verif['CNPJ'] == cnpj_per].iloc[0]
+                    def parse_date(s, fallback):
+                        try:
+                            return datetime.strptime(str(s), "%d/%m/%Y").date()
+                        except Exception:
+                            return fallback
 
-                ini_atual = parse_date(linha_ref.get('Data_Inicio_Periodo', ''), date.today())
-                fim_atual = parse_date(linha_ref.get('Data_Fim_Periodo', ''),    date.today())
+                    ini_atual = parse_date(linha_ref.get('Data_Inicio_Periodo', ''), date.today())
+                    fim_atual = parse_date(linha_ref.get('Data_Fim_Periodo', ''),    date.today())
 
-                cp1, cp2 = st.columns(2)
-                novo_ini = cp1.date_input("Nova data de início",      ini_atual, format="DD/MM/YYYY", key="per_ini")
-                novo_fim = cp2.date_input("Nova data de encerramento", fim_atual, format="DD/MM/YYYY", key="per_fim")
+                    cp1, cp2 = st.columns(2)
+                    novo_ini = cp1.date_input("Nova data de início",      ini_atual, format="DD/MM/YYYY", key="per_ini")
+                    novo_fim = cp2.date_input("Nova data de encerramento", fim_atual, format="DD/MM/YYYY", key="per_fim")
 
-                if st.button("💾 SALVAR PERÍODO", key="btn_per"):
-                    if novo_fim < novo_ini:
-                        st.error("Data de encerramento anterior ao início.")
-                    else:
-                        ok, msg = atualizar_periodo_empresa(
-                            cnpj_per,
-                            novo_ini.strftime("%d/%m/%Y"),
-                            novo_fim.strftime("%d/%m/%Y")
-                        )
-                        if ok:
-                            st.success(msg)
+                    if st.button("💾 SALVAR PERÍODO", key="btn_per"):
+                        if novo_fim < novo_ini:
+                            st.error("Data de encerramento anterior ao início.")
                         else:
-                            st.error(msg)
+                            ok, msg = atualizar_periodo_empresa(
+                                cnpj_per,
+                                novo_ini.strftime("%d/%m/%Y"),
+                                novo_fim.strftime("%d/%m/%Y")
+                            )
+                            if ok:
+                                st.success(msg)
+                            else:
+                                st.error(msg)
 
             if st.session_state.get('admin_perfil') == 'admin':
                 with st.expander("⚠️ Zona de Perigo — use com cuidado"):
@@ -1592,35 +1597,38 @@ if menu == "🔐 Admin SSTG (Gestão)":
                             empresas_zona = df_zona.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
                                 lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
                             ).tolist()
-                            emp_del = st.selectbox("Empresa a excluir:", empresas_zona, key="zona_emp_del")
-                            cnpj_del = emp_del.split("CNPJ: ")[-1]
-                            nome_del = emp_del.split(" — CNPJ:")[0].strip()
+                            emp_del = st.selectbox("Empresa a excluir:", empresas_zona, key="zona_emp_del", index=None, placeholder="Digite o nome da empresa...")
+                            if not emp_del:
+                                st.info("👆 Digite ou selecione a empresa para continuar.")
+                            else:
+                                cnpj_del = emp_del.split("CNPJ: ")[-1]
+                                nome_del = emp_del.split(" — CNPJ:")[0].strip()
 
-                            # Contadores para exibir impacto
-                            qtd_cpfs  = len(df_zona[df_zona['CNPJ'] == cnpj_del])
-                            qtd_resp  = len(db.carregar_respostas(cnpj_del))
+                                # Contadores para exibir impacto
+                                qtd_cpfs  = len(df_zona[df_zona['CNPJ'] == cnpj_del])
+                                qtd_resp  = len(db.carregar_respostas(cnpj_del))
 
-                            col_info1, col_info2 = st.columns(2)
-                            col_info1.metric("CPFs que serão removidos", qtd_cpfs)
-                            col_info2.metric("Respostas que serão apagadas", qtd_resp)
+                                col_info1, col_info2 = st.columns(2)
+                                col_info1.metric("CPFs que serão removidos", qtd_cpfs)
+                                col_info2.metric("Respostas que serão apagadas", qtd_resp)
 
-                            st.divider()
-                            st.markdown("**Confirme digitando a senha do Admin SSTG:**")
-                            senha_conf_del = st.text_input(
-                                "Senha Admin:", type="password", key="senha_conf_emp_del"
-                            )
+                                st.divider()
+                                st.markdown("**Confirme digitando a senha do Admin SSTG:**")
+                                senha_conf_del = st.text_input(
+                                    "Senha Admin:", type="password", key="senha_conf_emp_del"
+                                )
 
-                            if st.button("🗑️ EXCLUIR EMPRESA E TODO O HISTÓRICO", type="primary",
-                                         use_container_width=True, key="btn_del_empresa"):
-                                if not senha_conf_del:
-                                    st.error("Digite a senha do Admin para confirmar.")
-                                elif senha_conf_del != SENHA_ADMIN:
-                                    st.error("❌ Senha incorreta. Operação cancelada.")
-                                else:
-                                    db.deletar_acessos_empresa(cnpj_del)
-                                    db.deletar_respostas_empresa(cnpj_del)
-                                    st.success(f"✅ Empresa **{nome_del}** removida com sucesso. {qtd_cpfs} acesso(s) e {qtd_resp} resposta(s) apagadas.")
-                                    st.rerun()
+                                if st.button("🗑️ EXCLUIR EMPRESA E TODO O HISTÓRICO", type="primary",
+                                             use_container_width=True, key="btn_del_empresa"):
+                                    if not senha_conf_del:
+                                        st.error("Digite a senha do Admin para confirmar.")
+                                    elif senha_conf_del != SENHA_ADMIN:
+                                        st.error("❌ Senha incorreta. Operação cancelada.")
+                                    else:
+                                        db.deletar_acessos_empresa(cnpj_del)
+                                        db.deletar_respostas_empresa(cnpj_del)
+                                        st.success(f"✅ Empresa **{nome_del}** removida com sucesso. {qtd_cpfs} acesso(s) e {qtd_resp} resposta(s) apagadas.")
+                                        st.rerun()
                         else:
                             st.info("Nenhuma empresa cadastrada.")
 
@@ -1632,31 +1640,34 @@ if menu == "🔐 Admin SSTG (Gestão)":
                             empresas_zona_r = df_zona_r.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
                                 lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
                             ).tolist()
-                            emp_del_r  = st.selectbox("Empresa:", empresas_zona_r, key="zona_emp_del_r")
-                            cnpj_del_r = emp_del_r.split("CNPJ: ")[-1]
-                            nome_del_r = emp_del_r.split(" — CNPJ:")[0].strip()
-
-                            qtd_resp_r = len(db.carregar_respostas(cnpj_del_r))
-                            st.metric("Respostas que serão apagadas", qtd_resp_r)
-
-                            if qtd_resp_r == 0:
-                                st.info("Esta empresa não possui respostas registradas.")
+                            emp_del_r  = st.selectbox("Empresa:", empresas_zona_r, key="zona_emp_del_r", index=None, placeholder="Digite o nome da empresa...")
+                            if not emp_del_r:
+                                st.info("👆 Digite ou selecione a empresa para continuar.")
                             else:
-                                st.divider()
-                                st.markdown("**Confirme digitando a senha do Admin SSTG:**")
-                                senha_conf_r = st.text_input(
-                                    "Senha Admin:", type="password", key="senha_conf_del_resp"
-                                )
-                                if st.button("📊 EXCLUIR RESPOSTAS DA EMPRESA", type="primary",
-                                             use_container_width=True, key="btn_del_respostas"):
-                                    if not senha_conf_r:
-                                        st.error("Digite a senha do Admin para confirmar.")
-                                    elif senha_conf_r != SENHA_ADMIN:
-                                        st.error("❌ Senha incorreta. Operação cancelada.")
-                                    else:
-                                        db.deletar_respostas_empresa(cnpj_del_r)
-                                        st.success(f"✅ {qtd_resp_r} resposta(s) da empresa **{nome_del_r}** apagadas. Cadastro preservado.")
-                                        st.rerun()
+                                cnpj_del_r = emp_del_r.split("CNPJ: ")[-1]
+                                nome_del_r = emp_del_r.split(" — CNPJ:")[0].strip()
+
+                                qtd_resp_r = len(db.carregar_respostas(cnpj_del_r))
+                                st.metric("Respostas que serão apagadas", qtd_resp_r)
+
+                                if qtd_resp_r == 0:
+                                    st.info("Esta empresa não possui respostas registradas.")
+                                else:
+                                    st.divider()
+                                    st.markdown("**Confirme digitando a senha do Admin SSTG:**")
+                                    senha_conf_r = st.text_input(
+                                        "Senha Admin:", type="password", key="senha_conf_del_resp"
+                                    )
+                                    if st.button("📊 EXCLUIR RESPOSTAS DA EMPRESA", type="primary",
+                                                 use_container_width=True, key="btn_del_respostas"):
+                                        if not senha_conf_r:
+                                            st.error("Digite a senha do Admin para confirmar.")
+                                        elif senha_conf_r != SENHA_ADMIN:
+                                            st.error("❌ Senha incorreta. Operação cancelada.")
+                                        else:
+                                            db.deletar_respostas_empresa(cnpj_del_r)
+                                            st.success(f"✅ {qtd_resp_r} resposta(s) da empresa **{nome_del_r}** apagadas. Cadastro preservado.")
+                                            st.rerun()
                         else:
                             st.info("Nenhuma empresa cadastrada.")
 
@@ -1689,190 +1700,193 @@ if menu == "🔐 Admin SSTG (Gestão)":
             opcoes_empresa = df_acessos.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
                 lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
             ).tolist()
-            empresa_sel = st.selectbox("Selecione a empresa:", opcoes_empresa)
-            cnpj_cod    = empresa_sel.split("CNPJ: ")[-1]
+            empresa_sel = st.selectbox("Selecione a empresa:", opcoes_empresa, index=None, placeholder="Digite o nome da empresa...")
+            if not empresa_sel:
+                st.info("👆 Digite ou selecione a empresa para continuar.")
+            else:
+                cnpj_cod    = empresa_sel.split("CNPJ: ")[-1]
 
-            # ── Link individualizado ──────────────────────────────────────────
-            with st.expander("🔗 Link do Questionário para esta empresa"):
-                link_emp = f"{QUEST_PSICOSSOCIAL_URL}?cnpj={cnpj_cod}"
-                st.code(link_emp, language=None)
-                st.caption(
-                    "Copie e envie este link para o RH da empresa repassar aos colaboradores. "
-                    "Este é o link público que funciona em qualquer dispositivo, conectado à internet."
-                )
+                # ── Link individualizado ──────────────────────────────────────────
+                with st.expander("🔗 Link do Questionário para esta empresa"):
+                    link_emp = f"{QUEST_PSICOSSOCIAL_URL}?cnpj={cnpj_cod}"
+                    st.code(link_emp, language=None)
+                    st.caption(
+                        "Copie e envie este link para o RH da empresa repassar aos colaboradores. "
+                        "Este é o link público que funciona em qualquer dispositivo, conectado à internet."
+                    )
 
-            # ── Gerar Imagem de Compartilhamento ──────────────────────────────────
-            with st.expander("🖼️ Gerar QRCode do Questionário para Compartilhamento"):
-                st.info("Gere uma imagem com QR Code para compartilhar nas redes sociais ou enviar por email.")
+                # ── Gerar Imagem de Compartilhamento ──────────────────────────────────
+                with st.expander("🖼️ Gerar QRCode do Questionário para Compartilhamento"):
+                    st.info("Gere uma imagem com QR Code para compartilhar nas redes sociais ou enviar por email.")
 
-                if COMPARTILHAMENTO_DISPONIVEL:
-                    col_gerar, col_espacador = st.columns([2, 1])
+                    if COMPARTILHAMENTO_DISPONIVEL:
+                        col_gerar, col_espacador = st.columns([2, 1])
 
-                    with col_gerar:
-                        if st.button("🎨 Gerar Imagem com QR Code", use_container_width=True, key="btn_gerar_img"):
-                            try:
-                                nome_empresa = empresa_sel.split(" — CNPJ:")[0].strip()
+                        with col_gerar:
+                            if st.button("🎨 Gerar Imagem com QR Code", use_container_width=True, key="btn_gerar_img"):
+                                try:
+                                    nome_empresa = empresa_sel.split(" — CNPJ:")[0].strip()
 
-                                with st.spinner("Gerando imagem..."):
-                                    img_bytes = gerar_imagem_compartilhamento_simples(
-                                        empresa_nome=nome_empresa,
-                                        cnpj=cnpj_cod,
-                                        app_url=QUEST_PSICOSSOCIAL_URL
+                                    with st.spinner("Gerando imagem..."):
+                                        img_bytes = gerar_imagem_compartilhamento_simples(
+                                            empresa_nome=nome_empresa,
+                                            cnpj=cnpj_cod,
+                                            app_url=QUEST_PSICOSSOCIAL_URL
+                                        )
+
+                                    st.success("Imagem gerada com sucesso!")
+
+                                    # Exibir preview
+                                    st.image(img_bytes, use_column_width=True, caption=f"Imagem de compartilhamento: {nome_empresa}")
+
+                                    # Download button
+                                    st.download_button(
+                                        "⬇️ Baixar Imagem (PNG)",
+                                        img_bytes,
+                                        f"compartilhamento_{cnpj_cod}.png",
+                                        "image/png",
+                                        use_container_width=True
                                     )
 
-                                st.success("Imagem gerada com sucesso!")
+                                    # Opções de compartilhamento
+                                    st.divider()
+                                    st.subheader("📤 Compartilhar Imagem com RH/Respondentes")
 
-                                # Exibir preview
-                                st.image(img_bytes, use_column_width=True, caption=f"Imagem de compartilhamento: {nome_empresa}")
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        whatsapp_link = f"https://wa.me/?text=Prezado(a)%20RH%2C%0A%0AConvido-o%20a%20participar%20da%20avaliação%20de%20Riscos%20Psicossociais%20(SSTG-DRPS%20AEP-RP)%20através%20do%20link%3A%20{QUEST_PSICOSSOCIAL_URL}%3Fcnpj%3D{cnpj_cod}%0A%0AEsta%20é%20uma%20ferramenta%20essencial%20para%20diagnóstico%20do%20ambiente%20de%20trabalho%20conforme%20NR-1.%0A%0AObrigado!"
+                                        st.markdown(f'<a href="{whatsapp_link}" target="_blank"><button style="width:100%; padding:10px; background-color:#25D366; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📱 Enviar via WhatsApp</button></a>', unsafe_allow_html=True)
 
-                                # Download button
-                                st.download_button(
-                                    "⬇️ Baixar Imagem (PNG)",
-                                    img_bytes,
-                                    f"compartilhamento_{cnpj_cod}.png",
-                                    "image/png",
-                                    use_container_width=True
-                                )
+                                    with col2:
+                                        email_link = f"mailto:?subject=Avaliação de Riscos Psicossociais - SSTG DRPS AEP-RP&body=Prezado(a) RH,%0A%0AConvido-o a participar da avaliação de Riscos Psicossociais (SSTG-DRPS AEP-RP) conforme NR-1.%0A%0ALink para acesso:%0A{QUEST_PSICOSSOCIAL_URL}?cnpj={cnpj_cod}%0A%0AEsta avaliação é fundamental para diagnóstico do ambiente de trabalho.%0A%0AObrigado!"
+                                        st.markdown(f'<a href="{email_link}"><button style="width:100%; padding:10px; background-color:#0078D4; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📧 Enviar via Email</button></a>', unsafe_allow_html=True)
 
-                                # Opções de compartilhamento
-                                st.divider()
-                                st.subheader("📤 Compartilhar Imagem com RH/Respondentes")
+                                    st.caption("💡 Dica: Use esta imagem em emails, WhatsApp, Telegram ou redes sociais para aumentar a adesão ao questionário.")
 
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    whatsapp_link = f"https://wa.me/?text=Prezado(a)%20RH%2C%0A%0AConvido-o%20a%20participar%20da%20avaliação%20de%20Riscos%20Psicossociais%20(SSTG-DRPS%20AEP-RP)%20através%20do%20link%3A%20{QUEST_PSICOSSOCIAL_URL}%3Fcnpj%3D{cnpj_cod}%0A%0AEsta%20é%20uma%20ferramenta%20essencial%20para%20diagnóstico%20do%20ambiente%20de%20trabalho%20conforme%20NR-1.%0A%0AObrigado!"
-                                    st.markdown(f'<a href="{whatsapp_link}" target="_blank"><button style="width:100%; padding:10px; background-color:#25D366; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📱 Enviar via WhatsApp</button></a>', unsafe_allow_html=True)
-
-                                with col2:
-                                    email_link = f"mailto:?subject=Avaliação de Riscos Psicossociais - SSTG DRPS AEP-RP&body=Prezado(a) RH,%0A%0AConvido-o a participar da avaliação de Riscos Psicossociais (SSTG-DRPS AEP-RP) conforme NR-1.%0A%0ALink para acesso:%0A{QUEST_PSICOSSOCIAL_URL}?cnpj={cnpj_cod}%0A%0AEsta avaliação é fundamental para diagnóstico do ambiente de trabalho.%0A%0AObrigado!"
-                                    st.markdown(f'<a href="{email_link}"><button style="width:100%; padding:10px; background-color:#0078D4; color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">📧 Enviar via Email</button></a>', unsafe_allow_html=True)
-
-                                st.caption("💡 Dica: Use esta imagem em emails, WhatsApp, Telegram ou redes sociais para aumentar a adesão ao questionário.")
-
-                            except Exception as e:
-                                st.error(f"Erro ao gerar imagem: {e}")
-                else:
-                    st.warning("Módulo de compartilhamento não disponível. Verifique se `qrcode` e `Pillow` estão instalados.")
-
-            df_res = db.carregar_respostas(cnpj_cod)
-            if not df_res.empty:
-
-                total_auth = len(df_acessos[df_acessos['CNPJ'] == cnpj_cod])
-                total_resp = len(df_res)
-                pct        = round((total_resp / total_auth) * 100, 1) if total_auth > 0 else 0
-
-                c1, c2, c3 = st.columns(3)
-                c1.metric("CPFs Autorizados",   total_auth)
-                c2.metric("Respostas Recebidas", total_resp)
-                c3.metric("Taxa de Adesão",      f"{pct}%")
-
-                # Gráfico de adesão
-                st.subheader("📊 Adesão ao Questionário")
-                try:
-                    import plotly.graph_objects as go
-                    fig_ades = go.Figure(go.Bar(
-                        x=["Autorizados", "Respondidos"],
-                        y=[total_auth, total_resp],
-                        marker_color=["#282C5B", "#5A9F62"],
-                        text=[str(total_auth), str(total_resp)],
-                        textposition="outside",
-                        width=0.4,
-                    ))
-                    fig_ades.update_layout(
-                        yaxis=dict(title="Quantidade", range=[0, max(total_auth, 1) * 1.2]),
-                        xaxis=dict(title=""),
-                        plot_bgcolor="white",
-                        margin=dict(t=20, b=20, l=40, r=40),
-                        height=260,
-                        showlegend=False,
-                    )
-                    st.plotly_chart(fig_ades, use_container_width=True)
-                except ImportError:
-                    df_chart = pd.DataFrame({"Questionários": {"Autorizados": total_auth, "Respondidos": total_resp}})
-                    st.bar_chart(df_chart, use_container_width=True, height=260)
-
-                st.divider()
-
-                # Médias por dimensão — gráfico de barras coloridas
-                cols_media = [c for c in df_res.columns if c.startswith('Media_') and c != 'Media_Geral']
-                if cols_media:
-                    _bloco_grafico_dimensoes(df_res, cols_media, key_prefix="admin")
-
-                st.divider()
-                st.subheader("Histórico de Respostas")
-                colunas_exibir = [c for c in df_res.columns if c != 'CPF_Hash']
-                st.dataframe(df_res[colunas_exibir], use_container_width=True)
-
-                csv_res = df_res[colunas_exibir].to_csv(index=False, sep=';', encoding='utf-8-sig')
-                st.download_button(
-                    "⬇️ Baixar resultados (.csv)",
-                    csv_res, f"resultados_{cnpj_cod}.csv", "text/csv"
-                )
-
-                # ── Gerar AEP-RP em PDF ───────────────────────────────────────
-                st.divider()
-                st.subheader("📄 Gerar AEP-RP em PDF")
-
-                if not LAUDO_DISPONIVEL:
-                    st.error("Módulo `gerar_laudo.py` não encontrado na pasta do projeto.")
-                elif cols_media:
-                    # Carrega CNAE e Grau de Risco do cadastro da empresa
-                    df_acessos_res = db.carregar_acessos()
-                    _row_emp = df_acessos_res[df_acessos_res['CNPJ'] == cnpj_cod]
-                    if not _row_emp.empty:
-                        _r = _row_emp.iloc[0]
-                        _cnae_default = str(_r.get('CNAE', _r.get('cnae', ''))).strip()
-                        _grau_default = str(_r.get('Grau_Risco', _r.get('grau_risco', ''))).strip()
+                                except Exception as e:
+                                    st.error(f"Erro ao gerar imagem: {e}")
                     else:
-                        _cnae_default, _grau_default = '', ''
+                        st.warning("Módulo de compartilhamento não disponível. Verifique se `qrcode` e `Pillow` estão instalados.")
 
-                    st.caption(f"CNAE Principal: **{_cnae_default or '—'}** | Grau de Risco: **{_grau_default or '—'}** "
-                                "(dados do cadastro da empresa)")
+                df_res = db.carregar_respostas(cnpj_cod)
+                if not df_res.empty:
 
-                    if st.button("📄 Gerar AEP-RP em PDF", type="primary", use_container_width=True):
-                        with st.spinner("Gerando laudo..."):
-                            nome_empresa   = empresa_sel.split(" — CNPJ:")[0].strip()
-                            df_num_laudo   = df_res[cols_media].apply(pd.to_numeric, errors='coerce')
-                            medias_laudo   = df_num_laudo.mean().to_dict()
-                            medias_dim     = {}
-                            for col, val in medias_laudo.items():
-                                nome_dim = col.replace("Media_", "")
-                                dim_key  = f"Dim_{nome_dim}"
-                                medias_dim[dim_key] = round(4.0 - val, 2) if nome_dim.lower() in _DIMS_INV_LOWER else val
+                    total_auth = len(df_acessos[df_acessos['CNPJ'] == cnpj_cod])
+                    total_resp = len(df_res)
+                    pct        = round((total_resp / total_auth) * 100, 1) if total_auth > 0 else 0
 
-                            _cnae_final = _cnae_default if _cnae_default else "—"
-                            _grau_final = _grau_default if _grau_default else "—"
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("CPFs Autorizados",   total_auth)
+                    c2.metric("Respostas Recebidas", total_resp)
+                    c3.metric("Taxa de Adesão",      f"{pct}%")
 
-                            dados_emp = {
-                                "Empresa":    nome_empresa,
-                                "CNPJ":       cnpj_cod,
-                                "CNAE":       _cnae_final,
-                                "Grau_Risco": _grau_final,
-                            }
-                            logo_path = "logo_sstg.png" if os.path.exists("logo_sstg.png") else None
-                            try:
-                                pdf_bytes = gerar_laudo_pdf(
-                                    dados_empresa=dados_emp,
-                                    medias_por_dim=medias_dim,
-                                    total_respondentes=total_resp,
-                                    logo_path=logo_path,
-                                    total_autorizados=total_auth,
-                                )
-                                st.success("AEP-RP gerado com sucesso!")
-                                st.download_button(
-                                    "⬇️ Baixar AEP-RP PDF",
-                                    pdf_bytes,
-                                    f"AEP-RP_{cnpj_cod}_{datetime.now().strftime('%d-%m-%Y')}.pdf",
-                                    "application/pdf",
-                                    use_container_width=True,
-                                )
-                            except Exception as e:
-                                st.error(f"Erro ao gerar o laudo: {e}")
+                    # Gráfico de adesão
+                    st.subheader("📊 Adesão ao Questionário")
+                    try:
+                        import plotly.graph_objects as go
+                        fig_ades = go.Figure(go.Bar(
+                            x=["Autorizados", "Respondidos"],
+                            y=[total_auth, total_resp],
+                            marker_color=["#282C5B", "#5A9F62"],
+                            text=[str(total_auth), str(total_resp)],
+                            textposition="outside",
+                            width=0.4,
+                        ))
+                        fig_ades.update_layout(
+                            yaxis=dict(title="Quantidade", range=[0, max(total_auth, 1) * 1.2]),
+                            xaxis=dict(title=""),
+                            plot_bgcolor="white",
+                            margin=dict(t=20, b=20, l=40, r=40),
+                            height=260,
+                            showlegend=False,
+                        )
+                        st.plotly_chart(fig_ades, use_container_width=True)
+                    except ImportError:
+                        df_chart = pd.DataFrame({"Questionários": {"Autorizados": total_auth, "Respondidos": total_resp}})
+                        st.bar_chart(df_chart, use_container_width=True, height=260)
+
+                    st.divider()
+
+                    # Médias por dimensão — gráfico de barras coloridas
+                    cols_media = [c for c in df_res.columns if c.startswith('Media_') and c != 'Media_Geral']
+                    if cols_media:
+                        _bloco_grafico_dimensoes(df_res, cols_media, key_prefix="admin")
+
+                    st.divider()
+                    st.subheader("Histórico de Respostas")
+                    colunas_exibir = [c for c in df_res.columns if c != 'CPF_Hash']
+                    st.dataframe(df_res[colunas_exibir], use_container_width=True)
+
+                    csv_res = df_res[colunas_exibir].to_csv(index=False, sep=';', encoding='utf-8-sig')
+                    st.download_button(
+                        "⬇️ Baixar resultados (.csv)",
+                        csv_res, f"resultados_{cnpj_cod}.csv", "text/csv"
+                    )
+
+                    # ── Gerar AEP-RP em PDF ───────────────────────────────────────
+                    st.divider()
+                    st.subheader("📄 Gerar AEP-RP em PDF")
+
+                    if not LAUDO_DISPONIVEL:
+                        st.error("Módulo `gerar_laudo.py` não encontrado na pasta do projeto.")
+                    elif cols_media:
+                        # Carrega CNAE e Grau de Risco do cadastro da empresa
+                        df_acessos_res = db.carregar_acessos()
+                        _row_emp = df_acessos_res[df_acessos_res['CNPJ'] == cnpj_cod]
+                        if not _row_emp.empty:
+                            _r = _row_emp.iloc[0]
+                            _cnae_default = str(_r.get('CNAE', _r.get('cnae', ''))).strip()
+                            _grau_default = str(_r.get('Grau_Risco', _r.get('grau_risco', ''))).strip()
+                        else:
+                            _cnae_default, _grau_default = '', ''
+
+                        st.caption(f"CNAE Principal: **{_cnae_default or '—'}** | Grau de Risco: **{_grau_default or '—'}** "
+                                    "(dados do cadastro da empresa)")
+
+                        if st.button("📄 Gerar AEP-RP em PDF", type="primary", use_container_width=True):
+                            with st.spinner("Gerando laudo..."):
+                                nome_empresa   = empresa_sel.split(" — CNPJ:")[0].strip()
+                                df_num_laudo   = df_res[cols_media].apply(pd.to_numeric, errors='coerce')
+                                medias_laudo   = df_num_laudo.mean().to_dict()
+                                medias_dim     = {}
+                                for col, val in medias_laudo.items():
+                                    nome_dim = col.replace("Media_", "")
+                                    dim_key  = f"Dim_{nome_dim}"
+                                    medias_dim[dim_key] = round(4.0 - val, 2) if nome_dim.lower() in _DIMS_INV_LOWER else val
+
+                                _cnae_final = _cnae_default if _cnae_default else "—"
+                                _grau_final = _grau_default if _grau_default else "—"
+
+                                dados_emp = {
+                                    "Empresa":    nome_empresa,
+                                    "CNPJ":       cnpj_cod,
+                                    "CNAE":       _cnae_final,
+                                    "Grau_Risco": _grau_final,
+                                }
+                                logo_path = "logo_sstg.png" if os.path.exists("logo_sstg.png") else None
+                                try:
+                                    pdf_bytes = gerar_laudo_pdf(
+                                        dados_empresa=dados_emp,
+                                        medias_por_dim=medias_dim,
+                                        total_respondentes=total_resp,
+                                        logo_path=logo_path,
+                                        total_autorizados=total_auth,
+                                    )
+                                    st.success("AEP-RP gerado com sucesso!")
+                                    st.download_button(
+                                        "⬇️ Baixar AEP-RP PDF",
+                                        pdf_bytes,
+                                        f"AEP-RP_{cnpj_cod}_{datetime.now().strftime('%d-%m-%Y')}.pdf",
+                                        "application/pdf",
+                                        use_container_width=True,
+                                    )
+                                except Exception as e:
+                                    st.error(f"Erro ao gerar o laudo: {e}")
+                    else:
+                        st.warning("Sem dados de médias por dimensão. Verifique se há respostas registradas.")
+
                 else:
-                    st.warning("Sem dados de médias por dimensão. Verifique se há respostas registradas.")
-
-            else:
-                st.info("Nenhuma resposta registrada ainda para esta empresa.")
+                    st.info("Nenhuma resposta registrada ainda para esta empresa.")
         else:
             st.info("Nenhuma empresa cadastrada. Faça o cadastro primeiro.")
 
@@ -1893,46 +1907,49 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 empresas_mov = df_mov.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
                     lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
                 ).tolist()
-                empresa_adm  = st.selectbox("Empresa:", empresas_mov, key="emp_adm")
-                cnpj_adm     = empresa_adm.split("CNPJ: ")[-1]
-                ref_adm      = df_mov[df_mov['CNPJ'] == cnpj_adm].iloc[0]
+                empresa_adm  = st.selectbox("Empresa:", empresas_mov, key="emp_adm", index=None, placeholder="Digite o nome da empresa...")
+                if not empresa_adm:
+                    st.info("👆 Digite ou selecione a empresa para continuar.")
+                else:
+                    cnpj_adm     = empresa_adm.split("CNPJ: ")[-1]
+                    ref_adm      = df_mov[df_mov['CNPJ'] == cnpj_adm].iloc[0]
 
-                st.caption("Preencha CPF, Função e Departamento dos novos colaboradores.")
-                df_adm_vazio = pd.DataFrame({
-                    "CPF":          pd.Series(dtype=str),
-                    "Função":       pd.Series(dtype=str),
-                    "Departamento": pd.Series(dtype=str),
-                })
-                df_adm_edit = st.data_editor(
-                    df_adm_vazio,
-                    num_rows="dynamic",
-                    column_config={
-                        "CPF":          st.column_config.TextColumn("CPF (11 dígitos)", required=True, max_chars=14),
-                        "Função":       st.column_config.TextColumn("Função / Cargo"),
-                        "Departamento": st.column_config.TextColumn("Departamento / Setor"),
-                    },
-                    use_container_width=True,
-                    key="tabela_adm"
-                )
+                    st.caption("Preencha CPF, Função e Departamento dos novos colaboradores.")
+                    df_adm_vazio = pd.DataFrame({
+                        "CPF":          pd.Series(dtype=str),
+                        "Função":       pd.Series(dtype=str),
+                        "Departamento": pd.Series(dtype=str),
+                    })
+                    df_adm_edit = st.data_editor(
+                        df_adm_vazio,
+                        num_rows="dynamic",
+                        column_config={
+                            "CPF":          st.column_config.TextColumn("CPF (11 dígitos)", required=True, max_chars=14),
+                            "Função":       st.column_config.TextColumn("Função / Cargo"),
+                            "Departamento": st.column_config.TextColumn("Departamento / Setor"),
+                        },
+                        use_container_width=True,
+                        key="tabela_adm"
+                    )
 
-                if st.button("➕ INCLUIR COLABORADORES", use_container_width=True, key="btn_adm"):
-                    colaboradores_adm = df_adm_edit.dropna(subset=["CPF"]).to_dict('records')
-                    if not colaboradores_adm:
-                        st.error("Adicione ao menos um colaborador na tabela.")
-                    else:
-                        dados_adm = {
-                            "CNPJ":        cnpj_adm,
-                            "Razão Social": ref_adm['Empresa'],
-                            "Data_Inicio": ref_adm.get('Data_Inicio_Periodo', ''),
-                            "Data_Fim":    ref_adm.get('Data_Fim_Periodo', ''),
-                        }
-                        novos, duplicados, invalidos = salvar_cadastro_completo(dados_adm, colaboradores_adm)
-                        if novos:
-                            st.success(f"✅ {len(novos)} colaborador(es) incluído(s).")
-                        if duplicados:
-                            st.warning(f"⚠️ Já cadastrados: {', '.join(duplicados)}")
-                        if invalidos:
-                            st.error(f"❌ CPFs inválidos: {', '.join(invalidos)}")
+                    if st.button("➕ INCLUIR COLABORADORES", use_container_width=True, key="btn_adm"):
+                        colaboradores_adm = df_adm_edit.dropna(subset=["CPF"]).to_dict('records')
+                        if not colaboradores_adm:
+                            st.error("Adicione ao menos um colaborador na tabela.")
+                        else:
+                            dados_adm = {
+                                "CNPJ":        cnpj_adm,
+                                "Razão Social": ref_adm['Empresa'],
+                                "Data_Inicio": ref_adm.get('Data_Inicio_Periodo', ''),
+                                "Data_Fim":    ref_adm.get('Data_Fim_Periodo', ''),
+                            }
+                            novos, duplicados, invalidos = salvar_cadastro_completo(dados_adm, colaboradores_adm)
+                            if novos:
+                                st.success(f"✅ {len(novos)} colaborador(es) incluído(s).")
+                            if duplicados:
+                                st.warning(f"⚠️ Já cadastrados: {', '.join(duplicados)}")
+                            if invalidos:
+                                st.error(f"❌ CPFs inválidos: {', '.join(invalidos)}")
 
             # ── DESLIGAMENTO ─────────────────────────────────────────────────
             with m2:
@@ -2029,24 +2046,27 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 empresas_exc = df_mov.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
                     lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
                 ).tolist()
-                empresa_exc = st.selectbox("Empresa:", empresas_exc, key="emp_exc")
-                cnpj_exc    = empresa_exc.split("CNPJ: ")[-1]
+                empresa_exc = st.selectbox("Empresa:", empresas_exc, key="emp_exc", index=None, placeholder="Digite o nome da empresa...")
+                if not empresa_exc:
+                    st.info("👆 Digite ou selecione a empresa para continuar.")
+                else:
+                    cnpj_exc    = empresa_exc.split("CNPJ: ")[-1]
 
-                cpf_exc = st.text_input("CPF do colaborador a excluir (somente números):", max_chars=11, key="cpf_exc")
+                    cpf_exc = st.text_input("CPF do colaborador a excluir (somente números):", max_chars=11, key="cpf_exc")
 
-                if cpf_exc and len(cpf_exc) == 11:
-                    reg_exc = df_mov[(df_mov['CPF'] == cpf_exc) & (df_mov['CNPJ'] == cnpj_exc)]
-                    if not reg_exc.empty:
-                        r = reg_exc.iloc[0]
-                        st.warning(f"Colaborador encontrado: **{r.get('Função','—')}** | Depto: **{r.get('Departamento','—')}** | Status: **{r.get('Status','Ativo')}**")
-                        confirmar = st.checkbox(f"Confirmo a exclusão definitiva do CPF `{cpf_exc}` desta empresa.", key="chk_exc")
-                        if st.button("🗑️ EXCLUIR COLABORADOR", use_container_width=True, key="btn_exc", type="primary", disabled=not confirmar):
-                            cpf_e = cpf_exc.strip().replace(".", "").replace("-", "")
-                            db.deletar_acesso_cpf(cpf_e, cnpj_exc)
-                            st.success(f"✅ CPF {cpf_exc} removido com sucesso da empresa.")
-                            st.rerun()
-                    else:
-                        st.warning("CPF não encontrado nesta empresa.")
+                    if cpf_exc and len(cpf_exc) == 11:
+                        reg_exc = df_mov[(df_mov['CPF'] == cpf_exc) & (df_mov['CNPJ'] == cnpj_exc)]
+                        if not reg_exc.empty:
+                            r = reg_exc.iloc[0]
+                            st.warning(f"Colaborador encontrado: **{r.get('Função','—')}** | Depto: **{r.get('Departamento','—')}** | Status: **{r.get('Status','Ativo')}**")
+                            confirmar = st.checkbox(f"Confirmo a exclusão definitiva do CPF `{cpf_exc}` desta empresa.", key="chk_exc")
+                            if st.button("🗑️ EXCLUIR COLABORADOR", use_container_width=True, key="btn_exc", type="primary", disabled=not confirmar):
+                                cpf_e = cpf_exc.strip().replace(".", "").replace("-", "")
+                                db.deletar_acesso_cpf(cpf_e, cnpj_exc)
+                                st.success(f"✅ CPF {cpf_exc} removido com sucesso da empresa.")
+                                st.rerun()
+                        else:
+                            st.warning("CPF não encontrado nesta empresa.")
 
     # ── ABA 5: SEGURANÇA E ACESSO RH ──────────────────────────────────────────
     with t5:
@@ -2061,31 +2081,34 @@ if menu == "🔐 Admin SSTG (Gestão)":
                 lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
             ).tolist()
 
-            empresa_sel = st.selectbox("Selecione a empresa para gerar nova senha RH:", empresas_unicas, key="seg_empresa_sel")
-            cnpj_cod = empresa_sel.split("CNPJ: ")[-1]
-            nome_empresa = empresa_sel.split(" — CNPJ:")[0].strip()
+            empresa_sel = st.selectbox("Selecione a empresa para gerar nova senha RH:", empresas_unicas, key="seg_empresa_sel", index=None, placeholder="Digite o nome da empresa...")
+            if not empresa_sel:
+                st.info("👆 Digite ou selecione a empresa para continuar.")
+            else:
+                cnpj_cod = empresa_sel.split("CNPJ: ")[-1]
+                nome_empresa = empresa_sel.split(" — CNPJ:")[0].strip()
 
-            st.divider()
+                st.divider()
 
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                st.write(f"**Empresa:** {nome_empresa}")
-                st.write(f"**CNPJ:** {cnpj_cod}")
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    st.write(f"**Empresa:** {nome_empresa}")
+                    st.write(f"**CNPJ:** {cnpj_cod}")
 
-            with col2:
-                if st.button("🔐 Gerar Nova Senha RH", use_container_width=True, key="btn_gerar_senha"):
-                    # Gerar nova senha
-                    nova_senha = gerar_senha_rh()
+                with col2:
+                    if st.button("🔐 Gerar Nova Senha RH", use_container_width=True, key="btn_gerar_senha"):
+                        # Gerar nova senha
+                        nova_senha = gerar_senha_rh()
 
-                    db.atualizar_acessos_por_cnpj(cnpj_cod, {"Senha_RH_Hash": hash_senha(nova_senha)})
+                        db.atualizar_acessos_por_cnpj(cnpj_cod, {"Senha_RH_Hash": hash_senha(nova_senha)})
 
-                    st.success("✅ Nova senha gerada com sucesso!")
-                    st.divider()
+                        st.success("✅ Nova senha gerada com sucesso!")
+                        st.divider()
 
-                    st.subheader("🔐 Credenciais Atualizadas")
-                    st.info(f"Empresa: **{nome_empresa}**\nCNPJ: **{cnpj_cod}**")
-                    st.code(f"Nova Senha de Acesso RH: {nova_senha}", language=None)
-                    st.warning("⚠️ **Anote esta senha com segurança!** Compartilhe-a com o RH da empresa. Esta é a única vez que ela será exibida.")
+                        st.subheader("🔐 Credenciais Atualizadas")
+                        st.info(f"Empresa: **{nome_empresa}**\nCNPJ: **{cnpj_cod}**")
+                        st.code(f"Nova Senha de Acesso RH: {nova_senha}", language=None)
+                        st.warning("⚠️ **Anote esta senha com segurança!** Compartilhe-a com o RH da empresa. Esta é a única vez que ela será exibida.")
 
         else:
             st.info("Nenhuma empresa cadastrada no sistema.")
@@ -2342,20 +2365,23 @@ if menu == "🔐 Admin SSTG (Gestão)":
             opcoes_empresa_aep = df_acessos_aep.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
                 lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
             ).tolist()
-            empresa_sel_aep = st.selectbox("Selecione a empresa:", opcoes_empresa_aep, key="aep_admin_empresa_sel")
-            cnpj_cod_aep    = empresa_sel_aep.split("CNPJ: ")[-1]
-            nome_empresa_aep = empresa_sel_aep.split(" — CNPJ:")[0].strip()
+            empresa_sel_aep = st.selectbox("Selecione a empresa:", opcoes_empresa_aep, key="aep_admin_empresa_sel", index=None, placeholder="Digite o nome da empresa...")
+            if not empresa_sel_aep:
+                st.info("👆 Digite ou selecione a empresa para continuar.")
+            else:
+                cnpj_cod_aep    = empresa_sel_aep.split("CNPJ: ")[-1]
+                nome_empresa_aep = empresa_sel_aep.split(" — CNPJ:")[0].strip()
 
-            with st.expander("🔗 Link do Questionário AEP para esta empresa"):
-                link_emp_aep = f"{QUEST_AEP_URL}?cnpj={cnpj_cod_aep}"
-                st.code(link_emp_aep, language=None)
-                st.caption(
-                    "Copie e envie este link para o RH da empresa repassar aos colaboradores responderem "
-                    "a Avaliação Ergonômica (AEP). No app, selecione o módulo '🦴 Questionário Ergonômico (AEP)'."
-                )
+                with st.expander("🔗 Link do Questionário AEP para esta empresa"):
+                    link_emp_aep = f"{QUEST_AEP_URL}?cnpj={cnpj_cod_aep}"
+                    st.code(link_emp_aep, language=None)
+                    st.caption(
+                        "Copie e envie este link para o RH da empresa repassar aos colaboradores responderem "
+                        "a Avaliação Ergonômica (AEP). No app, selecione o módulo '🦴 Questionário Ergonômico (AEP)'."
+                    )
 
-            total_auth_aep = len(df_acessos_aep[df_acessos_aep['CNPJ'] == cnpj_cod_aep])
-            _bloco_resultados_aep(cnpj_cod_aep, total_auth_aep, key_prefix="admin", empresa_nome=nome_empresa_aep, mostrar_laudo=True)
+                total_auth_aep = len(df_acessos_aep[df_acessos_aep['CNPJ'] == cnpj_cod_aep])
+                _bloco_resultados_aep(cnpj_cod_aep, total_auth_aep, key_prefix="admin", empresa_nome=nome_empresa_aep, mostrar_laudo=True)
         else:
             st.info("Nenhuma empresa cadastrada. Faça o cadastro primeiro.")
 

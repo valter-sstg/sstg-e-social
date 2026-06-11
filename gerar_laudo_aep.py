@@ -308,14 +308,17 @@ def build_inventario_aep(st, inventario):
     el.append(_titulo_secao("5. Inventário de Riscos Ergonômicos", st))
     el.append(Paragraph(
         "A tabela a seguir consolida, para cada fator de risco avaliado, o percentual de respostas que "
-        "indicaram a presença do risco, a Severidade, a Probabilidade e o Grau de Risco (GR) resultante.",
+        "indicaram a presença do risco, a Severidade, a Probabilidade e o Grau de Risco (GR) resultante. "
+        "A coluna “Plano?” indica, com “SIM”, os riscos classificados como Alto ou Crítico, cujas medidas "
+        "de controle recebem destaque prioritário no Plano de Ação (Seção 6.2).",
         st['body']))
     el.append(Spacer(1, 0.15*cm))
 
-    cab = ["Nº", "Risco Identificado", "% Risco", "Sev.", "Prob.", "GR", "Classificação"]
+    cab = ["Nº", "Risco Identificado", "% Risco", "Sev.", "Prob.", "GR", "Classificação", "Plano?"]
     dados = [cab]
     cores_linhas = []
     for item in inventario:
+        plano = item.get("Plano?", "SIM" if item["Classificação"] in ("Alto", "Crítico") else "NÃO")
         dados.append([
             str(item["Nº"]),
             Paragraph(item["Risco Identificado"], st['table_cell']),
@@ -324,10 +327,11 @@ def build_inventario_aep(st, inventario):
             f"{item['Probabilidade']:.2f}",
             f"{item['GR']:.1f}",
             item["Classificação"],
+            plano,
         ])
         cores_linhas.append(colors.HexColor(item["Cor"]))
 
-    t = Table(dados, colWidths=[1*cm, 8.5*cm, 1.8*cm, 1.5*cm, 1.5*cm, 1.3*cm, 3.4*cm], repeatRows=1)
+    t = Table(dados, colWidths=[1*cm, 7.4*cm, 1.8*cm, 1.5*cm, 1.5*cm, 1.3*cm, 3.2*cm, 1.3*cm], repeatRows=1)
     estilo = [
         ('BACKGROUND', (0, 0), (-1, 0), C_AZUL),
         ('TEXTCOLOR', (0, 0), (-1, 0), C_BRANCO),
@@ -341,9 +345,10 @@ def build_inventario_aep(st, inventario):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]
     for i, cor in enumerate(cores_linhas, start=1):
-        estilo.append(('BACKGROUND', (-1, i), (-1, i), cor))
-        estilo.append(('TEXTCOLOR', (-1, i), (-1, i), C_BRANCO))
-        estilo.append(('FONTNAME', (-1, i), (-1, i), 'Helvetica-Bold'))
+        estilo.append(('BACKGROUND', (6, i), (6, i), cor))
+        estilo.append(('TEXTCOLOR', (6, i), (6, i), C_BRANCO))
+        estilo.append(('FONTNAME', (6, i), (6, i), 'Helvetica-Bold'))
+        estilo.append(('FONTNAME', (7, i), (7, i), 'Helvetica-Bold'))
     t.setStyle(TableStyle(estilo))
     el.append(t)
     return el
@@ -378,18 +383,22 @@ def build_plano_acao_aep(st, inventario):
         cab = ["Risco Identificado", "GR", "Classif.", "Medida de Controle Recomendada", "Prazo"]
         dados = [cab]
         cores_linhas = []
+        destaques = []
         for item in riscos_relevantes:
             info = ACAO_POR_CLASSIFICACAO[item["Classificação"]]
             acao = info["acao"]
             prazo = info["prazo"]
+            destaque = item["Classificação"] in ("Alto", "Crítico")
+            nome_risco = f"<b>{item['Risco Identificado']}</b>" if destaque else item["Risco Identificado"]
             dados.append([
-                Paragraph(item["Risco Identificado"], st['table_cell']),
+                Paragraph(nome_risco, st['table_cell']),
                 f"{item['GR']:.1f}",
                 item["Classificação"],
                 Paragraph(acao, st['table_cell']),
                 prazo,
             ])
             cores_linhas.append(colors.HexColor(item["Cor"]))
+            destaques.append(destaque)
         t = Table(dados, colWidths=[5.5*cm, 1.3*cm, 2.2*cm, 7.5*cm, 2*cm], repeatRows=1)
         estilo = [
             ('BACKGROUND', (0, 0), (-1, 0), C_AZUL),
@@ -403,12 +412,19 @@ def build_plano_acao_aep(st, inventario):
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
         ]
-        for i, cor in enumerate(cores_linhas, start=1):
+        for i, (cor, destaque) in enumerate(zip(cores_linhas, destaques), start=1):
+            if destaque:
+                estilo.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor('#FDF0E7')))
             estilo.append(('BACKGROUND', (2, i), (2, i), cor))
             estilo.append(('TEXTCOLOR', (2, i), (2, i), C_BRANCO))
             estilo.append(('FONTNAME', (2, i), (2, i), 'Helvetica-Bold'))
         t.setStyle(TableStyle(estilo))
         el.append(t)
+        el.append(Spacer(1, 0.15*cm))
+        el.append(Paragraph(
+            "As linhas destacadas correspondem aos riscos com indicação “SIM” na coluna “Plano?” do "
+            "Inventário (classificação Alto ou Crítico), prioritários para a execução das medidas de controle.",
+            st['body']))
 
     el.append(Spacer(1, 0.2*cm))
     el.append(Paragraph(
