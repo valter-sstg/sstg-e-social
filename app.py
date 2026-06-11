@@ -840,10 +840,10 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
 
     if mostrar_laudo:
         st.divider()
-        st.subheader("📄 Gerar Laudo AEP (NR-17) em PDF")
+        st.subheader("📄 Gerar Laudo DRE em PDF")
         if not LAUDO_AEP_DISPONIVEL:
             st.error("Módulo `gerar_laudo_aep.py` não encontrado na pasta do projeto.")
-        elif st.button("📄 Gerar Laudo AEP em PDF", type="primary", use_container_width=True, key=f"{key_prefix}_btn_laudo_aep"):
+        elif st.button("📄 Gerar Laudo DRE em PDF", type="primary", use_container_width=True, key=f"{key_prefix}_btn_laudo_aep"):
             with st.spinner("Gerando laudo..."):
                 dados_emp = {"Empresa": empresa_nome, "CNPJ": cnpj_cod, "Grau_Risco": grau_risco_emp or "—"}
                 logo_path = "logo_sstg.png" if os.path.exists("logo_sstg.png") else None
@@ -860,11 +860,12 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
                         relatos=relatos,
                         logo_path=logo_path,
                     )
-                    st.success("Laudo AEP gerado com sucesso!")
+                    db.registrar_laudo(cnpj_cod, "DRE")
+                    st.success("Laudo DRE gerado com sucesso!")
                     st.download_button(
-                        "⬇️ Baixar Laudo AEP PDF",
+                        "⬇️ Baixar Laudo DRE PDF",
                         pdf_bytes,
-                        f"Laudo_AEP_{cnpj_cod}_{datetime.now().strftime('%d-%m-%Y')}.pdf",
+                        f"Laudo_DRE_{cnpj_cod}_{datetime.now().strftime('%d-%m-%Y')}.pdf",
                         "application/pdf",
                         use_container_width=True,
                         key=f"{key_prefix}_download_laudo_aep",
@@ -877,7 +878,7 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
 db.ping()  # acorda o banco apos hibernacao (free tier)
 
 st.set_page_config(
-    page_title="SSTG - DRPS AEP-RP Diagnóstico de Riscos Psicossociais e Ergonômicos (NR-1 / NR-17)",
+    page_title="DRE - DRPS | Gestão integrada de riscos ergonômicos e psicossociais (NR-1 / NR-17)",
     layout="wide",
     page_icon="🧠"
 )
@@ -924,7 +925,7 @@ with st.sidebar:
         st.markdown("""
             <div style="text-align:center; padding: 0 0 10px 0;">
                 <span style="font-size:1.1em; font-weight:800; color:white; letter-spacing:1px;">
-                    DRPS AEP-RP
+                    DRE - DRPS
                 </span>
             </div>
         """, unsafe_allow_html=True)
@@ -938,29 +939,143 @@ with st.sidebar:
                     GESTÃO OCUPACIONAL
                 </span><br>
                 <span style="font-size:1.1em; font-weight:800; color:white; letter-spacing:1px; margin-top:8px; display:block;">
-                    DRPS AEP-RP
+                    DRE - DRPS
                 </span>
             </div>
         """, unsafe_allow_html=True)
     st.markdown("<hr>", unsafe_allow_html=True)
     _opcoes_menu = [
-        "📋 Questionário Psicossocial",
-        "🦴 Questionário Ergonômico (AEP)",
+        "🏠 Início",
+        "📝 Questionários DRE-DRPS",
         "📊 Gestão das Respostas (RH)",
         "🔐 Admin SSTG (Gestão)"
     ]
-    _idx_menu = 1 if st.query_params.get("modulo", "") == "aep" else 0
+    # Links dos questionários chegam com ?modulo=aep (DRE) ou ?cnpj=... (DRPS):
+    # nesses casos o app abre direto no módulo de questionários, não na tela inicial.
+    _param_modulo = st.query_params.get("modulo", "")
+    _param_cnpj   = st.query_params.get("cnpj", "")
+    _idx_menu = 1 if (_param_modulo == "aep" or _param_cnpj) else 0
     menu = st.radio("Módulo:", _opcoes_menu, index=_idx_menu)
+    if menu == "📝 Questionários DRE-DRPS":
+        _sub_quest = st.radio(
+            "Questionário:",
+            ["📋 Psicossocial (DRPS)", "🦴 Ergonômico (DRE)"],
+            index=1 if _param_modulo == "aep" else 0,
+        )
+        # Mantém os valores internos antigos para o despacho dos módulos abaixo
+        menu = ("🦴 Questionário Ergonômico (AEP)" if "(DRE)" in _sub_quest
+                else "📋 Questionário Psicossocial")
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown(
-        "<p style='font-size:0.7em; opacity:0.5; text-align:center;'>v7.0 — DRPS AEP-RP<br>COPSOQ III + NR-17</p>",
+        "<p style='font-size:0.7em; opacity:0.5; text-align:center;'>v8.0 — DRE - DRPS<br>COPSOQ III + NR-17</p>",
         unsafe_allow_html=True
     )
 
 # =============================================================================
+# MÓDULO INÍCIO (TELA DE ABERTURA / DASHBOARD)
+# =============================================================================
+if menu == "🏠 Início":
+    st.markdown("""
+        <div style="background:#282C5B; border-radius:18px; padding:40px 32px 32px 32px;
+                    text-align:center; margin-bottom:8px; box-shadow:0 8px 32px rgba(40,44,91,0.25);">
+            <h1 style="color:white !important; font-size:2.4em !important; margin:0 0 10px 0; letter-spacing:2px;">
+                DRE - DRPS</h1>
+            <p style="color:rgba(255,255,255,0.92); font-size:1.2em; margin:0 0 6px 0;">
+                Gestão integrada de riscos ergonômicos e psicossociais, do questionário ao PGR</p>
+            <p style="color:#9FD8A5; font-size:1.0em; font-weight:600; margin:0;">
+                Em atendimento à NR-01 e à NR-17</p>
+        </div>
+        <div style="height:6px; background:#5A9F62; border-radius:3px; margin-bottom:30px;"></div>
+    """, unsafe_allow_html=True)
+
+    # ── Indicadores acumulados ────────────────────────────────────────────────
+    df_ini = db.carregar_acessos()
+    n_cnpjs = df_ini['CNPJ'].nunique() if not df_ini.empty else 0
+    n_cpfs  = len(df_ini)
+    _datas_rp  = db.datas_respostas()
+    _datas_aep = db.datas_respostas_aep()
+    n_quest = len(_datas_rp) + len(_datas_aep)
+    _laudos = db.contar_laudos()
+    n_laudos = sum(_laudos.values())
+
+    def _card_kpi(col, cor, icone, valor, rotulo):
+        col.markdown(f"""
+            <div style="background:white; border-top:5px solid {cor}; border-radius:0 0 12px 12px;
+                        padding:16px 18px; box-shadow:0 2px 10px rgba(0,0,0,0.07); text-align:center;">
+                <div style="font-size:1.7em;">{icone}</div>
+                <div style="font-size:2.1em; font-weight:800; color:{cor}; line-height:1.2;">{valor}</div>
+                <div style="font-size:0.85em; color:#6B6966;">{rotulo}</div>
+            </div>""", unsafe_allow_html=True)
+
+    k1, k2, k3, k4 = st.columns(4)
+    _card_kpi(k1, "#282C5B", "🏢", n_cnpjs,  "CNPJs cadastrados")
+    _card_kpi(k2, "#4A90D9", "👥", n_cpfs,   "CPFs cadastrados")
+    _card_kpi(k3, "#5A9F62", "📋", n_quest,  "Questionários respondidos")
+    _card_kpi(k4, "#DC3B24", "📄", n_laudos, "Laudos gerados")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.divider()
+
+    # ── Gráficos (acumulados) ─────────────────────────────────────────────────
+    import plotly.graph_objects as go
+
+    g1, g2 = st.columns([3, 2])
+
+    with g1:
+        st.markdown("##### 📈 Evolução acumulada — questionários respondidos")
+        # Datas no banco em dois formatos: "dd/mm/aaaa HH:MM" (DRPS) e "aaaa-mm-dd" (DRE)
+        _s_raw = pd.Series(_datas_rp + _datas_aep, dtype="object").astype(str)
+        _d_brh = pd.to_datetime(_s_raw, format="%d/%m/%Y %H:%M", errors="coerce")
+        _d_br  = pd.to_datetime(_s_raw, format="%d/%m/%Y", errors="coerce")
+        _d_iso = pd.to_datetime(_s_raw, format="%Y-%m-%d", errors="coerce")
+        _serie_datas = _d_brh.fillna(_d_br).fillna(_d_iso).dropna()
+        if _serie_datas.empty:
+            st.info("Ainda não há respostas registradas.")
+        else:
+            _por_mes = _serie_datas.dt.to_period("M").value_counts().sort_index()
+            _acum = _por_mes.cumsum()
+            _labels = [p.strftime("%m/%Y") for p in _acum.index]
+            fig_acum = go.Figure(go.Bar(
+                x=_labels, y=_acum.values,
+                marker_color="#5A9F62",
+                text=_acum.values, textposition="outside",
+            ))
+            fig_acum.update_layout(
+                height=320, margin=dict(l=10, r=10, t=20, b=10),
+                yaxis_title=None, xaxis_title=None,
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                yaxis=dict(rangemode="tozero"),
+            )
+            st.plotly_chart(fig_acum, use_container_width=True, key="ini_graf_acum")
+
+    with g2:
+        st.markdown("##### 📄 Laudos gerados")
+        _qt_drps = _laudos.get("DRPS", 0)
+        _qt_dre  = _laudos.get("DRE", 0)
+        if _qt_drps + _qt_dre == 0:
+            st.info("Nenhum laudo registrado ainda. A contagem inicia a partir desta versão.")
+        else:
+            fig_laudos = go.Figure(go.Bar(
+                y=["DRPS", "DRE"], x=[_qt_drps, _qt_dre],
+                orientation="h",
+                marker_color=["#282C5B", "#DC3B24"],
+                text=[_qt_drps, _qt_dre], textposition="outside",
+            ))
+            fig_laudos.update_layout(
+                height=320, margin=dict(l=10, r=10, t=20, b=10),
+                xaxis_title=None, yaxis_title=None,
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                xaxis=dict(rangemode="tozero"),
+            )
+            st.plotly_chart(fig_laudos, use_container_width=True, key="ini_graf_laudos")
+
+    st.caption("Indicadores acumulados desde o início da operação do sistema. "
+               "Selecione um módulo no menu lateral para começar.")
+
+# =============================================================================
 # MÓDULO ADMINISTRATIVO
 # =============================================================================
-if menu == "🔐 Admin SSTG (Gestão)":
+elif menu == "🔐 Admin SSTG (Gestão)":
 
     if 'admin_logado' not in st.session_state:
         st.session_state.admin_logado = False
@@ -1207,8 +1322,8 @@ if menu == "🔐 Admin SSTG (Gestão)":
     t1, t2, t3, t8, t4, t5, t6, t7 = st.tabs([
         "🆕 Cadastro / Inclusão",
         "📋 Conferência e Correção",
-        "📊 Resultados RP",
-        "🦴 Resultados AEP",
+        "📊 Resultados DRPS",
+        "🦴 Resultados DRE",
         "🔄 Movimentação de Pessoal",
         "🔐 Segurança e Acesso RH",
         "📚 Documentação",
@@ -1823,9 +1938,9 @@ if menu == "🔐 Admin SSTG (Gestão)":
                         csv_res, f"resultados_{cnpj_cod}.csv", "text/csv"
                     )
 
-                    # ── Gerar AEP-RP em PDF ───────────────────────────────────────
+                    # ── Gerar Laudo DRPS em PDF ───────────────────────────────────
                     st.divider()
-                    st.subheader("📄 Gerar AEP-RP em PDF")
+                    st.subheader("📄 Gerar Laudo DRPS em PDF")
 
                     if not LAUDO_DISPONIVEL:
                         st.error("Módulo `gerar_laudo.py` não encontrado na pasta do projeto.")
@@ -1843,7 +1958,7 @@ if menu == "🔐 Admin SSTG (Gestão)":
                         st.caption(f"CNAE Principal: **{_cnae_default or '—'}** | Grau de Risco: **{_grau_default or '—'}** "
                                     "(dados do cadastro da empresa)")
 
-                        if st.button("📄 Gerar AEP-RP em PDF", type="primary", use_container_width=True):
+                        if st.button("📄 Gerar Laudo DRPS em PDF", type="primary", use_container_width=True):
                             with st.spinner("Gerando laudo..."):
                                 nome_empresa   = empresa_sel.split(" — CNPJ:")[0].strip()
                                 df_num_laudo   = df_res[cols_media].apply(pd.to_numeric, errors='coerce')
@@ -1872,11 +1987,12 @@ if menu == "🔐 Admin SSTG (Gestão)":
                                         logo_path=logo_path,
                                         total_autorizados=total_auth,
                                     )
-                                    st.success("AEP-RP gerado com sucesso!")
+                                    db.registrar_laudo(cnpj_cod, "DRPS")
+                                    st.success("Laudo DRPS gerado com sucesso!")
                                     st.download_button(
-                                        "⬇️ Baixar AEP-RP PDF",
+                                        "⬇️ Baixar Laudo DRPS PDF",
                                         pdf_bytes,
-                                        f"AEP-RP_{cnpj_cod}_{datetime.now().strftime('%d-%m-%Y')}.pdf",
+                                        f"Laudo_DRPS_{cnpj_cod}_{datetime.now().strftime('%d-%m-%Y')}.pdf",
                                         "application/pdf",
                                         use_container_width=True,
                                     )

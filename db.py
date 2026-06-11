@@ -3,6 +3,7 @@ db.py - Camada de acesso ao Supabase (substitui armazenamento em CSV)
 Persistencia garantida independente de redeploys no Streamlit Cloud.
 """
 import unicodedata
+from datetime import datetime
 import pandas as pd
 import streamlit as st
 
@@ -211,6 +212,50 @@ def listar_cnpjs_com_respostas():
     if not res.data:
         return []
     return list({r["cnpj"] for r in res.data})
+
+
+def datas_respostas():
+    """Datas de todas as respostas do questionário psicossocial (para o dashboard)."""
+    sb = _get_sb()
+    res = sb.table("respostas").select("data").execute()
+    return [r["data"] for r in (res.data or []) if r.get("data")]
+
+
+def datas_respostas_aep():
+    """Datas de todas as respostas do questionário AEP (para o dashboard)."""
+    sb = _get_sb()
+    res = sb.table("respostas_aep").select("data").execute()
+    return [r["data"] for r in (res.data or []) if r.get("data")]
+
+
+def registrar_laudo(cnpj: str, tipo: str):
+    """Registra a geração de um laudo (tipo: 'DRPS' ou 'DRE') para o dashboard.
+    Falha silenciosamente se a tabela 'laudos' ainda não existir no Supabase,
+    para nunca impedir a geração do PDF."""
+    try:
+        sb = _get_sb()
+        sb.table("laudos").insert({
+            "cnpj": cnpj,
+            "tipo": tipo,
+            "data": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        }).execute()
+    except Exception:
+        pass
+
+
+def contar_laudos() -> dict:
+    """Retorna {'DRPS': n, 'DRE': m} com o total acumulado de laudos gerados.
+    Retorna vazio se a tabela 'laudos' ainda não existir."""
+    try:
+        sb = _get_sb()
+        res = sb.table("laudos").select("tipo").execute()
+        contagem = {}
+        for r in (res.data or []):
+            t = r.get("tipo", "")
+            contagem[t] = contagem.get(t, 0) + 1
+        return contagem
+    except Exception:
+        return {}
 
 
 def carregar_usuarios():
