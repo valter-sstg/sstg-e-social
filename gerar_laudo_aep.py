@@ -73,6 +73,97 @@ ACAO_POR_CLASSIFICACAO = {
 }
 
 
+# ===================== AÇÕES DE CONTROLE POR RISCO (pré-definidas pelo RT) =====================
+# Chave = nº do risco no inventário (1 a 17, mesma ordem das perguntas q1..q17)
+ACOES_CONTROLE_RT = {
+    1: [  # Postura estática — fadiga muscular / dor lombar / varizes
+        "Ajustar mobiliário para permitir alternância de postura (cadeiras reguláveis, mesas ajustáveis, apoios para os pés).",
+        "Introduzir pausas breves a cada 50–60 minutos para mudança de posição e alongamentos simples guiados (cartazes, vídeos rápidos).",
+        "Incentivar alternância entre tarefas sentadas e em pé (rodízio de posto ou mesas com regulagem de altura).",
+    ],
+    2: [  # Torção de tronco/pescoço — sobrecarga cervical e lombar / LER-DORT
+        "Reorganizar layout para que telas, documentos e materiais de uso frequente fiquem à frente do trabalhador, evitando rotações constantes de pescoço e tronco.",
+        "Usar suportes de monitor e de documentos para que o topo da tela fique na altura dos olhos e o material de leitura ao lado da tela.",
+        "Aplicar treinamento prático sobre “regra da zona de alcance” (o que é muito usado deve ficar na zona próxima ao corpo).",
+    ],
+    3: [  # Levantamento de peso — lombalgias / hérnia de disco
+        "Reduzir peso unitário de cargas (fracionamento de volumes, uso de caixas menores) para valores compatíveis com limites recomendados e idade/sexo da população.",
+        "Adotar meios mecânicos (carrinhos, paleteiras, elevadores de carga, mesas elevatórias) e adequar trajetos para evitar degraus e desníveis.",
+        "Treinar técnicas de levantamento seguro (aproximar carga, flexão de joelhos, evitar rotação de tronco com carga) e trabalho em duplas para cargas mais pesadas.",
+    ],
+    4: [  # Movimentos repetitivos — LER/DORT / tendinite / túnel do carpo
+        "Redesenhar tarefas para reduzir repetitividade: automação parcial, uso de gabaritos, divisão da tarefa em etapas com rodízio entre trabalhadores.",
+        "Implementar pausas regulares curtas (micro-pausas) com alongamentos orientados, especialmente para mãos, ombros e pescoço.",
+        "Ajustar ferramentas e periféricos (teclados, mouses, alicates) para empunhadura neutra, reduzindo desvios extremos de punho.",
+    ],
+    5: [  # Força intensa — fadiga muscular / lesão tendínea
+        "Substituir tarefas que exigem força manual por dispositivos mecânicos, pneumáticos ou elétricos (chaves, prensas, alavancas).",
+        "Adaptar cabos e empunhaduras das ferramentas para aumentar área de contato e permitir uso com punho neutro, reduzindo a força necessária.",
+        "Ajustar metas e cadência para evitar exigência de força máxima repetida e orientar sobre respeito aos limites individuais.",
+    ],
+    6: [  # Altura de mesa/bancada — postura compensatória / sobrecarga ombros
+        "Ajustar altura de mesas/bancadas à atividade: levemente abaixo do cotovelo para digitação, mais baixa para tarefas de força, mais alta para tarefas de precisão.",
+        "Adotar bancadas reguláveis em altura ou, quando não possível, ajustar cadeira e uso de apoios de pés, mantendo ombros relaxados.",
+        "Realizar avaliação ergonômica para cada tipo de posto, com check-list e fotos, documentando antes e depois das melhorias.",
+    ],
+    7: [  # Cadeira — compressão de raiz nervosa / dor lombar
+        "Utilizar cadeiras com apoio lombar, regulagens de altura, encosto e braços, permitindo que pés fiquem totalmente apoiados e joelhos em ângulo próximo de 90 graus.",
+        "Ajustar profundidade do assento (espaço de 2–3 dedos entre borda do assento e parte posterior do joelho) para evitar compressão de vasos/nervos.",
+        "Treinar ajustes personalizados da cadeira e orientar para evitar permanecer “na ponta da cadeira” por longos períodos.",
+    ],
+    8: [  # Tela/teclado/mouse — síndrome cervicobraquial / fadiga visual
+        "Posicionar monitor com topo na altura dos olhos, a cerca de um braço de distância, e evitar reflexos ajustando iluminação e ângulo da tela.",
+        "Manter teclado e mouse na altura do cotovelo, próximos ao corpo, e considerar apoios de punho ou mouses ergonômicos quando indicado.",
+        "Orientar pausas visuais (regra 20-20-20: a cada 20 minutos, olhar 20 segundos para algo a 6 m) e, quando necessário, avaliação oftalmológica periódica.",
+    ],
+    9: [  # Ferramentas — sobrecarga de punho / De Quervain
+        "Selecionar ferramentas com design ergonômico (cabos texturizados, diâmetro adequado, acionamento com esforço moderado, vibração reduzida).",
+        "Ajustar comprimento e peso da ferramenta para adequar ao tipo de tarefa e posicionar a peça de trabalho para manter punho neutro.",
+        "Realizar manutenção preventiva, lubrificação e substituição de ferramentas que exijam força excessiva ou apresentem vibrações anormais.",
+    ],
+    10: [  # Iluminação — fadiga visual / cefaleia
+        "Adequar níveis de iluminância ao tipo de tarefa (trabalho de escritório, leitura, tarefas de precisão) conforme normas técnicas, evitando áreas de sombra e ofuscamento.",
+        "Posicionar luminárias para que a luz venha lateralmente, reduzindo reflexos em telas e superfícies brilhantes.",
+        "Realizar manutenção periódica de lâmpadas e luminárias (limpeza, substituição de lâmpadas queimadas) e prever luz suplementar em tarefas delicadas.",
+    ],
+    11: [  # Ruído — estresse / perda auditiva
+        "Intervir na fonte (manutenção de máquinas, substituição por equipamentos menos ruidosos, enclausuramento de fontes críticas).",
+        "Implementar barreiras acústicas, cabines e distanciamento físico entre fonte e postos de trabalho, planejando layout para reduzir exposição.",
+        "Estabelecer Programa de Conservação Auditiva com monitoramento ambiental, audiometrias periódicas, rodízio de exposição e uso adequado de protetores auriculares quando necessário.",
+    ],
+    12: [  # Temperatura/ventilação — fadiga por calor / desconforto
+        "Controlar temperatura e ventilação com climatização adequada, ventilação cruzada, exaustão local e isolamento de fontes de calor.",
+        "Ajustar vestimentas de trabalho (tecidos mais leves em ambientes quentes, camadas em ambientes frios) e planejar pausas em locais mais confortáveis para recuperação térmica.",
+        "Monitorar condições térmicas em diferentes horários e ajustar jornada ou rodízio nos períodos mais críticos.",
+    ],
+    13: [  # Ritmo imposto por máquina — estresse psicossocial / fadiga acelerada
+        "Rever programação de máquinas e linhas para reduzir cadência excessiva, compatibilizando ritmo com capacidade humana sem exigir esforço máximo constante.",
+        "Introduzir rodízio entre tarefas de maior e menor exigência, dando ao trabalhador algum grau de controle sobre o ritmo quando viável.",
+        "Incluir esses aspectos no GRO como risco psicossocial, prevendo acompanhamento sistemático de queixas, absenteísmo e indicadores de saúde.",
+    ],
+    14: [  # Pausas insuficientes — fadiga acumulada / LER-DORT
+        "Estruturar pausas regulares previstas em procedimento, com duração e frequência definidas conforme tipo de tarefa (por exemplo, micro-pausas a cada 50–60 minutos).",
+        "Programar pausas ativas com orientações simples de alongamento e mobilidade articular.",
+        "Monitorar efetividade das pausas (se são realmente realizadas) e ajustar em função de indicadores de fadiga e queixas dos trabalhadores.",
+    ],
+    15: [  # Pressão por metas — burnout / ansiedade / erro humano
+        "Estabelecer metas realistas, construídas com participação das equipes e alinhadas à capacidade de recursos (pessoas, equipamentos, tempo).",
+        "Treinar lideranças em gestão de pessoas e prevenção de riscos psicossociais, promovendo estilo de gestão menos punitivo e mais orientado a feedback construtivo.",
+        "Implementar programas de apoio psicossocial (escuta qualificada, encaminhamento para apoio especializado, campanhas de saúde mental) e monitorar indicadores de clima e adoecimento.",
+    ],
+    16: [  # Atenção intensa contínua — fadiga cognitiva / erros críticos
+        "Redesenhar tarefas de alta vigilância (monitoramento, operação crítica) para prever pausas mentais e revezamento de operadores.",
+        "Reduzir estímulos desnecessários (ruído, interrupções constantes, múltiplas demandas simultâneas) e padronizar interfaces/telas para facilitar processamento de informação.",
+        "Fornecer treinamento em estratégias de gestão de atenção e protocolos claros para situações anormais, diminuindo carga mental e ambiguidade.",
+    ],
+    17: [  # Falta de treinamento — risco de acidente / posturas incorretas
+        "Estruturar programa contínuo de capacitação (integração, treinamentos periódicos, reciclagem) contemplando riscos, controles e uso correto de equipamentos.",
+        "Utilizar métodos práticos e contextualizados (demonstração no posto, simulações, checklists) e registrar presença e avaliação de aprendizagem.",
+        "Incluir treinamento como medida formal no PGR e no GRO, com cronograma, conteúdos mínimos e avaliação de eficácia (observação de campo, indicadores de acidentes).",
+    ],
+}
+
+
 def _header_footer_aep(canvas_obj, doc, empresa=""):
     canvas_obj.saveState()
     w, h = A4
@@ -379,15 +470,27 @@ def build_plano_acao_aep(st, inventario):
     if not riscos_relevantes:
         el.append(Paragraph("Nenhum risco classificado como Médio, Alto ou Crítico foi identificado nesta avaliação.", st['body']))
     else:
+        el.append(Paragraph(
+            "As medidas de controle recomendadas para cada fator de risco foram pré-definidas pelo "
+            "responsável técnico com base na natureza do risco e na hierarquia de prevenção, com o "
+            "objetivo de minimizar, reduzir ou eliminar os impactos à saúde dos trabalhadores.",
+            st['body']))
+        el.append(Spacer(1, 0.15*cm))
         riscos_relevantes = sorted(riscos_relevantes, key=lambda x: x["GR"], reverse=True)
-        cab = ["Risco Identificado", "GR", "Classif.", "Medida de Controle Recomendada", "Prazo"]
+        cab = ["Risco Identificado", "GR", "Classif.", "Medidas de Controle Recomendadas", "Prazo"]
         dados = [cab]
         cores_linhas = []
         destaques = []
         for item in riscos_relevantes:
             info = ACAO_POR_CLASSIFICACAO[item["Classificação"]]
-            acao = info["acao"]
             prazo = info["prazo"]
+            acoes_rt = ACOES_CONTROLE_RT.get(item["Nº"], [])
+            if acoes_rt:
+                acao = "<br/>".join(f"• {a}" for a in acoes_rt)
+                if item["Classificação"] == "Crítico":
+                    acao = f"<b>• {info['acao']}</b><br/>" + acao
+            else:
+                acao = info["acao"]
             destaque = item["Classificação"] in ("Alto", "Crítico")
             nome_risco = f"<b>{item['Risco Identificado']}</b>" if destaque else item["Risco Identificado"]
             dados.append([

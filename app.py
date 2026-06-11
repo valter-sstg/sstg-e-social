@@ -425,114 +425,122 @@ AEP_INVERTIDAS = {6, 7, 8, 9, 10, 11, 12, 14, 17}
 AEP_SECOES = {
     "A. Postura e Movimentos": {
         "q1": {
-            "texto": "Você fica muito tempo na mesma posição durante o trabalho (sentado ou em pé)? "
-                     "Exemplo: mais de 1 hora seguida sem poder mudar de posição.",
+            "texto": "Você fica muito tempo na mesma posição durante o trabalho (sentado ou em pé)?",
+            "ajuda": "Exemplo: mais de 1 hora seguida sem poder mudar de posição.",
             "severidade": 2,
             "risco": "Fadiga muscular estática / Dor lombar / Varizes",
         },
         "q2": {
-            "texto": "Você precisa dobrar ou girar o corpo, o pescoço ou a cabeça para realizar a tarefa? "
-                     "Exemplo: torcer o tronco para pegar materiais ao lado, olhar constantemente para baixo ou de lado.",
+            "texto": "Você precisa dobrar ou girar o corpo, o pescoço ou a cabeça para realizar a tarefa?",
+            "ajuda": "Exemplo: torcer o tronco para pegar materiais ao lado, olhar constantemente para baixo ou de lado.",
             "severidade": 2,
             "risco": "Sobrecarga cervical e lombar / LER-DORT",
         },
         "q3": {
-            "texto": "Você levanta, carrega ou descarrega peso manualmente durante o trabalho? "
-                     "Exemplo: caixas, sacos, peças, equipamentos, documentos empilhados.",
+            "texto": "Você levanta, carrega ou descarrega peso manualmente durante o trabalho?",
+            "ajuda": "Exemplo: caixas, sacos, peças, equipamentos, documentos empilhados.",
             "severidade": 3,
             "risco": "Lombalgias agudas e crônicas / Hérnia de disco",
         },
         "q4": {
-            "texto": "Você faz os mesmos movimentos repetidas vezes com os braços, mãos ou pernas? "
-                     "Exemplo: digitar, embalar, apertar, cortar, girar sempre com o mesmo gesto.",
+            "texto": "Você faz os mesmos movimentos repetidas vezes com os braços, mãos ou pernas?",
+            "ajuda": "Exemplo: digitar, embalar, apertar, cortar, girar sempre com o mesmo gesto.",
             "severidade": 3,
             "risco": "LER/DORT / Tendinite / Síndrome do túnel do carpo",
         },
         "q5": {
-            "texto": "Você precisa fazer força intensa para realizar alguma parte do trabalho? "
-                     "Exemplo: apertar, puxar, empurrar ou sustentar algo pesado ou com resistência.",
+            "texto": "Você precisa fazer força intensa para realizar alguma parte do trabalho?",
+            "ajuda": "Exemplo: apertar, puxar, empurrar ou sustentar algo pesado ou com resistência.",
             "severidade": 3,
             "risco": "Fadiga muscular / Lesão tendínea / Lombalgias",
         },
     },
     "B. Mobiliário e Equipamentos": {
         "q6": {
-            "texto": "A mesa ou bancada onde você trabalha tem altura confortável para o seu tamanho e tipo de tarefa? "
-                     "Você não precisa se curvar nem levantar demais os braços para trabalhar.",
+            "texto": "A mesa ou bancada onde você trabalha tem altura confortável para o seu tamanho e tipo de tarefa?",
+            "ajuda": "Você não precisa se curvar nem levantar demais os braços para trabalhar.",
             "severidade": 2,
             "risco": "Postura compensatória / Sobrecarga em ombros e coluna",
         },
         "q7": {
-            "texto": "A cadeira que você usa tem regulagem de altura e encosto adequados à sua estatura e à tarefa? "
-                     "Você consegue apoiar os pés no chão e manter as costas apoiadas.",
+            "texto": "A cadeira que você usa tem regulagem de altura e encosto adequados à sua estatura e à tarefa?",
+            "ajuda": "Você consegue apoiar os pés no chão e manter as costas apoiadas.",
             "severidade": 2,
             "risco": "Compressão de raiz nervosa / Dor lombar / Fadiga postural",
         },
         "q8": {
-            "texto": "O computador, teclado e mouse (quando usados) estão em uma posição confortável para você? "
-                     "A tela está na altura dos olhos e o teclado/mouse permitem que os cotovelos fiquem próximos ao corpo.",
+            "texto": "O computador, teclado e mouse (quando usados) estão em uma posição confortável para você?",
+            "ajuda": "A tela está na altura dos olhos e o teclado/mouse permitem que os cotovelos fiquem próximos ao corpo.",
             "severidade": 2,
             "risco": "Síndrome cervicobraquial / Lesão por digitação / Fadiga visual",
         },
         "q9": {
-            "texto": "As ferramentas e equipamentos que você usa se adaptam bem ao tamanho da sua mão e ao jeito de trabalhar? "
-                     "Você não precisa forçar o punho ou apertar forte para segurar.",
+            "texto": "As ferramentas e equipamentos que você usa se adaptam bem ao tamanho da sua mão e ao jeito de trabalhar?",
+            "ajuda": "Você não precisa forçar o punho ou apertar forte para segurar.",
             "severidade": 2,
             "risco": "Sobrecarga de punho e dedos / Síndrome de De Quervain",
         },
     },
     "C. Condições Ambientais": {
         "q10": {
-            "texto": "A iluminação do seu local de trabalho é adequada, sem reflexos nem sombras que atrapalhem a visão? "
-                     "Você consegue enxergar bem o que faz sem esforçar os olhos ou usar luz extra.",
+            "texto": "A iluminação do seu local de trabalho é adequada, sem reflexos nem sombras que atrapalhem a visão?",
+            "ajuda": "Você consegue enxergar bem o que faz sem esforçar os olhos ou usar luz extra.",
             "severidade": 1,
             "risco": "Fadiga visual / Cefaleia / Postura compensatória",
         },
         "q11": {
-            "texto": "O nível de barulho no trabalho é suportável e não te atrapalha? "
-                     "Você consegue se concentrar, conversar e trabalhar sem incômodo frequente.",
+            "texto": "O nível de barulho no trabalho é suportável e não te atrapalha?",
+            "ajuda": "Você consegue se concentrar, conversar e trabalhar sem incômodo frequente.",
             "severidade": 2,
             "risco": "Estresse / Dificuldade de concentração / Perda auditiva",
         },
         "q12": {
-            "texto": "A temperatura e a ventilação do local são confortáveis durante a jornada? "
-                     "Você não sente muito calor, muito frio nem abafamento enquanto trabalha.",
+            "texto": "A temperatura e a ventilação do local são confortáveis durante a jornada?",
+            "ajuda": "Você não sente muito calor, muito frio nem abafamento enquanto trabalha.",
             "severidade": 1,
             "risco": "Fadiga por calor / Desconforto / Queda de rendimento",
         },
     },
     "D. Organização do Trabalho": {
         "q13": {
-            "texto": "O ritmo do seu trabalho é controlado por uma máquina, esteira ou meta que não permite pausas? "
-                     "Você tem liberdade de trabalhar no próprio ritmo ou é a máquina/sistema que define o tempo?",
+            "texto": "O ritmo do seu trabalho é controlado por uma máquina, esteira ou meta que não permite pausas?",
+            "ajuda": "Você tem liberdade de trabalhar no próprio ritmo ou é a máquina/sistema que define o tempo?",
             "severidade": 2,
             "risco": "Estresse psicossocial / Fadiga acelerada / Erros operacionais",
         },
         "q14": {
-            "texto": "Você tem pausas suficientes durante o dia para descansar e se recuperar do cansaço? "
-                     "Exemplo: intervalos para sentar, esticar o corpo, relaxar os olhos ou tomar água.",
+            "texto": "Você tem pausas suficientes durante o dia para descansar e se recuperar do cansaço?",
+            "ajuda": "Exemplo: intervalos para sentar, esticar o corpo, relaxar os olhos ou tomar água.",
             "severidade": 3,
             "risco": "Fadiga acumulada / LER-DORT / Diminuição da atenção",
         },
         "q15": {
-            "texto": "Você sente pressão excessiva por metas ou prazos que dificultam trabalhar com tranquilidade? "
-                     "Cobranças que geram estresse, medo de errar ou sensação de que o tempo nunca é suficiente.",
+            "texto": "Você sente pressão excessiva por metas ou prazos que dificultam trabalhar com tranquilidade?",
+            "ajuda": "Cobranças que geram estresse, medo de errar ou sensação de que o tempo nunca é suficiente.",
             "severidade": 3,
             "risco": "Síndrome de Burnout / Ansiedade / Erro humano",
         },
         "q16": {
-            "texto": "Sua tarefa exige atenção e concentração intensa e contínua por longos períodos? "
-                     "Você precisa ficar 100% focado por muito tempo sem poder relaxar a atenção.",
+            "texto": "Sua tarefa exige atenção e concentração intensa e contínua por longos períodos?",
+            "ajuda": "Você precisa ficar 100% focado por muito tempo sem poder relaxar a atenção.",
             "severidade": 2,
             "risco": "Fadiga cognitiva / Cefaleia / Erros críticos",
         },
         "q17": {
-            "texto": "Você recebeu treinamento adequado para realizar a sua função com segurança? "
-                     "Alguém te ensinou como fazer o trabalho corretamente, inclusive os cuidados com a saúde?",
+            "texto": "Você recebeu treinamento adequado para realizar a sua função com segurança?",
+            "ajuda": "Alguém te ensinou como fazer o trabalho corretamente, inclusive os cuidados com a segurança e a saúde?",
             "severidade": 3,
             "risco": "Risco de acidente / Posturas incorretas / Baixa eficiência",
         },
     },
+}
+
+# Subtítulos didáticos exibidos junto ao título de cada seção no questionário
+AEP_SECOES_SUBTITULOS = {
+    "A. Postura e Movimentos":      "Como você usa o corpo no trabalho?",
+    "B. Mobiliário e Equipamentos": "O ambiente de trabalho está adequado?",
+    "C. Condições Ambientais":      "Como é o ambiente físico onde você trabalha?",
+    "D. Organização do Trabalho":   "Como o trabalho é estruturado e cobrado?",
 }
 
 # Severidades pré-preenchidas {"q1": 2, "q2": 2, ...} — usadas como default ao gravar a resposta
@@ -2938,7 +2946,7 @@ elif menu == "📋 Questionário Psicossocial":
             return st.session_state.respostas_salvas.get(chave)
 
         # ── Cabeçalho ─────────────────────────────────────────────────────────
-        st.title("📋 Avaliação Psicossocial")
+        st.title("📋 Questionário DRPS – Diagnóstico de Riscos Psicossociais")
         st.caption(caption)
         st.progress(idx / total_dim,
                     text=f"Bloco {idx + 1} de {total_dim} — {nome_atual}")
@@ -3216,32 +3224,43 @@ else:
         if funcao: caption += f"  |  Função: {funcao}"
         if depto:  caption += f"  |  Departamento: {depto}"
 
-        st.title("🦴 Avaliação Ergonômica Preliminar (AEP)")
+        st.title("🦴 Questionário DRE – Diagnóstico de Riscos Ergonômicos")
         st.caption(caption)
         st.caption("Como responder: ✓ **Sim** = acontece ou existe | ✗ **Não** = não acontece | **Parcial** = acontece às vezes ou em parte | **N/A** = não se aplica à sua função")
         st.divider()
 
         respostas_aep = {}
+        numero_q = 0
         for secao, perguntas in AEP_SECOES.items():
-            st.markdown(f"### {secao}")
+            sub_secao = AEP_SECOES_SUBTITULOS.get(secao, "")
+            st.markdown(f"### {secao}" + (f" — _{sub_secao}_" if sub_secao else ""))
             for qid, dados_q in perguntas.items():
+                numero_q += 1
                 chave = f"{cpf_resp}_aep_{qid}"
                 val_salvo = st.session_state.get(chave)
                 idx_inicial = AEP_OPCOES.index(val_salvo) if val_salvo in AEP_OPCOES else None
-                resp = st.radio(f"**{dados_q['texto']}**", AEP_OPCOES, horizontal=True,
-                                 key=chave, index=idx_inicial)
+                st.markdown(f"**{numero_q}. {dados_q['texto']}**")
+                if dados_q.get("ajuda"):
+                    st.caption(f"↳ _{dados_q['ajuda']}_")
+                resp = st.radio(dados_q['texto'], AEP_OPCOES, horizontal=True,
+                                 key=chave, index=idx_inicial, label_visibility="collapsed")
                 respostas_aep[qid] = resp
             st.divider()
 
         st.markdown("### Relato do Trabalhador")
+        st.markdown("**Você sente dor, desconforto ou cansaço no corpo durante ou após o trabalho?**")
+        st.caption("↳ _Se sim, descreva o local (costas, pescoço, ombro, braço, mão, perna...) e quando acontece._")
         relato_dor = st.text_area(
-            "Você sente dor, desconforto ou cansaço no corpo durante ou após o trabalho? "
-            "Se sim, descreva o local (costas, pescoço, ombro, braço, mão, perna...) e quando acontece.",
-            key=f"{cpf_resp}_aep_relato_dor"
+            "Relato de dor ou desconforto",
+            key=f"{cpf_resp}_aep_relato_dor",
+            label_visibility="collapsed"
         )
+        st.markdown("**Você tem alguma outra observação ou sugestão de melhoria para o seu posto de trabalho?**")
+        st.caption("↳ _Qualquer detalhe que você considere importante registrar._")
         relato_sugestoes = st.text_area(
-            "Você tem alguma outra observação ou sugestão de melhoria para o seu posto de trabalho?",
-            key=f"{cpf_resp}_aep_relato_sugestoes"
+            "Observações e sugestões de melhoria",
+            key=f"{cpf_resp}_aep_relato_sugestoes",
+            label_visibility="collapsed"
         )
 
         st.divider()
