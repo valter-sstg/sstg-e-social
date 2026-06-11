@@ -904,9 +904,10 @@ st.markdown("""
     h2,h3{color:var(--azul)!important;font-weight:700!important;}
     .stProgress>div>div>div{background:linear-gradient(90deg,var(--verde),var(--azul))!important;border-radius:10px!important;}
     [data-testid="stForm"]{background:white;border-radius:14px;padding:28px;border:1px solid #e0e0e0;box-shadow:0 2px 12px rgba(0,0,0,0.06);}
-    .hero-sstg{background:linear-gradient(135deg,#282C5B 0%,#1e3a8a 55%,#5A9F62 100%);padding:48px 40px;border-radius:18px;color:white;text-align:center;margin-bottom:32px;box-shadow:0 8px 32px rgba(40,44,91,0.25);}
-    .hero-sstg h1{color:white!important;font-size:2em!important;margin-bottom:8px;}
+    .hero-sstg{background:#282C5B;padding:48px 40px;border-radius:18px;color:white;text-align:center;margin-bottom:32px;box-shadow:0 8px 32px rgba(40,44,91,0.25);}
+    .hero-sstg h1{color:white!important;font-size:2.4em!important;margin-bottom:10px;letter-spacing:2px;}
     .hero-sstg p{font-size:1.1em;opacity:.88;margin:0;}
+    .hero-sstg .hero-nr{color:#9FD8A5;font-weight:600;opacity:1;margin-top:6px;}
     .trust-row{display:flex;justify-content:center;gap:32px;margin:28px 0 8px 0;}
     .trust-badge{text-align:center;background:rgba(255,255,255,0.12);border-radius:12px;padding:14px 20px;min-width:110px;backdrop-filter:blur(4px);}
     .trust-badge .icon{font-size:1.8em;}
@@ -2802,8 +2803,9 @@ elif menu == "📋 Questionário Psicossocial":
 
         st.markdown("""
             <div class="hero-sstg">
-                <h1>DRPS AEP-RP - Diagnóstico de Riscos Psicossociais</h1>
-                <p>Protocolo COPSOQ III — Diagnóstico do Ambiente de Trabalho<br>mensurado com a Escala de Avaliação (Likert)</p>
+                <h1>DRE - DRPS</h1>
+                <p>Questionário Psicossocial (DRPS) — Protocolo COPSOQ III<br>Diagnóstico do Ambiente de Trabalho mensurado com a Escala de Avaliação (Likert)</p>
+                <p class="hero-nr">Em atendimento à NR-01</p>
                 <div class="trust-row">
                     <div class="trust-badge">
                         <div class="icon">🔒</div>
@@ -3111,8 +3113,9 @@ else:
 
         st.markdown("""
             <div class="hero-sstg">
-                <h1>AEP — Avaliação Ergonômica Preliminar</h1>
-                <p>Avaliação de Ergonomia do Posto de Trabalho — NR-17<br>Sua percepção sobre postura, mobiliário, ambiente e organização do trabalho</p>
+                <h1>DRE - DRPS</h1>
+                <p>Questionário Ergonômico (DRE) — Avaliação Ergonômica Preliminar<br>Sua percepção sobre postura, mobiliário, ambiente e organização do trabalho</p>
+                <p class="hero-nr">Em atendimento à NR-17</p>
                 <div class="trust-row">
                     <div class="trust-badge">
                         <div class="icon">🔒</div>
