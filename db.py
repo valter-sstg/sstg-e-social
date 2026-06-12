@@ -206,6 +206,27 @@ def deletar_todas_respostas_aep():
     sb.table("respostas_aep").delete().neq("id", 0).execute()
 
 
+def carregar_ajustes_aep(cnpj):
+    """Retorna o registro de revisão do RT (severidades/planos ajustados, nota, liberação)
+    para os riscos Críticos/Insuportáveis da AEP desta empresa, ou None se nunca houve
+    revisão. Falha silenciosamente (None) se a tabela 'ajustes_aep' ainda não existir."""
+    try:
+        sb = _get_sb()
+        res = sb.table("ajustes_aep").select("*").eq("cnpj", cnpj).execute()
+        return res.data[0] if res.data else None
+    except Exception:
+        return None
+
+
+def salvar_ajustes_aep(cnpj, dados):
+    """Grava a revisão do RT (severidades_ajustadas, planos_ajustados, nota_rt, liberado,
+    data_liberacao, total_respostas_liberacao) para os riscos Críticos/Insuportáveis da
+    AEP desta empresa."""
+    sb = _get_sb()
+    registro = {"cnpj": cnpj, **dados}
+    sb.table("ajustes_aep").upsert(registro, on_conflict="cnpj").execute()
+
+
 def listar_cnpjs_com_respostas():
     sb = _get_sb()
     res = sb.table("respostas").select("cnpj").execute()

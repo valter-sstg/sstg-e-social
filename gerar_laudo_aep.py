@@ -459,7 +459,7 @@ def build_inventario_aep(st, inventario):
 
 # ===================== SEÇÃO 6: MATRIZ CONSOLIDADA E PLANO DE AÇÃO =====================
 
-def build_plano_acao_aep(st, inventario):
+def build_plano_acao_aep(st, inventario, planos_ajustados=None):
     el = []
     el.append(CondPageBreak(3*cm))
     el.append(_titulo_secao("6. Matriz Consolidada e Plano de Ação", st))
@@ -505,7 +505,7 @@ def build_plano_acao_aep(st, inventario):
         for item in riscos_relevantes:
             info = ACAO_POR_CLASSIFICACAO[item["Classificação"]]
             prazo = info["prazo"]
-            acoes_rt = ACOES_CONTROLE_RT.get(item["Nº"], [])
+            acoes_rt = (planos_ajustados or {}).get(str(item["Nº"])) or ACOES_CONTROLE_RT.get(item["Nº"], [])
             if acoes_rt:
                 acao = "<br/>".join(f"• {a}" for a in acoes_rt)
                 if item["Classificação"] == "Crítico":
@@ -599,7 +599,7 @@ def build_necessidade_aet(st, inventario):
 
 # ===================== SEÇÃO 8: RELATOS E CONCLUSÃO =====================
 
-def build_conclusao_aep(st, empresa, relatos, inventario):
+def build_conclusao_aep(st, empresa, relatos, inventario, nota_rt=None, data_liberacao_rt=None):
     el = []
     el.append(CondPageBreak(3*cm))
     el.append(_titulo_secao("8. Relatos dos Trabalhadores e Conclusão", st))
@@ -637,6 +637,15 @@ def build_conclusao_aep(st, empresa, relatos, inventario):
         "Recomenda-se, ainda, a revisão periódica deste inventário após qualquer alteração de processo, "
         "layout, equipamento ou força de trabalho, e no mínimo a cada 2 anos, conforme NR-01.", st['body']))
 
+    if nota_rt:
+        el.append(Spacer(1, 0.2*cm))
+        el.append(_subtitulo("8.3. Revisão do Responsável Técnico", st))
+        data_txt = f" em {data_liberacao_rt}" if data_liberacao_rt else ""
+        el.append(Paragraph(
+            f"Em razão da identificação de risco(s) classificado(s) como <b>Crítico</b> (situação "
+            f"insuportável), o resultado desta avaliação foi revisado pelo Responsável Técnico{data_txt}, "
+            f"conforme nota a seguir: “{nota_rt}”", st['body']))
+
     el.append(Spacer(1, 1.5*cm))
     assinaturas = Table([
         ["", ""],
@@ -668,6 +677,9 @@ def gerar_laudo_aep_pdf(
     total_autorizados: int,
     relatos: list = None,
     logo_path: str = "logo_sstg.png",
+    planos_ajustados: dict = None,
+    nota_rt: str = None,
+    data_liberacao_rt: str = None,
 ) -> bytes:
     """
     Gera o Laudo de Avaliação Ergonômica Preliminar (AEP / NR-17) em PDF e retorna os bytes.
@@ -676,6 +688,10 @@ def gerar_laudo_aep_pdf(
     inventario: lista de dicts retornada por _calcular_inventario_aep (app_cloud.py)
     total_respondentes / total_autorizados: contagens para cálculo de adesão
     relatos: lista de strings com os relatos abertos dos trabalhadores
+    planos_ajustados: dict {nº do risco (str): [medidas de controle]} com ajustes do RT
+        ao Plano de Ação, usado quando há risco Crítico revisado
+    nota_rt / data_liberacao_rt: nota de justificativa e data da revisão do Responsável
+        Técnico para riscos Crítico, exibida na Conclusão (Seção 8.3)
     """
     buffer = io.BytesIO()
     empresa = dados_empresa.get("Empresa", "—")
@@ -708,9 +724,9 @@ def gerar_laudo_aep_pdf(
     story += build_participacao_aep(st)
     story += build_metodologia_aep(st, total_respondentes, total_autorizados, grau_risco)
     story += build_inventario_aep(st, inventario)
-    story += build_plano_acao_aep(st, inventario)
+    story += build_plano_acao_aep(st, inventario, planos_ajustados)
     story += build_necessidade_aet(st, inventario)
-    story += build_conclusao_aep(st, empresa, relatos, inventario)
+    story += build_conclusao_aep(st, empresa, relatos, inventario, nota_rt, data_liberacao_rt)
 
     doc.build(story, onFirstPage=_callback, onLaterPages=_callback)
     buffer.seek(0)

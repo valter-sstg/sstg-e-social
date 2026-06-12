@@ -17,7 +17,7 @@ except ImportError:
     LAUDO_DISPONIVEL = False
 
 try:
-    from gerar_laudo_aep import gerar_laudo_aep_pdf
+    from gerar_laudo_aep import gerar_laudo_aep_pdf, ACOES_CONTROLE_RT
     LAUDO_AEP_DISPONIVEL = True
 except ImportError:
     LAUDO_AEP_DISPONIVEL = False
@@ -676,6 +676,7 @@ def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
 
             inventario.append({
                 "Nº":           numero,
+                "qid":          qid,
                 "Seção":        secao,
                 "Pergunta":     dados["texto"],
                 "Risco Identificado": dados["risco"],
@@ -798,6 +799,83 @@ def _renderizar_grafico_secoes_aep(inventario, key):
             cols_d[i].metric(label, f"{val:.1f}%")
 
 
+def _bloco_intervencao_rt(cnpj_cod, inventario, ajustes, total_resp_aep, key_prefix):
+    """Painel de intervenção do Responsável Técnico (RT), exibido quando a avaliação AEP
+    identifica ao menos um risco classificado como "Crítico" (situação insuportável). O RT
+    pode confirmar a emissão do laudo com o resultado do sistema ou ajustar a severidade e/ou
+    o plano de ação de cada risco crítico (com nota de justificativa), recalculando a
+    classificação antes de liberar a emissão."""
+    severidades_ajustadas = dict(ajustes.get("severidades_ajustadas") or {})
+    planos_ajustados = dict(ajustes.get("planos_ajustados") or {})
+
+    riscos_criticos = [item for item in inventario if item["Classificação"] == "Crítico"]
+
+    st.markdown("#### 🔒 Intervenção do Responsável Técnico (RT)")
+    st.caption(
+        "Ao menos um risco foi classificado como **Crítico** (situação insuportável). "
+        "Revise cada risco crítico abaixo: confirme o resultado do sistema ou ajuste a "
+        "severidade e/ou as medidas de controle (Plano de Ação), registrando uma "
+        "justificativa técnica."
+    )
+
+    severidades_input = {}
+    planos_input = {}
+    for item in riscos_criticos:
+        qid = item["qid"]
+        numero = item["Nº"]
+        with st.expander(f"⚠️ Risco {numero} — {item['Risco Identificado']} (GR {item['GR']:.1f})", expanded=True):
+            st.write(f"**Pergunta:** {item['Pergunta']}")
+            st.write(f"**% Risco:** {item['% Risco']}%  |  **Severidade atual:** {item['Severidade']}  |  **Probabilidade:** {item['Probabilidade']}  |  **GR:** {item['GR']:.1f}")
+            sev_default = int(severidades_ajustadas.get(qid, item["Severidade"]))
+            severidades_input[qid] = st.number_input(
+                "Severidade ajustada pelo RT (1 a 4)",
+                min_value=1, max_value=4, value=sev_default, step=1,
+                key=f"{key_prefix}_rt_sev_{qid}",
+            )
+            plano_default = "\n".join(planos_ajustados.get(str(numero)) or ACOES_CONTROLE_RT.get(numero, []))
+            planos_input[str(numero)] = st.text_area(
+                "Medidas de Controle (Plano de Ação) — uma medida por linha",
+                value=plano_default, height=100,
+                key=f"{key_prefix}_rt_plano_{numero}",
+            )
+
+    nota_rt = st.text_area(
+        "Nota / Justificativa do RT (registrada na Conclusão do laudo)",
+        value=ajustes.get("nota_rt", ""),
+        key=f"{key_prefix}_rt_nota",
+    )
+
+    col1, col2 = st.columns(2)
+    if col1.button("✅ Confirmar emissão com o resultado do sistema", use_container_width=True, key=f"{key_prefix}_rt_confirmar"):
+        db.salvar_ajustes_aep(cnpj_cod, {
+            "severidades_ajustadas": {},
+            "planos_ajustados": {},
+            "nota_rt": nota_rt.strip() or "Resultado da avaliação confirmado pelo Responsável Técnico, sem ajustes.",
+            "liberado": True,
+            "data_liberacao": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "total_respostas_liberacao": total_resp_aep,
+        })
+        st.success("Emissão liberada com o resultado do sistema.")
+        st.rerun()
+
+    if col2.button("💾 Salvar ajustes e liberar emissão", type="primary", use_container_width=True, key=f"{key_prefix}_rt_salvar"):
+        severidades_ajustadas.update({qid: int(v) for qid, v in severidades_input.items()})
+        for numero_str, texto in planos_input.items():
+            linhas = [l.strip() for l in texto.split("\n") if l.strip()]
+            if linhas:
+                planos_ajustados[numero_str] = linhas
+        db.salvar_ajustes_aep(cnpj_cod, {
+            "severidades_ajustadas": severidades_ajustadas,
+            "planos_ajustados": planos_ajustados,
+            "nota_rt": nota_rt.strip() or "Resultado da avaliação ajustado pelo Responsável Técnico.",
+            "liberado": True,
+            "data_liberacao": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "total_respostas_liberacao": total_resp_aep,
+        })
+        st.success("Ajustes salvos e emissão liberada.")
+        st.rerun()
+
+
 def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostrar_laudo=False):
     """Exibe os resultados consolidados da Avaliação Ergonômica (AEP/NR-17): adesão,
     gráfico por seção, inventário de riscos com severidades pré-calibradas pelo
@@ -824,7 +902,11 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
             grau_risco_emp = str(_emp_aep.iloc[0].get('Grau_Risco', '')).strip()
     severidades, faixa_sev = _severidades_por_grau_empresa(grau_risco_emp)
 
-    inventario = _calcular_inventario_aep(df_aep, severidades)
+    ajustes_rt = db.carregar_ajustes_aep(cnpj_cod) or {}
+    severidades_ajustadas = ajustes_rt.get("severidades_ajustadas") or {}
+    severidades_efetivas = {**severidades, **{k: int(v) for k, v in severidades_ajustadas.items()}}
+
+    inventario = _calcular_inventario_aep(df_aep, severidades_efetivas)
 
     st.subheader("📊 Percentual de Respostas de Risco por Seção")
     _renderizar_grafico_secoes_aep(inventario, key=f"{key_prefix}_aep_secoes")
@@ -853,8 +935,19 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
     if mostrar_laudo:
         st.divider()
         st.subheader("📄 Gerar Laudo DRE em PDF")
+
+        tem_critico = any(item["Classificação"] == "Crítico" for item in inventario)
+        liberacao_valida = bool(ajustes_rt.get("liberado")) and ajustes_rt.get("total_respostas_liberacao", -1) >= total_resp_aep
+
         if not LAUDO_AEP_DISPONIVEL:
             st.error("Módulo `gerar_laudo_aep.py` não encontrado na pasta do projeto.")
+        elif tem_critico and not liberacao_valida:
+            st.error(
+                "⚠️ Esta avaliação identificou ao menos um risco classificado como **Crítico** "
+                "(situação insuportável, %risco > 98%). A emissão do Laudo DRE está condicionada "
+                "à intervenção do Responsável Técnico abaixo."
+            )
+            _bloco_intervencao_rt(cnpj_cod, inventario, ajustes_rt, total_resp_aep, key_prefix)
         elif st.button("📄 Gerar Laudo DRE em PDF", type="primary", use_container_width=True, key=f"{key_prefix}_btn_laudo_aep"):
             with st.spinner("Gerando laudo..."):
                 dados_emp = {"Empresa": empresa_nome, "CNPJ": cnpj_cod, "Grau_Risco": grau_risco_emp or "—"}
@@ -863,6 +956,9 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
                 for col in ("relato_dor", "relato_dificuldades", "relato_sugestoes"):
                     if col in df_aep.columns:
                         relatos.extend([r for r in df_aep[col].dropna().tolist() if str(r).strip()])
+                nota_rt = ajustes_rt.get("nota_rt") if liberacao_valida else None
+                data_liberacao_rt = ajustes_rt.get("data_liberacao") if liberacao_valida else None
+                planos_ajustados = (ajustes_rt.get("planos_ajustados") or {}) if liberacao_valida else {}
                 try:
                     pdf_bytes = gerar_laudo_aep_pdf(
                         dados_empresa=dados_emp,
@@ -871,6 +967,9 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
                         total_autorizados=total_auth,
                         relatos=relatos,
                         logo_path=logo_path,
+                        planos_ajustados=planos_ajustados,
+                        nota_rt=nota_rt,
+                        data_liberacao_rt=data_liberacao_rt,
                     )
                     db.registrar_laudo(cnpj_cod, "DRE")
                     st.success("Laudo DRE gerado com sucesso!")
