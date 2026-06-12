@@ -5,7 +5,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, KeepTogether, Image
+    HRFlowable, KeepTogether, Image, CondPageBreak
 )
 from datetime import datetime
 import io
@@ -253,6 +253,7 @@ def build_capa_aep(st, empresa, cnpj, data_emissao, logo_path, grau_risco="—")
 
 def build_escopo_aep(st):
     el = []
+    el.append(CondPageBreak(3*cm))
     el.append(_titulo_secao("2. Escopo da Avaliação Ergonômica", st))
     el.append(Paragraph(
         "A presente AEP abrange os ambientes de trabalho da organização avaliada, com atividades "
@@ -274,6 +275,7 @@ def build_escopo_aep(st):
 
 def build_participacao_aep(st):
     el = []
+    el.append(CondPageBreak(3*cm))
     el.append(_titulo_secao("3. Participação dos Trabalhadores", st))
     el.append(Paragraph("A organização assegurou:", st['body']))
     for item in [
@@ -295,6 +297,7 @@ def build_participacao_aep(st):
 
 def build_metodologia_aep(st, total_respondentes, total_autorizados, grau_risco_empresa="—"):
     el = []
+    el.append(CondPageBreak(3*cm))
     el.append(_titulo_secao("4. Metodologia de Avaliação", st))
 
     pct = round((total_respondentes / total_autorizados) * 100, 1) if total_autorizados else 0
@@ -371,12 +374,14 @@ def build_metodologia_aep(st, total_respondentes, total_autorizados, grau_risco_
         st['body']))
 
     dados_gr = [["Faixa de GR", "Classificação", "Ação Recomendada"]]
+    cores_classif = []
     for classif, info in ACAO_POR_CLASSIFICACAO.items():
         texto_faixa = f"<b>{info['faixa']}</b><br/>{info['faixa_desc']}"
         texto_acao = f"{info['acao']} {info['justificativa']}"
         dados_gr.append([Paragraph(texto_faixa, st['table_cell']), classif, Paragraph(texto_acao, st['table_cell'])])
+        cores_classif.append(info["cor"])
     t2 = Table(dados_gr, colWidths=[5*cm, 2.2*cm, 11.3*cm])
-    t2.setStyle(TableStyle([
+    estilo_gr = [
         ('BACKGROUND', (0, 0), (-1, 0), C_AZUL),
         ('TEXTCOLOR', (0, 0), (-1, 0), C_BRANCO),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -387,7 +392,12 @@ def build_metodologia_aep(st, total_respondentes, total_autorizados, grau_risco_
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('TOPPADDING', (0, 0), (-1, -1), 5),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-    ]))
+    ]
+    for i, cor in enumerate(cores_classif, start=1):
+        estilo_gr.append(('BACKGROUND', (1, i), (1, i), cor))
+        estilo_gr.append(('TEXTCOLOR', (1, i), (1, i), C_BRANCO))
+        estilo_gr.append(('FONTNAME', (1, i), (1, i), 'Helvetica-Bold'))
+    t2.setStyle(TableStyle(estilo_gr))
     el.append(t2)
     return el
 
@@ -396,12 +406,13 @@ def build_metodologia_aep(st, total_respondentes, total_autorizados, grau_risco_
 
 def build_inventario_aep(st, inventario):
     el = []
+    el.append(CondPageBreak(3*cm))
     el.append(_titulo_secao("5. Inventário de Riscos Ergonômicos", st))
     el.append(Paragraph(
         "A tabela a seguir consolida, para cada fator de risco avaliado, o percentual de respostas que "
         "indicaram a presença do risco, a Severidade, a Probabilidade e o Grau de Risco (GR) resultante. "
-        "A coluna “Plano?” indica, com “SIM”, os riscos classificados como Alto ou Crítico, cujas medidas "
-        "de controle recebem destaque prioritário no Plano de Ação (Seção 6.2).",
+        "A coluna “Plano?” indica, com “SIM”, os riscos classificados como Médio, Alto ou Crítico, cuja "
+        "inclusão no Plano de Ação (Seção 6.2) fica recomendada.",
         st['body']))
     el.append(Spacer(1, 0.15*cm))
 
@@ -409,7 +420,7 @@ def build_inventario_aep(st, inventario):
     dados = [cab]
     cores_linhas = []
     for item in inventario:
-        plano = item.get("Plano?", "SIM" if item["Classificação"] in ("Alto", "Crítico") else "NÃO")
+        plano = item.get("Plano?", "SIM" if item["Classificação"] in ("Médio", "Alto", "Crítico") else "NÃO")
         dados.append([
             str(item["Nº"]),
             Paragraph(item["Risco Identificado"], st['table_cell']),
@@ -449,6 +460,7 @@ def build_inventario_aep(st, inventario):
 
 def build_plano_acao_aep(st, inventario):
     el = []
+    el.append(CondPageBreak(3*cm))
     el.append(_titulo_secao("6. Matriz Consolidada e Plano de Ação", st))
 
     contagem = {"Crítico": 0, "Alto": 0, "Médio": 0, "Baixo": 0}
@@ -466,11 +478,19 @@ def build_plano_acao_aep(st, inventario):
     el.append(Spacer(1, 0.3*cm))
 
     el.append(_subtitulo("6.2. Plano de Ação — Riscos Médio, Alto e Crítico", st))
-    riscos_relevantes = [it for it in inventario if it["Classificação"] != "Baixo"]
+
+    def _tem_plano(it):
+        return it.get("Plano?", "SIM" if it["Classificação"] in ("Médio", "Alto", "Crítico") else "NÃO") == "SIM"
+
+    riscos_relevantes = [it for it in inventario if _tem_plano(it)]
     if not riscos_relevantes:
-        el.append(Paragraph("Nenhum risco classificado como Médio, Alto ou Crítico foi identificado nesta avaliação.", st['body']))
+        el.append(Paragraph(
+            "Nenhum fator de risco recebeu indicação “SIM” na coluna “Plano?” do Inventário de Riscos "
+            "(Seção 5) nesta avaliação.", st['body']))
     else:
         el.append(Paragraph(
+            "Integram este Plano de Ação os fatores de risco com indicação “SIM” na coluna “Plano?” do "
+            "Inventário de Riscos (Seção 5) — classificações Médio, Alto e Crítico. "
             "As medidas de controle recomendadas para cada fator de risco foram pré-definidas pelo "
             "responsável técnico com base na natureza do risco e na hierarquia de prevenção, com o "
             "objetivo de minimizar, reduzir ou eliminar os impactos à saúde dos trabalhadores.",
@@ -525,8 +545,8 @@ def build_plano_acao_aep(st, inventario):
         el.append(t)
         el.append(Spacer(1, 0.15*cm))
         el.append(Paragraph(
-            "As linhas destacadas correspondem aos riscos com indicação “SIM” na coluna “Plano?” do "
-            "Inventário (classificação Alto ou Crítico), prioritários para a execução das medidas de controle.",
+            "As linhas destacadas correspondem aos riscos classificados como Alto ou Crítico, "
+            "prioritários para a execução das medidas de controle.",
             st['body']))
 
     el.append(Spacer(1, 0.2*cm))
@@ -542,6 +562,7 @@ def build_plano_acao_aep(st, inventario):
 
 def build_necessidade_aet(st, inventario):
     el = []
+    el.append(CondPageBreak(3*cm))
     el.append(_titulo_secao("7. Necessidade de Análise Ergonômica do Trabalho (AET)", st))
     el.append(Paragraph(
         "Uma avaliação contínua da necessidade de Análise Ergonômica do Trabalho — AET, será aplicável:",
@@ -579,6 +600,7 @@ def build_necessidade_aet(st, inventario):
 
 def build_conclusao_aep(st, empresa, relatos, inventario):
     el = []
+    el.append(CondPageBreak(3*cm))
     el.append(_titulo_secao("8. Relatos dos Trabalhadores e Conclusão", st))
 
     el.append(_subtitulo("8.1. Relatos Coletados (Seção 3 do Questionário)", st))

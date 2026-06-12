@@ -539,7 +539,6 @@ def build_escopo_drps(st):
         "análise da organização do trabalho;",
         "avaliação da carga cognitiva;",
         "avaliação das demandas operacionais;",
-        "análise das condições organizacionais;",
         "identificação de fatores psicossociais relacionados ao trabalho;",
         "percepção dos trabalhadores, e suas rotinas laborais.",
     ]:
@@ -556,9 +555,7 @@ def build_participacao_drps(st):
     for item in [
         "participação dos trabalhadores;",
         "escuta ativa;",
-        "confidencialidade;",
-        "consulta durante a avaliação;",
-        "acesso às informações relevantes.",
+        "confidencialidade.",
     ]:
         el.append(Paragraph(f"• {item}", st['lista']))
     el.append(Spacer(1, 0.1*cm))
@@ -578,7 +575,6 @@ def build_pcmso_drps(st):
         "vigilância epidemiológica ocupacional;",
         "acompanhamento clínico;",
         "monitoramento de transtornos mentais relacionados ao trabalho;",
-        "avaliação de absenteísmo;",
         "investigação de adoecimentos ocupacionais;",
         "planejamento médico preventivo.",
     ]:
@@ -606,11 +602,9 @@ def build_necessidade_aet_drps(st):
         "em caso de adoecimento;",
         "aumento de afastamentos;",
         "queixas recorrentes;",
-        "alterações organizacionais relevantes;",
-        "aumento da demanda operacional.",
+        "alterações organizacionais relevantes.",
     ]:
         el.append(Paragraph(f"• {item}", st['lista']))
-    el.append(PageBreak())
     return el
 
 

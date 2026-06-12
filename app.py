@@ -595,7 +595,7 @@ def _classificar_gr(gr: float, pct_risco: float = 0.0) -> tuple:
     if pct_risco > 0.98:
         return "Crítico", "#C0392B"
     if gr > 8:
-        return "Alto", "#F4A236"
+        return "Alto", "#DC3B24"
     if gr > 4 or pct_risco >= 0.70:
         return "Médio", "#F1C40F"
     return "Baixo", "#5A9F62"
@@ -680,7 +680,7 @@ def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
                 "Probabilidade": prob,
                 "GR":           gr,
                 "Classificação": classif,
-                "Plano?":       "SIM" if classif in ("Alto", "Crítico") else "NÃO",
+                "Plano?":       "SIM" if classif in ("Médio", "Alto", "Crítico") else "NÃO",
                 "Cor":          cor,
             })
     return inventario
@@ -831,7 +831,7 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
                f"pelo responsável técnico para empresas de grau de risco {faixa_sev} "
                "(1=Leve, 2=Moderada, 3=Grave, 4=Crítica). "
                "Probabilidade contínua = 1 + 3 × %risco. GR = Severidade × Probabilidade. "
-               "Plano? = SIM (classificação Alto ou Crítico) indica destaque no Plano de Ação do laudo.")
+               "Plano? = SIM (classificação Médio, Alto ou Crítico) indica inclusão no Plano de Ação do laudo.")
 
     df_inv = pd.DataFrame(inventario)
     if not df_inv.empty:
@@ -2515,9 +2515,9 @@ elif menu == "📊 Gestão das Respostas (RH)":
         st.session_state.rh_cnpj = None
 
     if not st.session_state.rh_logado:
-        # ── Acesso livre para Admin master (sem necessidade de senha RH) ───────
-        if st.session_state.get('admin_logado') and st.session_state.get('admin_perfil') == 'admin':
-            st.success("🔓 Acesso Admin Master — selecione a empresa para acessar diretamente, sem senha.")
+        # ── Acesso livre para a equipe SSTG conectada (sem necessidade de senha RH) ──
+        if st.session_state.get('admin_logado'):
+            st.success("🔓 Equipe SSTG conectada — selecione a empresa para acessar diretamente, sem senha.")
             df_acessos_admin = db.carregar_acessos()
             if not df_acessos_admin.empty:
                 df_emp_admin = df_acessos_admin.drop_duplicates(subset=["CNPJ"])
@@ -2582,26 +2582,6 @@ elif menu == "📊 Gestão das Respostas (RH)":
 
     cnpj_cod = st.session_state.rh_cnpj
     df_acessos = db.carregar_acessos()
-
-    # ── Links dos Questionários ─────────────────────────────────────────────
-    with st.expander("🔗 Links dos Questionários para esta empresa", expanded=True):
-        st.markdown("**📋 Questionário Psicossocial (COPSOQ III)**")
-        link_emp = f"{QUEST_PSICOSSOCIAL_URL}?cnpj={cnpj_cod}"
-        st.code(link_emp, language=None)
-        st.caption(
-            "Copie e envie este link para os colaboradores da empresa responderem o "
-            "Questionário Psicossocial. Funciona em qualquer dispositivo, conectado à internet."
-        )
-
-        st.divider()
-
-        st.markdown("**🦴 Questionário Ergonômico (AEP / NR-17)**")
-        link_emp_aep = f"{QUEST_AEP_URL}?cnpj={cnpj_cod}"
-        st.code(link_emp_aep, language=None)
-        st.caption(
-            "Copie e envie este link para os colaboradores da empresa responderem a "
-            "Avaliação Ergonômica (AEP). Pode ser enviado de forma independente do questionário acima."
-        )
 
     # ── Card do E-book Educativo ───────────────────────────────────────────
     with st.expander("📘 E-books Educativos — Compartilhe com os Colaboradores", expanded=True):
@@ -2677,6 +2657,32 @@ elif menu == "📊 Gestão das Respostas (RH)":
         st.markdown("**Link do e-book para copiar e enviar:**")
         st.code(EBOOK_AEP_URL, language=None)
         st.caption("💡 Sugestão: envie o e-book 2 a 3 dias antes de abrir o questionário para aumentar a adesão.")
+
+    # ── Navegação — Trocar empresa (equipe SSTG) e retorno ─────────────────
+    st.divider()
+    if st.session_state.get('admin_logado'):
+        st.markdown("**🔄 Trocar de empresa**")
+        df_emp_rh = df_acessos.drop_duplicates(subset=["CNPJ"])
+        opcoes_emp_rh = {
+            f"{row['Empresa']} — CNPJ: {row['CNPJ']}": row['CNPJ']
+            for _, row in df_emp_rh.iterrows()
+        }
+        emp_rh_sel = st.selectbox(
+            "Buscar empresa:", list(opcoes_emp_rh.keys()),
+            index=None, placeholder="Digite o nome da empresa...",
+            key="rh_trocar_empresa_sel"
+        )
+        if emp_rh_sel and st.button("🔄 Acessar empresa selecionada", key="rh_trocar_empresa_btn"):
+            cnpj_novo = opcoes_emp_rh[emp_rh_sel]
+            st.session_state.rh_cnpj = cnpj_novo
+            st.session_state.rh_empresa = df_emp_rh[df_emp_rh['CNPJ'] == cnpj_novo].iloc[0]['Empresa']
+            st.rerun()
+
+    if st.button("↩ Voltar à tela inicial", key="rh_voltar_inicio"):
+        st.session_state.rh_logado = False
+        st.session_state.rh_cnpj = None
+        st.session_state.rh_empresa = None
+        st.rerun()
 
     # ── Gerar Imagem de Compartilhamento ───────────────────────────────────
     with st.expander("🖼️ Gerar QRCode do Questionário para Compartilhamento"):
@@ -2853,21 +2859,19 @@ elif menu == "📋 Questionário Psicossocial":
             </div>
         """, unsafe_allow_html=True)
 
-        # ── Acesso livre para Admin master (pré-visualização, sem salvar) ──────
-        if st.session_state.get('admin_logado') and st.session_state.get('admin_perfil') == 'admin':
-            with st.expander("🔓 Acesso Admin Master — Pré-visualizar Questionário"):
-                df_acessos_prev = db.carregar_acessos()
-                if not df_acessos_prev.empty:
-                    opcoes_prev = {
-                        f"{row['Empresa']} — {row.get('Função','')} — CPF: {row['CPF']}": row.to_dict()
-                        for _, row in df_acessos_prev.iterrows()
-                    }
-                    sel_prev = st.selectbox("Colaborador:", list(opcoes_prev.keys()), key="psico_admin_prev_sel")
-                    if st.button("🔓 Pré-visualizar como Admin", use_container_width=True, key="psico_admin_prev_btn"):
-                        st.session_state.dados_sessao = opcoes_prev[sel_prev]
-                        st.session_state._admin_preview = True
-                        st.session_state.passo = "quest"
-                        st.rerun()
+        # ── Modo demonstração para a equipe SSTG conectada (somente leitura) ───
+        if st.session_state.get('admin_logado'):
+            st.info("🔓 Equipe SSTG conectada — percorra o questionário em modo demonstração, "
+                    "apenas para conferência e apresentação (preenchimento desabilitado).")
+            if st.button("👁️ Ver questionário em modo demonstração", use_container_width=True, key="psico_demo_btn"):
+                st.session_state.dados_sessao = {
+                    "Empresa": "Demonstração SSTG", "CPF": "00000000000",
+                    "Função": "", "Departamento": "", "CNPJ": "",
+                }
+                st.session_state._admin_preview = True
+                st.session_state._demo_readonly = True
+                st.session_state.passo = "quest"
+                st.rerun()
 
         col_cpf, col_btn = st.columns([3, 1])
         cpf_in = col_cpf.text_input(
@@ -2948,6 +2952,16 @@ elif menu == "📋 Questionário Psicossocial":
         # ── Cabeçalho ─────────────────────────────────────────────────────────
         st.title("📋 Questionário DRPS – Diagnóstico de Riscos Psicossociais")
         st.caption(caption)
+        demo_ro = st.session_state.get('_demo_readonly', False)
+        if demo_ro:
+            c_demo_msg, c_demo_btn = st.columns([3, 1])
+            c_demo_msg.info("👁️ Modo demonstração — preenchimento desabilitado.")
+            with c_demo_btn:
+                if st.button("↩ Voltar / Encerrar", use_container_width=True, key="psico_demo_voltar"):
+                    for _k in ("_admin_preview", "_demo_readonly", "dados_sessao",
+                               "dominio_atual", "respostas_salvas", "passo"):
+                        st.session_state.pop(_k, None)
+                    st.rerun()
         st.progress(idx / total_dim,
                     text=f"Bloco {idx + 1} de {total_dim} — {nome_atual}")
         st.divider()
@@ -2963,7 +2977,7 @@ elif menu == "📋 Questionário Psicossocial":
             val_salvo = st.session_state.respostas_salvas.get(chave)
             idx_inicial = OPCOES.index(val_salvo) if val_salvo in OPCOES else None
             st.radio(f"**{txt}**", OPCOES, horizontal=True,
-                     key=chave, index=idx_inicial)
+                     key=chave, index=idx_inicial, disabled=demo_ro)
 
         # ── Rodapé de navegação ───────────────────────────────────────────────
         st.divider()
@@ -2992,7 +3006,7 @@ elif menu == "📋 Questionário Psicossocial":
 
         with col_prox:
             if idx < total_dim - 1:
-                if nao_resp_bloco:
+                if nao_resp_bloco and not demo_ro:
                     st.warning(
                         f"⚠️ Responda as {len(nao_resp_bloco)} pergunta(s) acima para avançar.")
                 else:
@@ -3001,6 +3015,8 @@ elif menu == "📋 Questionário Psicossocial":
                         salvar_bloco_atual()
                         st.session_state.dominio_atual += 1
                         st.rerun()
+            elif demo_ro:
+                st.info("👁️ Fim do questionário — modo demonstração, envio desabilitado.")
             else:
                 # Último bloco — verifica pendências em todos os blocos
                 nao_resp_total = [
@@ -3158,21 +3174,19 @@ else:
             </div>
         """, unsafe_allow_html=True)
 
-        # ── Acesso livre para Admin master (pré-visualização, sem salvar) ──────
-        if st.session_state.get('admin_logado') and st.session_state.get('admin_perfil') == 'admin':
-            with st.expander("🔓 Acesso Admin Master — Pré-visualizar Avaliação Ergonômica"):
-                df_acessos_prev_aep = db.carregar_acessos()
-                if not df_acessos_prev_aep.empty:
-                    opcoes_prev_aep = {
-                        f"{row['Empresa']} — {row.get('Função','')} — CPF: {row['CPF']}": row.to_dict()
-                        for _, row in df_acessos_prev_aep.iterrows()
-                    }
-                    sel_prev_aep = st.selectbox("Colaborador:", list(opcoes_prev_aep.keys()), key="aep_admin_prev_sel")
-                    if st.button("🔓 Pré-visualizar como Admin", use_container_width=True, key="aep_admin_prev_btn"):
-                        st.session_state.dados_sessao_aep = opcoes_prev_aep[sel_prev_aep]
-                        st.session_state._admin_preview = True
-                        st.session_state.passo_aep = "quest"
-                        st.rerun()
+        # ── Modo demonstração para a equipe SSTG conectada (somente leitura) ───
+        if st.session_state.get('admin_logado'):
+            st.info("🔓 Equipe SSTG conectada — percorra o questionário em modo demonstração, "
+                    "apenas para conferência e apresentação (preenchimento desabilitado).")
+            if st.button("👁️ Ver questionário em modo demonstração", use_container_width=True, key="aep_demo_btn"):
+                st.session_state.dados_sessao_aep = {
+                    "Empresa": "Demonstração SSTG", "CPF": "00000000000",
+                    "Função": "", "Departamento": "", "CNPJ": "",
+                }
+                st.session_state._admin_preview = True
+                st.session_state._demo_readonly = True
+                st.session_state.passo_aep = "quest"
+                st.rerun()
 
         col_cpf, col_btn = st.columns([3, 1])
         cpf_in_aep = col_cpf.text_input(
@@ -3227,6 +3241,15 @@ else:
         st.title("🦴 Questionário DRE – Diagnóstico de Riscos Ergonômicos")
         st.caption(caption)
         st.caption("Como responder: ✓ **Sim** = acontece ou existe | ✗ **Não** = não acontece | **Parcial** = acontece às vezes ou em parte | **N/A** = não se aplica à sua função")
+        demo_ro = st.session_state.get('_demo_readonly', False)
+        if demo_ro:
+            c_demo_msg, c_demo_btn = st.columns([3, 1])
+            c_demo_msg.info("👁️ Modo demonstração — preenchimento desabilitado.")
+            with c_demo_btn:
+                if st.button("↩ Voltar / Encerrar", use_container_width=True, key="aep_demo_voltar"):
+                    for _k in ("_admin_preview", "_demo_readonly", "dados_sessao_aep", "passo_aep"):
+                        st.session_state.pop(_k, None)
+                    st.rerun()
         st.divider()
 
         respostas_aep = {}
@@ -3243,7 +3266,8 @@ else:
                 if dados_q.get("ajuda"):
                     st.caption(f"↳ _{dados_q['ajuda']}_")
                 resp = st.radio(dados_q['texto'], AEP_OPCOES, horizontal=True,
-                                 key=chave, index=idx_inicial, label_visibility="collapsed")
+                                 key=chave, index=idx_inicial, label_visibility="collapsed",
+                                 disabled=demo_ro)
                 respostas_aep[qid] = resp
             st.divider()
 
@@ -3253,14 +3277,16 @@ else:
         relato_dor = st.text_area(
             "Relato de dor ou desconforto",
             key=f"{cpf_resp}_aep_relato_dor",
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            disabled=demo_ro
         )
         st.markdown("**Você tem alguma outra observação ou sugestão de melhoria para o seu posto de trabalho?**")
         st.caption("↳ _Qualquer detalhe que você considere importante registrar._")
         relato_sugestoes = st.text_area(
             "Observações e sugestões de melhoria",
             key=f"{cpf_resp}_aep_relato_sugestoes",
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            disabled=demo_ro
         )
 
         st.divider()
@@ -3269,10 +3295,12 @@ else:
         st.progress((total_q - len(nao_resp)) / total_q,
                     text=f"Progresso: {total_q - len(nao_resp)} de {total_q} perguntas respondidas")
 
-        if nao_resp:
+        if demo_ro:
+            st.info("👁️ Fim do questionário — modo demonstração, envio desabilitado.")
+        elif nao_resp:
             st.warning(f"⚠️ Responda as {len(nao_resp)} pergunta(s) pendente(s) para finalizar.")
 
-        if st.button("✅ FINALIZAR E ENVIAR AVALIAÇÃO", use_container_width=True,
+        if not demo_ro and st.button("✅ FINALIZAR E ENVIAR AVALIAÇÃO", use_container_width=True,
                       type="primary", disabled=bool(nao_resp)):
             dados_salvar = {
                 "cpf_hash":            hash_cpf(cpf_resp),
