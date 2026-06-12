@@ -420,7 +420,11 @@ AEP_OPCOES = ["Nunca", "Raramente", "Às vezes", "Frequentemente", "Sempre", "N/
 
 # Peso de cada opção no cálculo do %risco (perguntas diretas); para perguntas
 # invertidas (AEP_INVERTIDAS) o peso usado é 1 - este valor.
-AEP_DEPARA = {"Nunca": 0.0, "Raramente": 0.25, "Às vezes": 0.5, "Frequentemente": 0.75, "Sempre": 1.0}
+AEP_DEPARA = {
+    "Nunca": 0.0, "Raramente": 0.25, "Às vezes": 0.5, "Frequentemente": 0.75, "Sempre": 1.0,
+    # Compatibilidade com respostas gravadas antes da troca de escala (2026-06-12)
+    "Não": 0.0, "Parcial": 0.5, "Sim": 1.0,
+}
 
 # Perguntas em que a resposta "Sim" indica condição ADEQUADA (sem risco) —
 # para estas, "Não" indica risco. As demais são "diretas" ("Sim" = risco).
