@@ -1,505 +1,408 @@
-# 📚 SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) — Tutorial Operacional
+# 👥 DRE - DRPS — Tutorial Operacional
 
-**Versão:** 6.2  
-**Data:** 07/05/2026  
-**Público:** Equipe de Gestão RH | Pessoal Administrativo | Usuários Finais
+**Versão:** 8.0
+**Atualizado:** 12/06/2026
+**Público:** Equipe SSTG | RH das empresas atendidas
 
 ---
 
 ## 📋 Índice
 
-1. [Acesso ao Sistema](#acesso-ao-sistema)
-2. [Módulo Admin — Gestão de Empresas](#módulo-admin)
-3. [Cadastro Manual](#cadastro-manual)
-4. [Cadastro via CSV (Em Lote)](#cadastro-via-csv)
-5. [Gerar Links e QR Code](#gerar-links-e-qr-code)
-6. [Módulo RH — Gestão das Respostas](#módulo-rh)
-7. [Módulo Colaborador — Responder Questionário](#módulo-colaborador)
-8. [Consultar Resultados e Laudo PDF](#consultar-resultados)
-9. [Segurança e Acesso RH](#segurança-e-acesso-rh)
-10. [Zona de Perigo — Exclusão de Dados](#zona-de-perigo)
-11. [Movimentação de Pessoal](#movimentação-de-pessoal)
-12. [Documentação Integrada](#documentação-integrada)
-13. [FAQ e Troubleshooting](#faq-e-troubleshooting)
+1. [Visão Geral do Menu](#visão-geral-do-menu)
+2. [Equipe SSTG — Módulo Admin](#equipe-sstg--módulo-admin)
+3. [RH da Empresa — Gestão das Respostas](#rh-da-empresa--gestão-das-respostas)
+4. [Colaborador — Questionários DRE-DRPS](#colaborador--questionários-dre-drps)
+5. [Módulo Início (Dashboard)](#módulo-início-dashboard)
+6. [FAQ e Troubleshooting](#faq-e-troubleshooting)
 
 ---
 
-## 🔓 Acesso ao Sistema
+## 🔓 Visão Geral do Menu
 
-### URL de Acesso
+Ao abrir o link do sistema, o menu lateral ("Módulo:") mostra:
 
-#### Online — Streamlit Cloud (Produção)
+| Módulo | Quem acessa |
+|--------|-------------|
+| 🏠 Início | Todos (dashboard geral) |
+| 📝 Questionários DRE-DRPS | Colaboradores (via link enviado pelo RH) |
+| 📊 Gestão das Respostas (RH) | RH da empresa (CNPJ + senha) |
+| 📚 Documentação | Equipe SSTG (login Admin) |
+| 🔐 Admin SSTG (Gestão) | Equipe SSTG (login Admin) |
 
-```
-https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app
-```
-
-✅ Acesso de qualquer lugar | ✅ HTTPS | ✅ Sempre disponível
-
-#### Local (Desenvolvimento)
-
-```
-http://localhost:8501
-```
-
-> ⚠️ Apenas quando o app está rodando na máquina local.
-
-### Módulos Disponíveis
-
-Na barra lateral, selecione o módulo desejado:
-
-```
-Módulo:
-⭕ 📋 Questionário Psicossocial
-⭕ 📊 Gestão das Respostas (RH)
-🔴 🔐 Admin SSTG (Gestão)        ← selecionado
-```
+Se o link aberto contiver `?cnpj=...` ou `?modulo=aep`, o sistema já abre
+diretamente no módulo **Questionários DRE-DRPS** — é assim que os
+colaboradores acessam.
 
 ---
 
-## 🛠️ Módulo Admin
+## 🛠️ Equipe SSTG — Módulo Admin
 
-### Autenticação
+### Login
 
-**Campo:** Senha de Administrador  
-**Valor padrão:** `sstg2025`
+Selecione **🔐 Admin SSTG (Gestão)** no menu lateral. Existem dois tipos de acesso:
 
-> ⚠️ **Segurança:** Altere a senha padrão assim que possível.
+| Perfil | Como entra | O que pode fazer |
+|--------|------------|-------------------|
+| **Administrador** | usuário `admin` + senha da equipe SSTG | Acesso total, incluindo a aba 👥 Usuários e a ⚠️ Zona de Perigo |
+| **Operacional** | usuário + senha criados pelo administrador (aba 👥 Usuários) | Acesso às demais abas (cadastro, conferência, resultados, segurança, movimentação) |
 
-### Interface Principal
+> 🔑 A senha do administrador pode ser alterada dentro do próprio módulo
+> (opção "Alterar Senha"). Guarde-a em local seguro — ela não aparece em
+> nenhuma tela após ser definida.
 
-Após login, você verá **6 abas**:
+Após o login, ficam disponíveis 7 abas:
 
-| Aba | Descrição |
-|-----|-----------|
-| **📝 Cadastro / Inclusão** | Registrar novas empresas e colaboradores |
-| **📋 Conferência e Correção** | Visualizar, gerenciar acessos, Zona de Perigo |
-| **📊 Resultados** | Respostas consolidadas, laudos PDF, QR Code |
-| **🔄 Movimentação de Pessoal** | Admissão, desligamento, reativação |
-| **🔐 Segurança e Acesso RH** | Gerar/redefinir senhas de acesso RH |
-| **📚 Documentação** | Guias e tutoriais integrados |
-
----
-
-## 📝 Cadastro Manual
-
-### Passo 1: Selecionar Método
-
-Na **Aba 1 — Cadastro / Inclusão**, selecione: **✏️ Entrada Manual**
-
-### Passo 2: Preencher Dados da Empresa
-
-```
-CNPJ (somente números)           Razão Social
-[__________________]             [___________________]
-Ex: 49405001000105               Ex: Empresa Exemplo Ltda
-```
-
-### Passo 3: Definir Período de Aplicação
-
-```
-Data de início                   Data de encerramento
-[__________]                     [__________]
-Ex: 05/05/2026                   Ex: 05/06/2026
-```
-
-> ⚠️ Fora desse período, colaboradores **não** conseguem acessar o questionário.
-
-### Passo 4: Adicionar Colaboradores
-
-Clique em **➕ Adicionar linha** para cada colaborador:
-
-```
-╔════════════╦══════════════╦═══════════════╗
-║ CPF        ║ Função       ║ Departamento  ║
-╠════════════╬══════════════╬═══════════════╣
-║ 06320453451║ Assist. Adm  ║ Atendimento   ║
-║ 70164124403║ Analista RH  ║ RH            ║
-╚════════════╩══════════════╩═══════════════╝
-```
-
-- **CPF:** 11 dígitos, sem pontos ou traços
-- **Função e Departamento:** opcionais, mas recomendados
-
-### Passo 5: Salvar
-
-Clique em: **✅ SALVAR E LIBERAR ACESSOS**
-
-Após salvar, o sistema exibe automaticamente:
-
-```
-🔐 Credenciais de Acesso RH
-Empresa: Empresa Exemplo Ltda
-CNPJ: 49405001000105
-Senha de Acesso RH: A7K9M2P5
-⚠️ Anote esta senha com segurança! Esta é a única vez que ela será exibida.
-```
-
-> **Importante:** Salve e envie a senha ao responsável de RH da empresa. Ela não poderá ser recuperada — apenas substituída por uma nova.
+| Aba | Para quê |
+|-----|----------|
+| 🆕 Cadastro / Inclusão | Cadastrar empresas e colaboradores |
+| 📋 Conferência e Correção | Consultar/editar cadastros, período, backup |
+| 📊 Resultados DRPS | Acompanhar respostas e gerar o laudo Psicossocial |
+| 🦴 Resultados DRE | Acompanhar respostas e gerar o laudo Ergonômico |
+| 🔄 Movimentação de Pessoal | Inativar/reativar colaboradores |
+| 🔐 Segurança e Acesso RH | Gerar a senha de acesso do RH de cada empresa |
+| 👥 Usuários | Gerenciar usuários da equipe SSTG (admin only) |
 
 ---
 
-## 📊 Cadastro via CSV
+### 🆕 Aba 1 — Cadastro / Inclusão
 
-### Quando Usar
+#### Passo 1: Dados da Empresa
 
-✅ Ideal para cadastro de 10+ colaboradores ou importação em lote.
+Preencha:
 
-### Passo 1: Baixar Template
+```
+CNPJ (somente números)        Razão Social
+[__________________]          [___________________]
 
-Na **Aba 1**, clique em: **⬇️ Baixar Template CSV**
+CNAE Principal                 Grau de Risco (NR-4)
+[__________________]          [— | 1 | 2 | 3 | 4]
 
-### Passo 2: Preencher Arquivo
+Data de início do período      Data de encerramento
+[__________]                   [__________]
+```
+
+> ⚠️ **Grau de Risco (NR-4):** este campo é importante para o laudo **DRE**.
+> Ele define a tabela de severidades usada no cálculo do Grau de Risco (GR)
+> de cada item do inventário ergonômico. Se não souber, deixe "—" — o
+> sistema usa a tabela padrão (GR 1-2).
+>
+> ⚠️ Fora do período definido, os colaboradores **não conseguem** responder
+> aos questionários.
+
+#### Passo 2: Colaboradores — Manual ou CSV
+
+Escolha entre **✏️ Entrada Manual** (adicionar linha por linha) ou
+**📊 Importar via CSV** (recomendado para 10+ colaboradores).
+
+**Entrada manual** — adicione uma linha por colaborador:
+
+```
+╔═══════════════════════════════════════════════════════╗
+║  CPF (11 dígitos)  │  Função / Cargo  │ Departamento  ║
+╠═══════════════════════════════════════════════════════╣
+║ [06320453451]      │ [Assist. Adm]    │ [Atendimento] ║
+║ [70164124403]      │ [Assist. ST]     │ [Seg. Trab.]  ║
+╚═══════════════════════════════════════════════════════╝
+```
+
+**Importação via CSV** — baixe o template, preencha em Excel/Bloco de Notas
+e faça upload. O arquivo deve ter as colunas, separadas por `;`:
 
 ```csv
 CPF;Função;Departamento
-06320453451;Desenvolvedor;TI
-70164124403;Analista;RH
-29545382449;Coordenador;Administrativo
+06320453451;Assist. Adm;Atendimento
+70164124403;Assist. ST;Seg. Trabalho
 ```
 
-> ⚠️ Separador: `;` | CPF: 11 dígitos sem pontos ou traços
+> **⚠️ Importante:** CPF com exatamente 11 dígitos, sem pontos ou traços.
 
-### Passo 3: Preencher Dados da Empresa
+#### Passo 3: Salvar e Gerar Links
 
-CNPJ, Razão Social e Período (igual ao cadastro manual).
+Clique em **✅ SALVAR E LIBERAR ACESSOS**. O sistema cadastra os colaboradores
+(avisando sobre CPFs já existentes ou inválidos) e exibe **dois links**, um
+para cada questionário:
 
-### Passo 4: Upload e Confirmação
-
-Faça o upload do CSV e clique em: **💾 SALVAR COLABORADORES DO CSV**
-
-Resultado esperado:
 ```
-✅ 3 colaborador(es) cadastrado(s) com sucesso.
-🔐 Credenciais de Acesso RH geradas automaticamente.
-⚠️ CPF(s) já cadastrados nesta empresa: [lista]
-❌ CPF(s) inválidos: [lista]
+┌─────────────────────────────────────────────────────────────────┐
+│  🔗 Links para Compartilhar — Empresa XYZ                        │
+├─────────────────────────────────────────────────────────────────┤
+│  📋 Questionário DRPS (Psicossocial)                              │
+│  https://valter-contador.github.io/sstg-e-social/                │
+│      questionario_psicossocial.html?cnpj=XXXXXXXXXXXXXX          │
+│                                                                   │
+│  🦴 Questionário DRE (Ergonômico)                                 │
+│  https://valter-contador.github.io/sstg-e-social/                │
+│      questionario_aep.html?cnpj=XXXXXXXXXXXXXX                   │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-> **Nota:** O mesmo CPF pode ser cadastrado em **empresas diferentes**. O bloqueio de duplicidade é por CPF + CNPJ.
+Copie e envie cada link aos colaboradores (WhatsApp, e-mail, etc.). O link
+DRPS abre o questionário Psicossocial; o link DRE abre o Ergonômico.
 
 ---
 
-## 🔗 Gerar Links e QR Code
+### 📋 Aba 2 — Conferência e Correção
 
-### Links para Compartilhar
-
-Na **Aba 1**, role até **🔗 Link do Questionário para Compartilhar**:
-
-```
-Empresa Exemplo Ltda
-https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app/?cnpj=49405001000105
-```
-
-Copie e envie o link ao RH da empresa para distribuição.
-
-### Gerar QR Code (Aba Resultados)
-
-Na **Aba 3 — Resultados**:
-
-1. Selecione a empresa
-2. Expanda: **🖼️ Gerar QRCode do Questionário para Compartilhamento**
-3. Clique em: **🎨 Gerar Imagem com QR Code**
-
-A imagem gerada (1280×720 px) contém:
-- Logo e nome da empresa em destaque
-- QR Code escaneável com link direto
-- Design profissional pronto para distribuição
-
-**Opções de compartilhamento disponíveis:**
-
-| Canal | Botão |
-|-------|-------|
-| WhatsApp | 📱 Enviar via WhatsApp |
-| E-mail | 📧 Enviar via Email |
-| Download | ⬇️ Baixar Imagem (PNG) |
+- **Métricas no topo:** Total de CPFs, Ativos, Inativos, data do último cadastro.
+- **Filtro por empresa:** selecione uma empresa ou deixe em branco para ver todas.
+- **Tabela de cadastros:** todos os colaboradores e seus dados/status.
+- **📅 Gerenciar Período de Aplicação** (expander): altere as datas de
+  início/fim para reabrir ou encerrar a resposta de uma empresa.
+- **💾 Backup** (expander): exporta um ZIP com todos os dados em CSV.
+- **⚠️ Zona de Perigo** (expander, apenas administrador): excluir os dados
+  de uma empresa (cadastros e respostas) ou resetar o banco. **Use com
+  extremo cuidado — ação irreversível.**
 
 ---
 
-## 📊 Módulo RH — Gestão das Respostas
+### 🔐 Aba — Segurança e Acesso RH
 
-### O que é este módulo?
+Antes que o RH de uma empresa possa acessar o módulo **📊 Gestão das
+Respostas (RH)**, a equipe SSTG precisa gerar uma senha de acesso:
 
-O módulo **📊 Gestão das Respostas (RH)** permite que o departamento de RH de cada empresa acesse os dados da pesquisa, compartilhe o questionário com colaboradores e visualize métricas — **sem precisar de acesso administrativo**.
+1. Selecione a empresa.
+2. Clique em **🔐 Gerar Nova Senha RH**.
+3. O sistema gera uma senha de 8 caracteres (letras maiúsculas e números) e
+   exibe **uma única vez** na tela.
+4. Anote/copie a senha e envie ao RH junto com o CNPJ da empresa.
 
-### Como Acessar
-
-1. Na barra lateral, selecione: **📊 Gestão das Respostas (RH)**
-2. Informe seu **CNPJ** (formato: XX.XXX.XXX/0001-XX)
-3. Informe a **Senha RH** recebida do administrador SSTG
-4. Clique em **Acessar**
-
-### Obtendo as Credenciais
-
-- **Primeiro acesso:** A senha é gerada automaticamente no momento do cadastro da empresa e exibida ao Admin SSTG
-- **Senha perdida:** Solicite ao administrador SSTG que acesse **Segurança e Acesso RH → Gerar Nova Senha**
-
-### O que o RH pode fazer
-
-Após o login, o RH tem acesso a:
-
-#### 1. Link do Questionário
-Visualiza o link público do questionário da empresa para distribuição.
-
-#### 2. QR Code para Compartilhamento
-Gera imagem profissional com QR Code e compartilha via:
-- 📱 WhatsApp (botão direto)
-- 📧 E-mail (botão direto)
-- ⬇️ Download (PNG)
-
-#### 3. Respostas Recebidas
-Visualiza dashboard com:
-- Total de colaboradores autorizados
-- Total de respostas recebidas
-- Taxa de adesão (%)
-- Gráfico de adesão
-
-> **Segurança:** O RH acessa apenas os dados da sua própria empresa. Não é possível ver dados de outras empresas.
+> ⚠️ Se a senha for perdida, basta gerar uma nova — a anterior deixa de
+> funcionar.
 
 ---
 
-## 👥 Módulo Colaborador — Responder Questionário
+### 📊 Aba — Resultados DRPS
+
+- KPIs: CPFs autorizados, respostas recebidas, taxa de adesão.
+- Gráfico de adesão (autorizados x respondidos).
+- Gráfico de médias por dimensão do COPSOQ III.
+- Tabela com o histórico completo de respostas (anônimo, por CPF_Hash).
+- Botão **📄 Gerar Laudo DRPS em PDF** — gera o laudo completo (escopo,
+  metodologia, inventário por dimensão, plano de ação e conclusão) e
+  disponibiliza para download.
+
+---
+
+### 🦴 Aba — Resultados DRE
+
+- KPIs: CPFs autorizados, respostas recebidas, taxa de adesão.
+- Gráfico de % de risco por seção (A. Postura, B. Mobiliário, C. Ambiente,
+  D. Organização do Trabalho).
+- **Inventário de Riscos** (somente leitura), com uma linha por item (1-17):
+
+| Nº | Seção | Risco Identificado | % Risco | Severidade | Probabilidade | GR | Classificação | Plano? |
+|----|-------|---------------------|---------|------------|-----------------|----|----------------|--------|
+
+  - **Severidade** vem pré-calibrada conforme o **Grau de Risco (NR-4)**
+    cadastrado para a empresa.
+  - **Probabilidade** é calculada a partir do % de respostas com risco.
+  - **GR = Severidade × Probabilidade** (veja a fórmula completa no
+    README.md, seção "Metodologia de Grau de Risco").
+  - **Plano? = SIM** a partir da classificação Médio.
+
+- Botão **📄 Gerar Laudo DRE em PDF** — gera o laudo completo (escopo,
+  metodologia, inventário com GR, matriz/plano de ação, necessidade de AET
+  e conclusão).
+
+---
+
+### 🔄 Aba — Movimentação de Pessoal
+
+Para desligar um colaborador sem apagar o histórico:
+
+1. Selecione a empresa e o CPF.
+2. Informe o motivo (opcional, ex.: "Desligado em 12/06/2026").
+3. Clique em **🚫 Inativar Colaborador**.
+
+O colaborador inativado não consegue mais responder aos questionários. Para
+restaurar o acesso, use a opção **✅ Reativar** na mesma aba.
+
+---
+
+### 👥 Aba — Usuários (apenas administrador)
+
+Permite gerenciar os logins **operacionais** da equipe SSTG:
+
+- **Criar usuário:** login, nome e senha (mínimo 6 caracteres).
+- **Listar usuários:** veja quem está ativo/inativo.
+- **Ativar/Desativar:** suspende o acesso sem excluir o usuário.
+- **Redefinir senha:** gera uma nova senha para um usuário específico.
+
+---
+
+## 🏢 RH da Empresa — Gestão das Respostas
+
+### Login
+
+1. Acesse o link do sistema.
+2. Menu **📊 Gestão das Respostas (RH)**.
+3. Informe o **CNPJ** da empresa e a **senha RH** (recebida da equipe SSTG).
+
+### O que você encontra
+
+- Indicadores de adesão (quantos colaboradores já responderam).
+- **E-books de apoio** — materiais explicativos sobre os programas
+  Psicossocial e Ergonômico, com seus respectivos links de download. Esses
+  são os únicos materiais que o RH compartilha por aqui — os links dos
+  questionários ficam a cargo da equipe SSTG (aba Cadastro/Inclusão).
+
+### Navegação
+
+Após os e-books, há dois controles de navegação:
+
+- **🔄 Trocar de empresa** (visível apenas para a equipe SSTG): permite
+  alternar entre empresas sem precisar sair e fazer login novamente.
+- **↩ Voltar à tela inicial**: encerra o acesso do RH e retorna à tela de
+  login do módulo (equivalente a "Sair").
+
+---
+
+## 👤 Colaborador — Questionários DRE-DRPS
 
 ### Acesso
 
-O colaborador acessa via link ou QR Code recebido do RH:
+O colaborador recebe um link específico:
 
-```
-https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app/?cnpj=XXXXXXXXXXX
-```
+- **DRPS (Psicossocial):** `...questionario_psicossocial.html?cnpj=...`
+- **DRE (Ergonômico):** `...questionario_aep.html?cnpj=...`
 
-### Passo 1: Informar CPF
+Ao abrir o link, o sistema já seleciona o questionário correto. A tela de
+acesso pede o **CPF** (11 dígitos, sem pontos ou traços).
 
-Digite o CPF (11 dígitos, sem pontos ou traços) e clique em **ACESSAR ▶**
+### Validações
 
-### Passo 2: Responder os Blocos — Navegação Wizard
+| Situação | Mensagem |
+|----------|----------|
+| CPF não cadastrado | Seu CPF não está autorizado |
+| Colaborador inativado | Seu acesso está inativo |
+| Antes do período | O questionário ainda não foi aberto |
+| Depois do período | O período de resposta encerrou — contate o RH |
+| Já respondeu | Você já participou desta avaliação |
+| Tudo OK | Abre o questionário |
 
-O questionário exibe **um bloco (demanda) por vez**, em sequência guiada. São **8 blocos / 40 questões** no total:
+### 👁️ Modo Demonstração (equipe SSTG)
 
-| Bloco | Nome | Questões |
+Na tela de acesso, usuários logados como equipe SSTG (Admin) veem um botão
+extra: **👁️ Ver questionário em modo demonstração**. Ele abre o questionário
+completo em modo **somente leitura** — útil para mostrar o sistema a um
+cliente sem usar dados reais e sem gravar nenhuma resposta. Para sair, use o
+botão **↩ Voltar / Encerrar**.
+
+### Questionário DRPS — 7 blocos / 35 questões
+
+| Bloco | Tema | Questões |
 |-------|------|----------|
-| 1 | 📦 Cargo | 5 |
-| 2 | 🎮 Controle | 6 |
-| 3 | ⚖️ Demandas | 8 |
-| 4 | ⚠️ Relacionamentos | 4 |
-| 5 | 🤝 Apoio Colegas | 4 |
-| 6 | 👔 Apoio Chefia | 5 |
-| 7 | 📢 Comunicação | 3 |
-| 8 | 🔄 Mudanças | 5 |
+| 📦 Cargo | Clareza da função | 5 |
+| 🎮 Controle | Autonomia de decisão | 6 |
+| ⚖️ Demandas | Pressão e carga | 8 |
+| ⚠️ Relacionamentos | Conflitos e assédio | 4 |
+| 🤝 Apoio dos Colegas | Solidariedade | 4 |
+| 👔 Apoio da Chefia | Suporte gerencial | 5 |
+| 📢 Comunicação e Mudanças | Transparência | 3 |
 
-Escala de resposta: **Nunca / Raramente / Às vezes / Frequentemente / Sempre**
+Cada questão usa escala Likert de 5 pontos (Nunca → Sempre). É possível
+navegar entre blocos antes de enviar.
 
-### Navegação Entre Blocos
+### Questionário DRE — 4 seções / 17 questões
 
-No **topo** da tela, uma barra indica o bloco atual:
-```
-Bloco 3 de 8 — ⚖️ Demandas  ████████░░░░░░░░ 37%
-```
+| Seção | Tema |
+|-------|------|
+| A. Postura e Movimentos | Como você usa o corpo no trabalho |
+| B. Mobiliário e Equipamentos | Mesas, cadeiras e ferramentas |
+| C. Condições Ambientais | Iluminação, ruído, temperatura |
+| D. Organização do Trabalho | Ritmo, pausas, jornada |
 
-No **rodapé** de cada bloco, há dois botões e uma barra de progresso geral:
-```
-[◀ Demanda Anterior]          [Próxima Demanda ▶]
+Cada pergunta tem um texto principal e uma linha de ajuda em linguagem
+simples. Ao final, há duas perguntas abertas (relato de dor/incômodo e
+sugestões de melhoria).
 
-Progresso geral: 19 de 40 perguntas respondidas  ████████████░░░░ 47%
-```
+### Envio
 
-**Regras de navegação:**
-- O botão **"Próxima Demanda ▶"** só aparece quando **todas as perguntas do bloco atual** estão respondidas
-- Se houver perguntas sem resposta, aparece um aviso e o botão não avança
-- O botão **"◀ Demanda Anterior"** retorna ao bloco anterior com as respostas **preservadas**
-- As respostas dos blocos já concluídos **não são perdidas** ao navegar
-
-### Passo 3: Enviar
-
-No último bloco (Bloco 8), após responder todas as questões do bloco:
-
-```
-[✅ FINALIZAR E ENVIAR AVALIAÇÃO]
-```
-
-> O botão **ENVIAR fica desabilitado** enquanto ainda há perguntas sem resposta em qualquer bloco. Use "◀ Demanda Anterior" para revisar.
-
-Uma tela de confirmação com balões é exibida e as respostas são registradas com segurança.
-
-> **Observações:**
-> - O mesmo CPF não pode responder **duas vezes para a mesma empresa**
-> - O mesmo CPF **pode** responder para empresas diferentes (cada empresa é independente)
-> - O preenchimento dura aproximadamente **10 minutos**
+Ao concluir, o colaborador clica em **✅ ENVIAR** e recebe a confirmação de
+que as respostas foram salvas de forma anônima.
 
 ---
 
-## 📊 Consultar Resultados
+## 🏠 Módulo Início (Dashboard)
 
-Na **Aba 3 — Resultados**:
+A tela inicial mostra uma visão geral do uso do sistema:
 
-1. Selecione a empresa no dropdown
-2. Veja as métricas:
-
-```
-┌──────────────────┬──────────────────┬──────────────┐
-│ CPFs Autorizados │ Respostas Receb. │ Taxa Adesão  │
-│       25         │       18         │    72%       │
-└──────────────────┴──────────────────┴──────────────┘
-```
-
-3. Analise as médias por dimensão (escala 0 a 4)
-4. Visualize o histórico completo de respostas
-5. Exporte os dados em CSV
-
-### Gerar Laudo PDF
-
-1. Preencha CNAE Principal e Grau de Risco (opcional)
-2. Clique em **📄 Gerar Laudo PDF**
-3. Baixe o arquivo gerado
-
----
-
-## 🔐 Segurança e Acesso RH
-
-### Quando usar esta aba
-
-Use quando uma empresa:
-- Perdeu ou esqueceu a senha RH
-- Precisa trocar o responsável de RH
-- Quer resetar o acesso por segurança
-
-### Como Gerar Nova Senha
-
-1. Acesse **Aba 5 — Segurança e Acesso RH**
-2. Selecione a empresa no dropdown
-3. Clique em **🔐 Gerar Nova Senha RH**
-4. A nova senha é exibida **uma única vez**
-
-```
-🔐 Credenciais Atualizadas
-Empresa: Empresa Exemplo Ltda
-CNPJ: 49405001000105
-Nova Senha de Acesso RH: X3P7K1M9
-⚠️ Anote esta senha! Esta é a única vez que ela será exibida.
-```
-
-5. Copie a senha e envie ao RH da empresa
-
-> **Atenção:** A geração de nova senha **invalida automaticamente** a senha anterior.
-
----
-
-## ⚠️ Zona de Perigo — Exclusão de Dados
-
-Localização: **Aba 2 — Conferência e Correção → Zona de Perigo**
-
-> ❌ Todas as ações nesta seção são **irreversíveis**.
-
-### Excluir Empresa Individual
-
-Remove uma empresa específica e **todo o seu histórico de respostas**.
-
-1. Acesse a **Zona de Perigo → Aba "🗑️ Excluir Empresa"**
-2. Selecione a empresa no dropdown
-3. Verifique os contadores de impacto exibidos:
-   ```
-   CPFs que serão removidos: 25
-   Respostas que serão apagadas: 18
-   ```
-4. Digite a **senha do Admin SSTG** para confirmar
-5. Clique em **🗑️ EXCLUIR EMPRESA E TODO O HISTÓRICO**
-
-### Resetar Banco Completo
-
-Remove **todas** as empresas e **todos** os históricos.
-
-1. Acesse a **Zona de Perigo → Aba "💣 Resetar Tudo"**
-2. Digite a **senha do Admin SSTG**
-3. Clique em **💣 RESETAR BANCO DE DADOS COMPLETO**
-
-> Use apenas em casos extremos, como reinício completo do sistema.
-
----
-
-## 🔄 Movimentação de Pessoal
-
-Localização: **Aba 4 — Movimentação de Pessoal**
-
-### Admissão (Incluir colaborador)
-
-1. Selecione a empresa
-2. Preencha a tabela com CPF, Função, Departamento
-3. Clique em **➕ INCLUIR COLABORADORES**
-
-### Desligamento (Inativar)
-
-1. Informe o CPF do colaborador
-2. Selecione o motivo do desligamento
-3. Clique em **🚫 INATIVAR COLABORADOR**
-
-> O CPF ficará bloqueado, mas o histórico de respostas é preservado.
-
-### Reativação
-
-1. Visualize a lista de inativos
-2. Informe o CPF a reativar
-3. Clique em **✅ REATIVAR COLABORADOR**
-
----
-
-## 📚 Documentação Integrada
-
-Localização: **Aba 6 — Documentação**
-
-Acesse os guias diretamente no sistema, sem precisar abrir arquivos externos:
-
-| Documento | Conteúdo |
-|-----------|----------|
-| 📄 README | Visão geral, início rápido, FAQ |
-| 👥 TUTORIAL | Este guia completo |
-| 🚀 GUIA_INSTALACAO | Setup, configuração, publicação |
-| 🔧 GUIA_TECNICO | Arquitetura, dados, segurança |
-| ✅ CHECKLIST_LANCAMENTO | Validação pré-produção |
-| 🚀 DOCUMENTACAO_PUBLICACAO | Processo de publicação |
-
-Clique em **Ler** para visualizar o conteúdo no sistema ou em **⬇️ PDF** para baixar.
+- **Cards de indicadores:** 🏢 CNPJs cadastrados · 👥 CPFs cadastrados ·
+  📋 Questionários respondidos (DRPS + DRE) · 📄 Laudos gerados.
+- **Gráfico de evolução:** quantidade acumulada de respostas por mês.
+- **Gráfico de laudos:** quantidade de laudos DRPS x DRE já gerados.
 
 ---
 
 ## ❓ FAQ e Troubleshooting
 
-### Perguntas Frequentes
+### P1: "Seu CPF não está autorizado"
 
-**P: Esqueci a senha do Admin SSTG. O que fazer?**  
-R: A senha padrão é `sstg2025`. Se foi alterada e esquecida, é necessário editar o arquivo `app.py` localmente e redefinir a variável `SENHA_ADMIN`.
+**Causa:** o CPF não foi cadastrado (ou foi cadastrado para outra empresa).
 
-**P: O RH perdeu a senha de acesso. Como recuperar?**  
-R: Admin acessa **Segurança e Acesso RH**, seleciona a empresa e clica em **Gerar Nova Senha**. A senha antiga é invalidada automaticamente.
-
-**P: Um colaborador pode responder duas vezes?**  
-R: Não. O sistema bloqueia a segunda tentativa com a mensagem: *"Você já participou desta avaliação."*
-
-**P: Um colaborador pode responder para duas empresas diferentes?**  
-R: Sim. O mesmo CPF pode ser cadastrado e responder em empresas diferentes. O controle é por CPF + CNPJ.
-
-**P: O questionário aparece com respostas já marcadas para outro respondente.**  
-R: Isso foi corrigido na v6.1. Cada respondente tem suas próprias chaves de sessão (por CPF), evitando contaminação entre respostas.
-
-**P: O colaborador diz que o link não funciona.**  
-R: Verifique se o período de aplicação está ativo. Acesse **Conferência → Gerenciar Período** e ajuste as datas.
-
-**P: Como excluir todos os dados de uma empresa?**  
-R: Acesse **Conferência → Zona de Perigo → Excluir Empresa**. A ação exige confirmação com senha admin e é irreversível.
-
-**P: A documentação mostra "Arquivo não encontrado".**  
-R: Verifique se os arquivos `.md` estão na raiz do repositório. A partir da v6.1, o sistema usa caminho absoluto via `__file__` para localizar os documentos.
-
-### Erros Comuns
-
-| Erro | Causa | Solução |
-|------|-------|---------|
-| "CPF não autorizado" | CPF não cadastrado | Admin cadastra o CPF na empresa |
-| "Período encerrado" | Data fim ultrapassada | Admin ajusta o período na Aba 2 |
-| "Você já participou" | CPF já respondeu | Normal — resposta já registrada |
-| "Senha incorreta" | Senha RH errada | Admin gera nova senha (Aba 5) |
-| "PDF não disponível" | Arquivo não gerado | Execute `gerar_pdf_publicacao.py` |
+**Solução:**
+1. Aba **📋 Conferência e Correção** → procure o CPF.
+2. Se não existir, cadastre na aba **🆕 Cadastro / Inclusão**.
+3. Verifique se não há erro de digitação (pontos/traços não são aceitos).
 
 ---
 
-**Última atualização:** 07/05/2026  
-**Versão do sistema:** 6.2
+### P2: "O período de resposta encerrou"
+
+**Solução:**
+1. Aba **📋 Conferência e Correção** → expander **📅 Gerenciar Período de Aplicação**.
+2. Selecione a empresa e ajuste as datas.
+
+---
+
+### P3: "Você já participou desta avaliação"
+
+Isso é esperado — o sistema impede respostas duplicadas. Cada colaborador
+responde uma vez por período, para cada questionário (DRPS e DRE são
+independentes).
+
+---
+
+### P4: Erro ao importar CSV: "CPF inválido"
+
+```
+✅ Correto:   06320453451
+❌ Errado:    6320453451       (10 dígitos)
+❌ Errado:    063.204.534-51   (com pontos/traços)
+```
+
+---
+
+### P5: O RH não consegue entrar no módulo "Gestão das Respostas"
+
+**Causa mais comum:** a senha RH ainda não foi gerada (ou foi perdida).
+
+**Solução:** Admin → aba **🔐 Segurança e Acesso RH** → selecione a empresa →
+**🔐 Gerar Nova Senha RH** → envie CNPJ + nova senha ao RH.
+
+---
+
+### P6: Como mostrar o sistema a um cliente sem usar dados reais?
+
+Use o botão **👁️ Ver questionário em modo demonstração**, disponível na tela
+de acesso do módulo Questionários DRE-DRPS para quem está logado como equipe
+SSTG.
+
+---
+
+### P7: Como alterar a senha do administrador?
+
+Dentro do módulo **🔐 Admin SSTG (Gestão)**, use a opção "Alterar Senha".
+Apenas administradores conseguem fazer isso (usuários operacionais não têm
+essa opção).
+
+---
+
+## 📞 Suporte
+
+Para dúvidas técnicas, consulte o **🔧 GUIA_TECNICO.md** ou contate a equipe
+SSTG responsável pela manutenção do sistema.
+
+---
+
+**Sistema versão 8.0** — DRE - DRPS

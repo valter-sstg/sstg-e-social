@@ -1,258 +1,329 @@
-# ✅ Checklist de Lançamento — SSTG - DRPS v7.7
+# ✅ Checklist de Lançamento — DRE - DRPS v8.0
 
-**Data:** 07/05/2026  
-**Responsável:** _______________  
-**Assinado em:** _______________
+**Versão:** 8.0
+**Atualizado:** 12/06/2026
+**Uso:** validar uma publicação/atualização do sistema no Streamlit Cloud
+antes de liberar para uso pelas empresas atendidas.
 
----
-
-## 📋 1. Pré-requisitos Técnicos
-
-- [ ] **Python 3.9+** instalado (`py --version`)
-- [ ] **Dependências instaladas** (`pip list`):
-  - [ ] `streamlit >= 1.28.0`
-  - [ ] `pandas >= 2.0.0`
-  - [ ] `reportlab >= 4.0.0`
-  - [ ] `pillow >= 10.0.0` ← necessário para QR Code e logo no laudo
-  - [ ] `qrcode[pil] >= 7.4.2` ← necessário para QR Code
-  - [ ] `pymupdf >= 1.23.0` ← visualizador PDF (POP 020)
-  - [ ] `plotly >= 5.18.0` ← dashboards interativos
-  - [ ] `matplotlib >= 3.7.0` ← dashboard do laudo PDF
-  - [ ] `filelock >= 3.12.0` ← proteção contra race condition em CSV ← **novo v7.7**
-- [ ] **Pasta `.streamlit/`** criada
-- [ ] **Arquivo `.streamlit/config.toml`** presente e configurado
-- [ ] **Arquivos principais presentes:**
-  - [ ] `app.py`
-  - [ ] `gerar_laudo.py`
-  - [ ] `gerar_compartilhamento.py`
-  - [ ] `gerar_pdf_publicacao.py`
-  - [ ] `requirements.txt`
-  - [ ] `logo_sstg.png` ← usada na capa e cabeçalho do laudo ← **novo v7.7**
-- [ ] **Arquivos de documentação presentes (raiz do projeto):**
-  - [ ] `README.md`
-  - [ ] `TUTORIAL.md`
-  - [ ] `GUIA_INSTALACAO.md`
-  - [ ] `GUIA_TECNICO.md`
-  - [ ] `CHECKLIST_LANCAMENTO.md`
-  - [ ] `DOCUMENTACAO_PUBLICACAO.md`
+**Data do teste:** ___/___/_____
+**Responsável:** _______________________________
+**Assinado em:** ___/___/_____
 
 ---
 
-## ⚙️ 2. Configuração
+## 📋 1. Antes de Publicar (Pré-requisitos)
 
-- [ ] **`DATA_DIR`** definido corretamente
-  - [ ] Streamlit Cloud: `./data/` (automático via `__file__`)
-  - [ ] Local: caminho para Google Drive ou pasta local
-- [ ] **`APP_URL`** configurado para o ambiente atual
-- [ ] **`SHARE_URL`** aponta para URL pública do Streamlit Cloud
-  - [ ] Testado: links enviados por WhatsApp/e-mail funcionam externamente
-- [ ] **`SENHA_ADMIN`** alterada (não usar padrão em produção)
-- [ ] **`DOC_DIR`** resolvido via `os.path.dirname(os.path.abspath(__file__))` — automático
-- [ ] **Pasta `data/`** criada e acessível (Streamlit Cloud cria automaticamente)
-- [ ] **`filelock`** instalado: `py -m pip show filelock` ← **novo v7.7**
+- [ ] Todos os arquivos alterados estão em `C:\Users\valte\Claude\upload_temp\`
+- [ ] `requirements.txt` está sincronizado com as dependências reais
+      (streamlit, pandas, reportlab, plotly, supabase, qrcode, pillow)
+- [ ] `.streamlit/config.toml` presente com o tema SSTG (cores e fonte)
+- [ ] Secrets `SUPABASE_URL` e `SUPABASE_KEY` configurados em
+      `share.streamlit.io` → app → Settings → Secrets
+- [ ] Arquivos de documentação (`.md` + `.pdf`) atualizados estão incluídos
+      no upload, se aplicável
 
 ---
 
-## 📋 3. Módulo Admin (6 Abas)
+## 🚀 2. Pós-Publicação — Verificações Gerais
 
-### Aba 1 — Cadastro / Inclusão
-- [ ] Cadastro manual de empresa funciona
-- [ ] Senha RH gerada automaticamente após cadastro
-- [ ] Senha RH exibida uma única vez com aviso
-- [ ] Importação via CSV funciona
-- [ ] Senha RH gerada para empresas importadas via CSV
-- [ ] Duplicidade bloqueada por CPF + CNPJ (não global)
-- [ ] Mesmo CPF aceito em empresas diferentes
-- [ ] Links de questionário exibidos corretamente (usam `SHARE_URL`)
-
-### Aba 2 — Conferência e Correção
-- [ ] Lista de colaboradores carrega
-- [ ] Filtro por empresa funciona
-- [ ] Export CSV funciona
-- [ ] Gerenciamento de período funciona (alterar datas)
-- [ ] **Zona de Perigo — Excluir Empresa:**
-  - [ ] Dropdown de empresa funciona
-  - [ ] Contadores de impacto exibidos (CPFs e respostas)
-  - [ ] Campo de senha admin presente
-  - [ ] Senha incorreta bloqueia a ação
-  - [ ] Ação remove CPFs do CSV e apaga arquivo de respostas
-  - [ ] `st.rerun()` após exclusão atualiza a lista
-- [ ] **Zona de Perigo — Resetar Tudo:**
-  - [ ] Campo de senha admin presente
-  - [ ] Senha incorreta bloqueia a ação
-  - [ ] Ação remove todos os CSVs (acessos + respostas)
-
-### Aba 3 — Resultados
-- [ ] Seleção de empresa funciona
-- [ ] Link público da empresa usa `SHARE_URL`
-- [ ] Geração de QR Code funciona
-- [ ] Imagem QR Code exibe nome da empresa corretamente
-- [ ] QR Code é escaneável (teste com celular)
-- [ ] Link dentro do QR Code abre questionário correto
-- [ ] Botão WhatsApp abre conversa pré-preenchida
-- [ ] Botão E-mail abre cliente com template
-- [ ] Download da imagem PNG funciona
-- [ ] Médias por dimensão exibidas
-- [ ] Dashboard de resultados: 3 métricas + gráfico Adesão + Médias por Dimensão ← **v7.7**
-- [ ] Histórico de respostas exibido
-- [ ] Export CSV de respostas funciona
-- [ ] Geração de laudo PDF funciona
-- [ ] Nome do arquivo padronizado: `Laudo_Psicossocial_{CNPJ}_v7.7_{dd-mm-aaaa}.pdf` ← **novo v7.7**
-
-### Aba 4 — Movimentação de Pessoal
-- [ ] Admissão de novos colaboradores funciona
-- [ ] Desligamento (inativação) funciona
-- [ ] Colaborador inativo não consegue acessar o questionário
-- [ ] Reativação funciona
-- [ ] Histórico de respostas preservado após desligamento
-
-### Aba 5 — Segurança e Acesso RH
-- [ ] Dropdown de seleção de empresa funciona
-- [ ] Botão "Gerar Nova Senha RH" funciona
-- [ ] Nova senha exibida uma única vez
-- [ ] Nova senha invalida a senha anterior
-- [ ] Login RH com nova senha funciona
-
-### Aba 6 — Documentação
-- [ ] Todos os documentos listados
-- [ ] Botão "Ler" abre o conteúdo `.md` sem erro "Arquivo não encontrado"
-- [ ] Conteúdo renderizado em Markdown
-- [ ] Botão de fechar documentação funciona
-- [ ] Botão "⬇️ PDF" mostra aviso se PDF não gerado (não causa erro)
+- [ ] **Reboot realizado** em `share.streamlit.io` (menu "⋮" → "Reboot app")
+- [ ] **App carrega sem erros** na URL pública
+      (`https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app`)
+- [ ] **Título da aba do navegador** correto: "DRE - DRPS | Gestão
+      integrada de riscos ergonômicos e psicossociais (NR-1 / NR-17)"
+- [ ] **Rodapé da barra lateral** exibe "v8.0 — DRE - DRPS / COPSOQ III +
+      NR-17"
+- [ ] **Cores SSTG aplicadas**: laranja (#DC3B24), navy (#282C5B), fundo
+      cinza claro (#EFEFEF)
+- [ ] **Menu principal exibe os 5 módulos:**
+  - [ ] 🏠 Início
+  - [ ] 📝 Questionários DRE-DRPS
+  - [ ] 📊 Gestão das Respostas (RH)
+  - [ ] 📚 Documentação
+  - [ ] 🔐 Admin SSTG (Gestão)
+- [ ] **Conexão com Supabase ativa** (sem erro de banco ao abrir qualquer
+      módulo — se o banco estava hibernado, primeira carga pode demorar
+      alguns segundos)
 
 ---
 
-## 📄 4. Laudo PDF — v7.7
+## 🔐 3. Acesso ao Módulo Admin
 
-- [ ] **Capa:**
-  - [ ] Logo SSTG visível no banner superior ← **novo v7.7**
-  - [ ] Bloco DADOS DA EMPRESA renderiza corretamente (full-width)
-  - [ ] Bloco RESPONSÁVEIS TÉCNICOS: dois quadros alinhados borda a borda ← **novo v7.7**
-  - [ ] Responsável 1: Valter Moura (Técnico de Segurança) à esquerda
-  - [ ] Responsável 2: Leonardo Neves (Médico do Trabalho) à direita
-- [ ] **Cabeçalho (páginas 2–9):**
-  - [ ] Logo SSTG visível em todas as páginas internas ← **novo v7.7**
-  - [ ] Texto "PGR / LAUDO — FATORES PSICOSSOCIAIS" presente
-  - [ ] Número de página correto em cada página
-- [ ] **Seção 3.5 — Dashboard:**
-  - [ ] 3 métricas exibidas (CPFs autorizados / Respostas / Taxa de Adesão) ← **novo v7.7**
-  - [ ] Gráfico de Adesão (barras verticais navy/verde) ← **novo v7.7**
-  - [ ] Gráfico Médias por Dimensão (barras coloridas CORES_DIMS) ← **novo v7.7**
-- [ ] **Última página — Assinaturas:**
-  - [ ] 3 colunas: Valter Moura | Leonardo Neves | Representante Legal
-  - [ ] Coluna Representante Legal alinhada à esquerda ← **novo v7.7**
-  - [ ] "Cargo: ___________________" presente na coluna 3 ← **novo v7.7**
-  - [ ] Nota legal fixada ao rodapé
+- [ ] Tela de login do módulo **🔐 Admin SSTG (Gestão)** aparece
+- [ ] Senha correta concede acesso
+- [ ] Senha incorreta é rejeitada com mensagem clara
+- [ ] Após login, as abas aparecem:
+  - [ ] 🆕 Cadastro/Inclusão
+  - [ ] 📋 Conferência e Correção
+  - [ ] 🔐 Segurança e Acesso RH
+  - [ ] 📊 Resultados DRPS
+  - [ ] 🦴 Resultados DRE
+  - [ ] 🔄 Movimentação de Pessoal
+  - [ ] 👥 Usuários (apenas perfil Administrador)
+- [ ] Opção **"Alterar Senha"** disponível e funcional
 
 ---
 
-## 📊 5. Módulo Gestão das Respostas (RH)
+## 📝 4. Teste de Cadastro — Aba Cadastro/Inclusão
 
-- [ ] Tela de login exibida ao acessar o módulo
-- [ ] Login com CNPJ + senha incorretos rejeitado
-- [ ] Login com CNPJ + senha corretos aceito
-- [ ] RH autenticado vê apenas dados da sua empresa
-- [ ] Link do questionário exibido e correto
-- [ ] Geração de QR Code funciona
-- [ ] Botão WhatsApp funciona
-- [ ] Botão E-mail funciona
-- [ ] Dashboard de respostas carrega corretamente
-- [ ] Métricas corretas (autorizados, respondidos, taxa)
-- [ ] Gráfico de adesão exibido
-- [ ] Logout ou navegação para outro módulo funciona
+### Cadastro manual
 
----
+- [ ] Campos da empresa presentes: **CNPJ**, **Razão Social**, **CNAE
+      Principal**, **Grau de Risco (NR-4)**
+- [ ] Seletor **Grau de Risco (NR-4)** mostra as opções "—" / "1" / "2" /
+      "3" / "4"
+- [ ] Aviso explicando o impacto do Grau de Risco na severidade do DRE é
+      exibido
+- [ ] Campos **Data Início** e **Data Fim** do período presentes
+- [ ] Validação: Data Fim > Data Início
+- [ ] Tabela dinâmica para colaboradores (CPF, Função, Departamento)
+      funciona — adicionar/remover linhas
+- [ ] Botão **"✅ SALVAR E LIBERAR ACESSOS"** salva sem erros
 
-## 📋 6. Módulo Questionário Psicossocial
+### Cadastro via CSV
 
-- [ ] Tela de login exibida com informações do protocolo
-- [ ] CPF não autorizado rejeitado com mensagem clara
-- [ ] CPF inativo rejeitado com mensagem clara
-- [ ] CPF já respondeu (na mesma empresa) bloqueado
-- [ ] **Mesmo CPF aceito em empresa diferente** ← v6.1
-- [ ] Período encerrado bloqueia com mensagem de data
-- [ ] **Wizard de navegação funciona** — exibe uma demanda por vez ← v6.2
-- [ ] 40 questões no total distribuídas em 8 blocos
-- [ ] Escala Likert (Nunca → Sempre) funcionando
-- [ ] **Botão "Próxima Demanda ▶"** aparece no rodapé de cada bloco ← v6.2
-- [ ] Botão bloqueia avanço se há questões não respondidas no bloco atual ← v6.2
-- [ ] **Botão "◀ Demanda Anterior"** disponível a partir do bloco 2 ← v6.2
-- [ ] Ao voltar ao bloco anterior, respostas já dadas são restauradas ← v6.2
-- [ ] Barra de progresso por bloco exibida no topo (Bloco X de 8) ← v6.2
-- [ ] Barra de progresso geral exibida no rodapé (X de 40 perguntas) ← v6.2
-- [ ] **Sem contaminação entre respondentes** (keys únicas por CPF) ← v6.1
-- [ ] Botão ENVIAR desabilitado enquanto há perguntas sem resposta ← v6.2
-- [ ] Envio registra respostas corretamente
-- [ ] Tela de confirmação após envio
+- [ ] Botão para baixar template CSV funciona
+- [ ] Template tem colunas `CPF;Função;Departamento` (separador `;`)
+- [ ] Upload de CSV com 3+ linhas é aceito
+- [ ] Preview dos dados antes de salvar é exibido
+- [ ] Linhas com CPF inválido são sinalizadas
+
+### Links gerados
+
+- [ ] Após salvar, **dois links** são exibidos em uma caixa de destaque:
+  - [ ] Link **DRPS**: `.../questionario_psicossocial.html?cnpj=XXXXX`
+  - [ ] Link **DRE**: `.../questionario_aep.html?cnpj=XXXXX`
+- [ ] Ambos os links abrem corretamente em uma aba anônima/outro navegador
 
 ---
 
-## 🔒 7. Segurança e Concorrência
+## 👤 5. Teste de Resposta — Questionário DRPS (Colaborador)
 
-- [ ] Senhas RH armazenadas como hash (não texto puro)
-- [ ] CPFs armazenados como hash nas respostas
-- [ ] `SENHA_ADMIN` não está em texto puro no código (ou usar variável de ambiente)
-- [ ] Arquivo `.gitignore` exclui dados sensíveis se repositório público
-- [ ] Acesso RH isolado por empresa
-- [ ] Exclusão de dados requer confirmação com senha admin
-- [ ] Respostas de respondentes diferentes não se misturam (session_state por CPF)
-- [ ] **`filelock` instalado** e protegendo todas as gravações CSV ← **novo v7.7**
-- [ ] **Teste multi-usuário:** dois logins simultâneos não corrompem dados ← **novo v7.7**
-
----
-
-## 🌐 8. Streamlit Cloud
-
-- [ ] Deploy realizado com sucesso
-- [ ] URL pública acessível
-- [ ] App carrega sem erros no primeiro acesso
-- [ ] `SHARE_URL` atualizado com URL de produção
-- [ ] Links de compartilhamento testados externamente (fora da rede local)
-- [ ] QR Code testado com celular (escaneamento real)
-- [ ] App funciona em dispositivo mobile
-- [ ] App hiberna e reactiva corretamente
+- [ ] Acesso pelo link DRPS (`questionario_psicossocial.html?cnpj=...`)
+      redireciona corretamente ao app
+- [ ] Tela de login do colaborador exibe nome da empresa
+- [ ] **Validações de CPF:**
+  - [ ] CPF cadastrado → acesso liberado
+  - [ ] CPF não autorizado → mensagem clara de bloqueio
+  - [ ] CPF já respondeu → mensagem "já participou"
+  - [ ] Acesso fora do período → mensagem de período encerrado
+- [ ] Questionário exibe os **7 blocos / 35 questões** do COPSOQ III
+- [ ] Navegação entre blocos (Anterior/Próximo) funciona
+- [ ] Escala de respostas funciona corretamente
+- [ ] Envio final grava na tabela `respostas` e exibe confirmação de
+      sucesso
 
 ---
 
-## 📱 9. Compatibilidade
+## 🦴 6. Teste de Resposta — Questionário DRE (Colaborador)
 
-- [ ] Chrome Desktop ✅
-- [ ] Firefox Desktop ✅
-- [ ] Edge Desktop ✅
-- [ ] Safari Desktop ✅
-- [ ] Chrome Mobile ✅
-- [ ] Safari Mobile (iOS) ✅
-
----
-
-## 📚 10. Documentação
-
-- [ ] README.md atualizado (v7.7, 07/05/2026)
-- [ ] GUIA_INSTALACAO.md atualizado com todas as dependências v7.7
-- [ ] GUIA_TECNICO.md atualizado com filelock, laudo PDF e multi-usuário
-- [ ] CHECKLIST_LANCAMENTO.md atualizado (este documento)
-- [ ] POP020_TUTORIAL_TELAS.pdf presente na raiz do repositório
+- [ ] Acesso pelo link DRE (`questionario_aep.html?cnpj=...`) redireciona
+      corretamente ao app
+- [ ] Mesmas validações de CPF/período do item 5 se aplicam
+- [ ] Questionário exibe as **4 seções / 17 questões** da AEP
+- [ ] Cada item permite resposta de % de risco percebido (ou equivalente)
+- [ ] Campos de relato (dor, sugestões, dificuldades) funcionam
+- [ ] Envio grava em `respostas_aep` e exibe confirmação de sucesso
 
 ---
 
-## ✅ Aprovação Final
+## 📊 7. Teste de Resultados DRPS (Admin)
 
-| Critério | Status | Observações |
-|----------|--------|-------------|
-| Todos os módulos funcionando | ☐ | |
-| Laudo PDF v7.7 gerado e validado | ☐ | |
-| Segurança validada | ☐ | |
-| filelock instalado e operacional | ☐ | |
-| Testes em mobile realizados | ☐ | |
-| Documentação atualizada | ☐ | |
-| Backup configurado | ☐ | |
-| URL de produção testada | ☐ | |
-
-**Sistema pronto para produção:** ☐ Sim / ☐ Não  
-**Data de aprovação:** _______________  
-**Aprovado por:** _______________
+- [ ] Aba **📊 Resultados DRPS** carrega sem erros
+- [ ] KPIs (autorizados, respondidos, % de adesão) corretos
+- [ ] Gráficos por dimensão exibem corretamente (plotly)
+- [ ] Seletor de empresa funciona
+- [ ] Botão **"📄 Gerar Laudo DRPS em PDF"** gera PDF sem erros
+- [ ] PDF contém: dados da empresa, gráficos por dimensão, classificação
+      de risco
 
 ---
 
-**Última atualização:** 07/05/2026  
-**Versão:** 7.7
+## 🦴 8. Teste de Resultados DRE (Admin)
+
+- [ ] Aba **🦴 Resultados DRE** carrega sem erros
+- [ ] KPIs e gráfico de % de risco por item exibem corretamente
+- [ ] Tabela de inventário de riscos exibe as colunas: **Nº, Seção, Risco
+      Identificado, % Risco, Severidade, Probabilidade, GR, Classificação,
+      Plano?**
+- [ ] **Severidade** reflete o Grau de Risco (NR-4) cadastrado da empresa
+- [ ] **Probabilidade** segue a fórmula `1 + 3 × %risco` (entre 1.00 e
+      4.00)
+- [ ] **GR = Severidade × Probabilidade** calculado corretamente (1.0–16.0)
+- [ ] **Classificação** segue as faixas:
+  - [ ] Baixo ≤ 4.0
+  - [ ] Médio > 4.0–8.0 (ou ≥70% de risco mesmo com GR menor)
+  - [ ] Alto > 8.0
+  - [ ] Crítico quando % risco > 98% (sobrepõe o GR)
+- [ ] **"Plano?" = SIM** a partir da classificação Médio
+- [ ] Itens com menos de **3 respondentes no setor**
+      (`MIN_RESPONDENTES_SETOR`) são agrupados/anonimizados corretamente
+- [ ] Botão **"📄 Gerar Laudo DRE em PDF"** gera PDF sem erros
+- [ ] PDF contém o inventário de riscos e ações de controle sugeridas
+
+---
+
+## 🔄 9. Teste de Movimentação de Pessoal
+
+- [ ] Aba **🔄 Movimentação de Pessoal** lista colaboradores ativos e
+      inativos
+- [ ] **Inativar** colaborador por CPF funciona
+- [ ] Colaborador inativado não consegue mais acessar os questionários
+- [ ] **Reativar** colaborador por CPF funciona
+- [ ] Colaborador reativado volta a ter acesso
+
+---
+
+## 🔐 10. Teste de Segurança e Acesso RH
+
+- [ ] Aba **🔐 Segurança e Acesso RH** lista as empresas cadastradas
+- [ ] Geração de senha RH (8 caracteres) por CNPJ funciona
+- [ ] Senha é exibida **uma única vez** após geração
+- [ ] Senha gerada permite login no módulo RH (item 11)
+
+---
+
+## 🏢 11. Teste do Módulo RH — Gestão das Respostas
+
+- [ ] Login com **CNPJ + senha RH** funciona
+- [ ] CNPJ ou senha incorretos são rejeitados com mensagem clara
+- [ ] Após login, e-books disponíveis para download/compartilhamento:
+  - [ ] E-book DRPS
+  - [ ] E-book DRE
+- [ ] **Nenhum link de questionário** é exibido neste módulo (apenas
+      e-books)
+- [ ] Botão **"↩ Voltar à tela inicial"** funciona
+- [ ] Se logado como admin (`admin_logado`), botão **"🔄 Trocar de
+      empresa"** aparece e funciona
+
+---
+
+## 📚 12. Teste do Módulo Documentação
+
+- [ ] Módulo **📚 Documentação** aparece no menu principal (visível
+      conforme regra de acesso — `admin_logado`)
+- [ ] Cada documento listado abre/baixa corretamente:
+  - [ ] README.md / .pdf
+  - [ ] TUTORIAL.md / .pdf
+  - [ ] GUIA_INSTALACAO.md / .pdf
+  - [ ] GUIA_TECNICO.md / .pdf
+  - [ ] CHECKLIST_LANCAMENTO.md / .pdf
+- [ ] Itens sem arquivo correspondente exibem "arquivo não encontrado" sem
+      quebrar a página (comportamento esperado e aceito para
+      "Documentação de Publicação" e "POP020 Tutorial de Telas")
+
+---
+
+## 👁️ 13. Teste de Modo Demonstração
+
+- [ ] Com `admin_logado`, botão **"👁️ Ver questionário em modo
+      demonstração"** aparece
+- [ ] Modo demonstração abre o questionário em modo **somente leitura**
+      (`_demo_readonly`)
+- [ ] Não é possível enviar respostas no modo demonstração
+- [ ] Botão **"↩ Voltar / Encerrar"** retorna ao módulo Admin
+
+---
+
+## 👥 14. Teste de Usuários (Admin — perfil Administrador)
+
+- [ ] Aba **👥 Usuários** visível apenas para perfil Administrador
+- [ ] Criar novo usuário operacional funciona
+- [ ] Listar usuários existentes funciona
+- [ ] Ativar/desativar usuário funciona
+- [ ] Redefinir senha de usuário funciona
+- [ ] Usuário operacional **não vê** a aba 👥 Usuários ao logar
+
+---
+
+## 🔒 15. Testes de Segurança Gerais
+
+- [ ] **CPF armazenado como hash** em `respostas`/`respostas_aep`
+      (`cpf_hash`) — não é possível reverter ao CPF original
+- [ ] Acesso fora do período (`data_inicio_periodo`/`data_fim_periodo`)
+      bloqueado corretamente
+- [ ] Senha do administrador alterada é exigida (não aceita a senha
+      original do código após troca)
+- [ ] Botão "Sair" / logout funciona em todos os módulos autenticados
+
+---
+
+## 💾 16. Teste de Backup
+
+- [ ] Aba **📋 Conferência e Correção** → expander **💾 Backup** disponível
+- [ ] Exportação gera um ZIP com CSVs de `acessos`, `respostas`,
+      `respostas_aep`, `usuarios`, `laudos`
+- [ ] Arquivo ZIP baixa corretamente e abre sem erros
+
+---
+
+## 🎨 17. Testes Visuais
+
+- [ ] Cores SSTG consistentes em todos os módulos (laranja, navy, fundo
+      cinza claro)
+- [ ] Layout funciona em desktop
+- [ ] Layout funciona em mobile (visualização responsiva do navegador)
+- [ ] Ícones/emojis dos menus e abas exibem corretamente (sem caracteres
+      quebrados)
+
+---
+
+## 📱 18. Compatibilidade de Browser
+
+- [ ] Google Chrome → funciona
+- [ ] Microsoft Edge → funciona
+- [ ] Mozilla Firefox → funciona
+- [ ] Navegador mobile (Chrome/Safari Android/iOS) → funciona
+
+---
+
+## 🧪 19. Testes de Erro & Edge Cases
+
+- [ ] CNPJ inexistente no link do questionário → mensagem apropriada
+- [ ] CPF vazio/format inválido → mensagem apropriada
+- [ ] Data Fim < Data Início no cadastro → bloqueado com mensagem
+- [ ] CSV com coluna/separador incorretos → mensagem apropriada
+- [ ] Banco Supabase hibernado → app reconecta automaticamente
+      (`db.ping()`) sem travar a interface
+
+---
+
+## 📊 20. Performance
+
+- [ ] App carrega em menos de ~10 segundos após reboot (incluindo possível
+      reativação do Supabase)
+- [ ] Navegação entre módulos é fluida (sem recarregamentos completos
+      desnecessários)
+- [ ] Geração de laudo PDF (DRPS ou DRE) conclui em menos de ~15 segundos
+
+---
+
+## ✅ Status Geral
+
+- [ ] ✅ **APROVADO PARA USO**
+- [ ] ⚠️ **APROVADO COM RESSALVAS** (listar abaixo)
+- [ ] ❌ **REPROVADO** (novo teste necessário após correções)
+
+**Ressalvas / Observações:**
+```
+_________________________________________________________________
+
+_________________________________________________________________
+
+_________________________________________________________________
+```
+
+---
+
+## ✍️ Assinatura
+
+```
+Data de Conclusão:        ___/___/_____
+
+Responsável pelo Teste:    _____________________
+Assinatura:                _____________________
+```
+
+---
+
+**Checklist de Lançamento — DRE - DRPS v8.0**

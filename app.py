@@ -957,6 +957,7 @@ with st.sidebar:
         "🏠 Início",
         "📝 Questionários DRE-DRPS",
         "📊 Gestão das Respostas (RH)",
+        "📚 Documentação",
         "🔐 Admin SSTG (Gestão)"
     ]
     # Links dos questionários chegam com ?modulo=aep (DRE) ou ?cnpj=... (DRPS):
@@ -1214,124 +1215,13 @@ elif menu == "🔐 Admin SSTG (Gestão)":
         st.session_state.admin_usuario = None
         st.rerun()
 
-    # ── MENU DE DOCUMENTAÇÃO ──────────────────────────────────────────────────
-    st.sidebar.divider()
-    st.sidebar.subheader("📚 Documentação")
-
-    with st.sidebar.expander("📖 Guias e Tutoriais", expanded=False):
-        col1, col2 = st.columns(2)
-
-        # README
-        with col1:
-            st.markdown("**Visão Geral**")
-            if st.button("📄 README", use_container_width=True, key="btn_readme"):
-                st.session_state.doc_view = "readme"
-                st.rerun()
-
-        # TUTORIAL
-        with col2:
-            st.markdown("**Tutorial RH**")
-            if st.button("👥 TUTORIAL", use_container_width=True, key="btn_tutorial"):
-                st.session_state.doc_view = "tutorial"
-                st.rerun()
-
-        st.markdown("---")
-
-        # INSTALAÇÃO
-        with col1:
-            st.markdown("**Instalação**")
-            if st.button("🚀 SETUP", use_container_width=True, key="btn_instalacao"):
-                st.session_state.doc_view = "instalacao"
-                st.rerun()
-
-        # TÉCNICO
-        with col2:
-            st.markdown("**Técnico**")
-            if st.button("🔧 TÉCNICO", use_container_width=True, key="btn_tecnico"):
-                st.session_state.doc_view = "tecnico"
-                st.rerun()
-
-        st.markdown("---")
-
-        # CHECKLIST
-        st.markdown("**Lançamento**")
-        if st.button("✅ CHECKLIST", use_container_width=True, key="btn_checklist"):
-            st.session_state.doc_view = "checklist"
-            st.rerun()
-
-        st.markdown("---")
-
-        # DOCUMENTAÇÃO DE PUBLICAÇÃO
-        st.markdown("**Publicação**")
-        if st.button("🚀 PUBLICAÇÃO", use_container_width=True, key="btn_publicacao"):
-            st.session_state.doc_view = "publicacao"
-            st.rerun()
-
-        st.caption("Clique em um guia para visualizar")
-
-    # ── VISUALIZADOR DE DOCUMENTAÇÃO ──────────────────────────────────────────
-    if hasattr(st.session_state, 'doc_view') and st.session_state.doc_view:
-        st.sidebar.divider()
-
-        doc_selecionado = {
-            "readme": ("README.md", "📄 Visão Geral do Sistema"),
-            "tutorial": ("TUTORIAL.md", "👥 Tutorial Operacional"),
-            "instalacao": ("GUIA_INSTALACAO.md", "🚀 Guia de Instalação"),
-            "tecnico": ("GUIA_TECNICO.md", "🔧 Documentação Técnica"),
-            "checklist": ("CHECKLIST_LANCAMENTO.md", "✅ Checklist de Lançamento")
-        }
-
-        if st.session_state.doc_view in doc_selecionado:
-            arquivo_md, titulo = doc_selecionado[st.session_state.doc_view]
-            arquivo_pdf = arquivo_md.replace('.md', '.pdf')
-            caminho_md = caminho(arquivo_md)
-            caminho_pdf = caminho(arquivo_pdf)
-
-            # Exibir no sidebar
-            st.sidebar.info(f"📖 Visualizando: {titulo}")
-
-            # Botão para fechar
-            if st.sidebar.button("❌ Fechar Documentação", use_container_width=True):
-                st.session_state.doc_view = None
-                st.rerun()
-
-            st.sidebar.divider()
-
-            # Downloads
-            st.sidebar.markdown("**Baixar:**")
-            try:
-                # Download PDF
-                with open(caminho_pdf, 'rb') as f:
-                    st.sidebar.download_button(
-                        label="⬇️ PDF",
-                        data=f.read(),
-                        file_name=arquivo_pdf,
-                        mime="application/pdf",
-                        use_container_width=True,
-                        key=f"btn_pdf_{st.session_state.doc_view}"
-                    )
-
-                # Download Markdown
-                with open(caminho_md, 'r', encoding='utf-8') as f:
-                    st.sidebar.download_button(
-                        label="⬇️ Markdown",
-                        data=f.read(),
-                        file_name=arquivo_md,
-                        mime="text/plain",
-                        use_container_width=True,
-                        key=f"btn_md_{st.session_state.doc_view}"
-                    )
-            except FileNotFoundError:
-                st.sidebar.warning("Arquivo de documentação não encontrado")
-
-    t1, t2, t3, t8, t4, t5, t6, t7 = st.tabs([
+    t1, t2, t3, t8, t4, t5, t7 = st.tabs([
         "🆕 Cadastro / Inclusão",
         "📋 Conferência e Correção",
         "📊 Resultados DRPS",
         "🦴 Resultados DRE",
         "🔄 Movimentação de Pessoal",
         "🔐 Segurança e Acesso RH",
-        "📚 Documentação",
         "👥 Usuários"
     ])
 
@@ -2234,120 +2124,6 @@ elif menu == "🔐 Admin SSTG (Gestão)":
         else:
             st.info("Nenhuma empresa cadastrada no sistema.")
 
-    # ── ABA 6: DOCUMENTAÇÃO ───────────────────────────────────────────────────
-    with t6:
-        st.subheader("📚 Documentação SSTG - DRPS AEP-RP Diagnóstico de Riscos Psicossociais e Ergonômicos (NR-1 / NR-17)")
-        st.info("Acesse os guias e tutoriais disponíveis. Use o menu da barra lateral para selecionar.")
-
-        docs = {
-            "readme": ("📄 README.md", "README.pdf", "Visão Geral do Sistema — Índice, características, FAQ e início rápido"),
-            "tutorial": ("👥 TUTORIAL.md", "TUTORIAL.pdf", "Tutorial Operacional — Passo a passo completo para usuários RH"),
-            "instalacao": ("🚀 GUIA_INSTALACAO.md", "GUIA_INSTALACAO.pdf", "Guia de Instalação — Setup, configuração, Google Drive, deployment"),
-            "tecnico": ("🔧 GUIA_TECNICO.md", "GUIA_TECNICO.pdf", "Documentação Técnica — Arquitetura, dados, fluxos, segurança"),
-            "checklist": ("✅ CHECKLIST_LANCAMENTO.md", "CHECKLIST_LANCAMENTO.pdf", "Checklist de Lançamento — Validação pré-produção (60+ itens)"),
-            "publicacao": ("🚀 DOCUMENTACAO_PUBLICACAO.md", "DOCUMENTACAO_PUBLICACAO.pdf", "Documentação de Publicação — Processo, recursos, arquitetura, troubleshooting"),
-            "pop020": ("📱 POP020 Tutorial Telas", "POP020_TUTORIAL_TELAS.pdf", "POP 020 — Tutorial visual tela a tela com capturas de tela do sistema")
-        }
-
-        # Exibir 3 colunas com os documentos (layout em linhas de 3)
-        docs_list = list(docs.items())
-        for row_idx in range(0, len(docs_list), 3):
-            cols = st.columns(3)
-            for col_idx, (key, (titulo, pdf, descricao)) in enumerate(docs_list[row_idx:row_idx+3]):
-                with cols[col_idx]:
-                    st.markdown(f"### {titulo.split()[0]}")
-                    st.caption(descricao)
-
-                    # Botão para selecionar (visualizar)
-                    if st.button(f"Ler {titulo.split()[0]}", use_container_width=True, key=f"sel_{key}"):
-                        st.session_state.doc_view = key
-                        st.rerun()
-
-                    # Botão para baixar PDF
-                    try:
-                        pdf_path = caminho_doc(pdf)
-                        with open(pdf_path, 'rb') as f:
-                            st.download_button(
-                                label="⬇️ PDF",
-                                data=f.read(),
-                                file_name=pdf,
-                                mime="application/pdf",
-                                use_container_width=True,
-                                key=f"dl_pdf_{key}"
-                            )
-                    except FileNotFoundError:
-                        st.warning("PDF não disponível")
-
-        st.divider()
-
-        # Visualizar documento selecionado
-        if hasattr(st.session_state, 'doc_view') and st.session_state.doc_view:
-            doc_selecionado = {
-                "readme": "README.md",
-                "tutorial": "TUTORIAL.md",
-                "instalacao": "GUIA_INSTALACAO.md",
-                "tecnico": "GUIA_TECNICO.md",
-                "checklist": "CHECKLIST_LANCAMENTO.md",
-                "publicacao": "DOCUMENTACAO_PUBLICACAO.md"
-            }
-
-            if st.session_state.doc_view in doc_selecionado:
-                arquivo = doc_selecionado[st.session_state.doc_view]
-                caminho_arquivo = caminho_doc(arquivo)
-
-                col_ler, col_fechar = st.columns([20, 1])
-                with col_ler:
-                    st.subheader(f"📖 Visualizando: {arquivo}")
-                with col_fechar:
-                    if st.button("❌", key="btn_close_doc"):
-                        st.session_state.doc_view = None
-                        st.rerun()
-
-                st.divider()
-
-                try:
-                    with open(caminho_arquivo, 'r', encoding='utf-8') as f:
-                        conteudo = f.read()
-                    st.markdown(conteudo)
-                except FileNotFoundError:
-                    st.error(f"❌ Arquivo não encontrado: {arquivo}")
-                except Exception as e:
-                    st.error(f"❌ Erro ao carregar: {str(e)}")
-
-            # ── VISUALIZADOR DE PDF — renderização página a página ────────────
-            elif st.session_state.doc_view == "pop020":
-                pdf_nome = "POP020_TUTORIAL_TELAS.pdf"
-                pdf_path = caminho_doc(pdf_nome)
-
-                col_ler, col_fechar = st.columns([20, 1])
-                with col_ler:
-                    st.subheader("📱 Visualizando: POP 020 — Tutorial Passo a Passo (Tela a Tela)")
-                with col_fechar:
-                    if st.button("❌", key="btn_close_doc_pop020"):
-                        st.session_state.doc_view = None
-                        st.rerun()
-
-                st.divider()
-
-                try:
-                    import fitz  # PyMuPDF
-                    import io
-                    doc_pdf = fitz.open(pdf_path)
-                    for num, pagina in enumerate(doc_pdf, start=1):
-                        mat = fitz.Matrix(1.8, 1.8)  # zoom 1.8× ≈ 130 dpi
-                        pix = pagina.get_pixmap(matrix=mat, alpha=False)
-                        img_bytes = pix.tobytes("png")
-                        st.image(img_bytes, caption=f"Página {num} de {len(doc_pdf)}", use_container_width=True)
-                        if num < len(doc_pdf):
-                            st.divider()
-                    doc_pdf.close()
-                except FileNotFoundError:
-                    st.error(f"❌ Arquivo não encontrado: {pdf_nome}")
-                except ImportError:
-                    st.error("❌ Biblioteca pymupdf não instalada. Aguarde o redeploy ou use o botão ⬇️ PDF.")
-                except Exception as e:
-                    st.error(f"❌ Erro ao renderizar o PDF: {str(e)}")
-
     # ── ABA 7: USUÁRIOS OPERACIONAIS ─────────────────────────────────────────
     with t7:
         st.subheader("👥 Gerenciamento de Usuários Operacionais")
@@ -2505,6 +2281,127 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                 _bloco_resultados_aep(cnpj_cod_aep, total_auth_aep, key_prefix="admin", empresa_nome=nome_empresa_aep, mostrar_laudo=True)
         else:
             st.info("Nenhuma empresa cadastrada. Faça o cadastro primeiro.")
+
+# =============================================================================
+# MÓDULO DOCUMENTAÇÃO
+# =============================================================================
+elif menu == "📚 Documentação":
+    if not st.session_state.get('admin_logado'):
+        st.title("📚 Documentação")
+        st.warning("🔒 Esta seção é restrita à equipe SSTG. Faça login no módulo '🔐 Admin SSTG (Gestão)' para visualizar os guias e tutoriais.")
+        st.stop()
+
+    st.title("📚 Documentação SSTG - DRE - DRPS")
+    st.info("Guias e tutoriais do sistema DRE - DRPS. Selecione um item abaixo para visualizar ou baixar.")
+
+    docs = {
+        "readme": ("📄 README.md", "README.pdf", "Visão Geral do Sistema — Índice, características, FAQ e início rápido"),
+        "tutorial": ("👥 TUTORIAL.md", "TUTORIAL.pdf", "Tutorial Operacional — Passo a passo completo para usuários RH"),
+        "instalacao": ("🚀 GUIA_INSTALACAO.md", "GUIA_INSTALACAO.pdf", "Guia de Instalação — Setup, configuração, Google Drive, deployment"),
+        "tecnico": ("🔧 GUIA_TECNICO.md", "GUIA_TECNICO.pdf", "Documentação Técnica — Arquitetura, dados, fluxos, segurança"),
+        "checklist": ("✅ CHECKLIST_LANCAMENTO.md", "CHECKLIST_LANCAMENTO.pdf", "Checklist de Lançamento — Validação pré-produção (60+ itens)"),
+        "publicacao": ("🚀 DOCUMENTACAO_PUBLICACAO.md", "DOCUMENTACAO_PUBLICACAO.pdf", "Documentação de Publicação — Processo, recursos, arquitetura, troubleshooting"),
+        "pop020": ("📱 POP020 Tutorial Telas", "POP020_TUTORIAL_TELAS.pdf", "POP 020 — Tutorial visual tela a tela com capturas de tela do sistema")
+    }
+
+    # Exibir 3 colunas com os documentos (layout em linhas de 3)
+    docs_list = list(docs.items())
+    for row_idx in range(0, len(docs_list), 3):
+        cols = st.columns(3)
+        for col_idx, (key, (titulo, pdf, descricao)) in enumerate(docs_list[row_idx:row_idx+3]):
+            with cols[col_idx]:
+                st.markdown(f"### {titulo.split()[0]}")
+                st.caption(descricao)
+
+                # Botão para selecionar (visualizar)
+                if st.button(f"Ler {titulo.split()[0]}", use_container_width=True, key=f"sel_{key}"):
+                    st.session_state.doc_view = key
+                    st.rerun()
+
+                # Botão para baixar PDF
+                try:
+                    pdf_path = caminho_doc(pdf)
+                    with open(pdf_path, 'rb') as f:
+                        st.download_button(
+                            label="⬇️ PDF",
+                            data=f.read(),
+                            file_name=pdf,
+                            mime="application/pdf",
+                            use_container_width=True,
+                            key=f"dl_pdf_{key}"
+                        )
+                except FileNotFoundError:
+                    st.warning("PDF não disponível")
+
+    st.divider()
+
+    # Visualizar documento selecionado
+    if hasattr(st.session_state, 'doc_view') and st.session_state.doc_view:
+        doc_selecionado = {
+            "readme": "README.md",
+            "tutorial": "TUTORIAL.md",
+            "instalacao": "GUIA_INSTALACAO.md",
+            "tecnico": "GUIA_TECNICO.md",
+            "checklist": "CHECKLIST_LANCAMENTO.md",
+            "publicacao": "DOCUMENTACAO_PUBLICACAO.md"
+        }
+
+        if st.session_state.doc_view in doc_selecionado:
+            arquivo = doc_selecionado[st.session_state.doc_view]
+            caminho_arquivo = caminho_doc(arquivo)
+
+            col_ler, col_fechar = st.columns([20, 1])
+            with col_ler:
+                st.subheader(f"📖 Visualizando: {arquivo}")
+            with col_fechar:
+                if st.button("❌", key="btn_close_doc"):
+                    st.session_state.doc_view = None
+                    st.rerun()
+
+            st.divider()
+
+            try:
+                with open(caminho_arquivo, 'r', encoding='utf-8') as f:
+                    conteudo = f.read()
+                st.markdown(conteudo)
+            except FileNotFoundError:
+                st.error(f"❌ Arquivo não encontrado: {arquivo}")
+            except Exception as e:
+                st.error(f"❌ Erro ao carregar: {str(e)}")
+
+        # ── VISUALIZADOR DE PDF — renderização página a página ────────────
+        elif st.session_state.doc_view == "pop020":
+            pdf_nome = "POP020_TUTORIAL_TELAS.pdf"
+            pdf_path = caminho_doc(pdf_nome)
+
+            col_ler, col_fechar = st.columns([20, 1])
+            with col_ler:
+                st.subheader("📱 Visualizando: POP 020 — Tutorial Passo a Passo (Tela a Tela)")
+            with col_fechar:
+                if st.button("❌", key="btn_close_doc_pop020"):
+                    st.session_state.doc_view = None
+                    st.rerun()
+
+            st.divider()
+
+            try:
+                import fitz  # PyMuPDF
+                import io
+                doc_pdf = fitz.open(pdf_path)
+                for num, pagina in enumerate(doc_pdf, start=1):
+                    mat = fitz.Matrix(1.8, 1.8)  # zoom 1.8× ≈ 130 dpi
+                    pix = pagina.get_pixmap(matrix=mat, alpha=False)
+                    img_bytes = pix.tobytes("png")
+                    st.image(img_bytes, caption=f"Página {num} de {len(doc_pdf)}", use_container_width=True)
+                    if num < len(doc_pdf):
+                        st.divider()
+                doc_pdf.close()
+            except FileNotFoundError:
+                st.error(f"❌ Arquivo não encontrado: {pdf_nome}")
+            except ImportError:
+                st.error("❌ Biblioteca pymupdf não instalada. Aguarde o redeploy ou use o botão ⬇️ PDF.")
+            except Exception as e:
+                st.error(f"❌ Erro ao renderizar o PDF: {str(e)}")
 
 # =============================================================================
 # MÓDULO GESTÃO DAS RESPOSTAS (RH)
