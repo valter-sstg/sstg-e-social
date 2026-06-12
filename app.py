@@ -416,7 +416,11 @@ for _nd in DIMENSOES:
 
 
 # ─── QUESTÕES — AVALIAÇÃO ERGONÔMICA PRELIMINAR (AEP / NR-17) ────────────────
-AEP_OPCOES = ["Sim", "Não", "Parcial", "N/A"]
+AEP_OPCOES = ["Nunca", "Raramente", "Às vezes", "Frequentemente", "Sempre", "N/A"]
+
+# Peso de cada opção no cálculo do %risco (perguntas diretas); para perguntas
+# invertidas (AEP_INVERTIDAS) o peso usado é 1 - este valor.
+AEP_DEPARA = {"Nunca": 0.0, "Raramente": 0.25, "Às vezes": 0.5, "Frequentemente": 0.75, "Sempre": 1.0}
 
 # Perguntas em que a resposta "Sim" indica condição ADEQUADA (sem risco) —
 # para estas, "Não" indica risco. As demais são "diretas" ("Sim" = risco).
@@ -603,7 +607,8 @@ def _classificar_gr(gr: float, pct_risco: float = 0.0) -> tuple:
 
 def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
     """Consolida as respostas AEP em um inventário de riscos: para cada pergunta calcula
-    o percentual de respostas indicadoras de risco ("Parcial" pondera 0,5), a Probabilidade
+    o percentual de risco a partir da média dos pesos de cada resposta (AEP_DEPARA, 0 a 1;
+    invertido para perguntas de AEP_INVERTIDAS; "N/A" excluído), a Probabilidade
     contínua decorrente (Prob = 1 + 3 x %risco, de 1,00 a 4,00), a Severidade pré-calibrada
     pelo responsável técnico e o Grau de Risco (GR = Severidade x Probabilidade, 1,0 a 16,0).
 
@@ -632,15 +637,15 @@ def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
         if pequenos:
             grupos.append(pd.concat(pequenos))
 
-    def _pct_risco_subset(df_sub, col, resposta_risco):
+    def _pct_risco_subset(df_sub, col, invertida):
         respostas = df_sub[col].dropna()
         respostas = respostas[respostas.str.upper() != "N/A"]
-        total = len(respostas)
-        if total == 0:
+        if respostas.empty:
             return None
-        n_risco   = (respostas == resposta_risco).sum()
-        n_parcial = (respostas == "Parcial").sum()
-        return (n_risco + 0.5 * n_parcial) / total
+        pesos = respostas.map(AEP_DEPARA)
+        if invertida:
+            pesos = 1 - pesos
+        return pesos.mean()
 
     for secao, perguntas in AEP_SECOES.items():
         for qid, dados in perguntas.items():
@@ -649,19 +654,18 @@ def _calcular_inventario_aep(df_aep: pd.DataFrame, severidades: dict) -> list:
             invertida = int(qid[1:]) in AEP_INVERTIDAS
             if col not in df_aep.columns:
                 continue
-            resposta_risco = "Não" if invertida else "Sim"
 
             if grupos:
                 pcts = []
                 for df_grupo in grupos:
-                    p = _pct_risco_subset(df_grupo, col, resposta_risco)
+                    p = _pct_risco_subset(df_grupo, col, invertida)
                     if p is not None:
                         pcts.append(p)
                 if not pcts:
                     continue
                 pct_risco = sum(pcts) / len(pcts)
             else:
-                pct_risco = _pct_risco_subset(df_aep, col, resposta_risco)
+                pct_risco = _pct_risco_subset(df_aep, col, invertida)
                 if pct_risco is None:
                     continue
 
@@ -3137,7 +3141,7 @@ else:
 
         st.title("🦴 Questionário DRE – Diagnóstico de Riscos Ergonômicos")
         st.caption(caption)
-        st.caption("Como responder: ✓ **Sim** = acontece ou existe | ✗ **Não** = não acontece | **Parcial** = acontece às vezes ou em parte | **N/A** = não se aplica à sua função")
+        st.caption("Como responder: indique com que frequência a situação descrita acontece — **Nunca**, **Raramente**, **Às vezes**, **Frequentemente** ou **Sempre** | **N/A** = não se aplica à sua função")
         demo_ro = st.session_state.get('_demo_readonly', False)
         if demo_ro:
             c_demo_msg, c_demo_btn = st.columns([3, 1])

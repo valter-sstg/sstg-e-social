@@ -312,9 +312,10 @@ def build_metodologia_aep(st, total_respondentes, total_autorizados, grau_risco_
     el.append(Paragraph(
         "O questionário aplicado contém 17 perguntas distribuídas em 4 seções: A) Postura e Movimentos, "
         "B) Mobiliário e Equipamentos, C) Condições Ambientais e D) Organização do Trabalho. "
-        "Cada resposta foi classificada como indicadora de risco (“Sim” nas perguntas diretas ou "
-        "“Não” nas perguntas invertidas), parcialmente indicadora de risco (“Parcial”, ponderada "
-        "com peso 0,5) ou sem risco; respostas “N/A” são excluídas do cálculo. "
+        "Cada resposta indica a frequência com que a situação descrita ocorre (“Nunca”, "
+        "“Raramente”, “Às vezes”, “Frequentemente” ou “Sempre”), convertida em um peso de "
+        "0 a 1 (0%, 25%, 50%, 75% e 100%, respectivamente); nas perguntas invertidas o peso "
+        "é complementar (1 - peso). Respostas “N/A” são excluídas do cálculo. "
         "Quando há identificação do setor/departamento do respondente, o percentual de respostas "
         "indicadoras de risco de cada pergunta é apurado pela média dos percentuais obtidos em "
         "cada setor, de modo que setores com menor número de respondentes tenham o mesmo peso "
