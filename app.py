@@ -1700,6 +1700,41 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                             else:
                                 st.error(msg)
 
+            # Editar dados cadastrais (Razão Social, CNAE, Grau de Risco)
+            with st.expander("✏️ Editar Dados Cadastrais da Empresa"):
+                st.info("Corrija a Razão Social, o CNAE Principal e/ou o Grau de Risco (NR-4) da empresa.")
+                empresas_edit = df_verif.drop_duplicates('CNPJ')[['Empresa', 'CNPJ']].apply(
+                    lambda r: f"{r['Empresa']} — CNPJ: {r['CNPJ']}", axis=1
+                ).tolist()
+                emp_edit = st.selectbox("Empresa:", empresas_edit, key="emp_dados_cad", index=None, placeholder="Digite o nome da empresa...")
+                if not emp_edit:
+                    st.info("👆 Digite ou selecione a empresa para continuar.")
+                else:
+                    cnpj_edit = emp_edit.split("CNPJ: ")[-1]
+                    linha_edit = df_verif[df_verif['CNPJ'] == cnpj_edit].iloc[0]
+                    razao_atual = str(linha_edit.get('Empresa', ''))
+                    cnae_atual  = str(linha_edit.get('CNAE', linha_edit.get('cnae', '')) or '').strip()
+                    grau_atual  = str(linha_edit.get('Grau_Risco', linha_edit.get('grau_risco', '')) or '').strip()
+
+                    nova_razao = st.text_input("Razão Social / Nome da Empresa:", value=razao_atual, key="dc_razao")
+                    cd1, cd2 = st.columns(2)
+                    novo_cnae = cd1.text_input("CNAE Principal:", value=cnae_atual, placeholder="Ex: 4711-3/02", key="dc_cnae")
+                    opcoes_grau = ["—", "1", "2", "3", "4"]
+                    idx_grau = opcoes_grau.index(grau_atual) if grau_atual in opcoes_grau else 0
+                    novo_grau = cd2.selectbox("Grau de Risco (NR-4):", opcoes_grau, index=idx_grau, key="dc_grau")
+
+                    if st.button("💾 SALVAR DADOS CADASTRAIS", key="btn_dados_cad"):
+                        if not nova_razao.strip():
+                            st.error("A Razão Social não pode ficar em branco.")
+                        else:
+                            db.atualizar_acessos_por_cnpj(cnpj_edit, {
+                                "Empresa":   nova_razao.strip(),
+                                "CNAE":      novo_cnae.strip(),
+                                "Grau_Risco": "" if novo_grau == "—" else novo_grau,
+                            })
+                            st.success("Dados cadastrais atualizados com sucesso.")
+                            st.rerun()
+
             if st.session_state.get('admin_perfil') == 'admin':
                 with st.expander("⚠️ Zona de Perigo — use com cuidado"):
                     st.error("⚠️ As ações abaixo são **irreversíveis**. Confirme com a senha do Admin SSTG antes de prosseguir.")
