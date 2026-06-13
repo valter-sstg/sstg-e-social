@@ -775,6 +775,7 @@ def build_s3(st, total_respondentes, total_autorizados=0, medias_por_dim=None):
     el.append(tl)
     el.append(Spacer(1, 0.2*cm))
 
+    el.append(PageBreak())
     el.append(_subtitulo("7.4. Critérios de Avaliação de Risco", st))
     el.append(Paragraph(
         "Em conformidade com o subitem <b>1.5.4.4.2.1</b> da NR-01, o nível de risco é determinado pela "
@@ -1148,7 +1149,7 @@ def build_s5(st, medias_por_dim, planos_ajustados=None):
         ajuste_rt = planos_ajustados.get(dim_key)
         if ajuste_rt:
             plano_rt = "<br/>".join(f"• {linha}" for linha in ajuste_rt)
-            if classif == "Crítico":
+            if classif == "Crítico" or nivel == "Intolerável":
                 plano_texto = f"<b>• {plano_texto}</b><br/>{plano_rt}"
             else:
                 plano_texto = plano_rt
@@ -1259,10 +1260,15 @@ def build_s6(st, empresa, medias_por_dim=None, nota_rt=None, data_liberacao_rt=N
         el.append(Spacer(1, 0.2*cm))
         el.append(_subtitulo("10.1. Revisão do Responsável Técnico", st))
         data_txt = f" em {data_liberacao_rt}" if data_liberacao_rt else ""
+        if riscos_criticos:
+            motivo = "classificada(s) como <b>Crítico</b> (situação insuportável)"
+        elif riscos_intoleraveis:
+            motivo = "com Nível de Risco <b>Intolerável</b> (situação insuportável)"
+        else:
+            motivo = "que motivaram intervenção (situação insuportável)"
         el.append(Paragraph(
-            f"Em razão da identificação de dimensão(ões) classificada(s) como <b>Crítico</b> (situação "
-            f"insuportável), o resultado desta avaliação foi revisado pelo Responsável Técnico{data_txt}, "
-            f"conforme nota a seguir: “{nota_rt}”", st['body']))
+            f"Em razão da identificação de dimensão(ões) {motivo}, o resultado desta avaliação foi revisado "
+            f"pelo Responsável Técnico{data_txt}, conforme nota a seguir: “{nota_rt}”", st['body']))
 
     el.append(Spacer(1, 1.5*cm))
 

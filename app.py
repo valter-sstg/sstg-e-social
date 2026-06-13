@@ -809,7 +809,7 @@ def _calcular_inventario_drps(medias_por_dim: dict) -> list:
     calcula a Classificação COPSOQ III e o Nível de Risco (BS 8800) via `nivel_risco`.
 
     A classificação "Crítico" (situação insuportável, média <= 0,08 — ver `classificar`
-    em gerar_laudo.py) é equivalente ao "Crítico/Insuportável" da AEP/DRE e condiciona a
+    em gerar_laudo.py) ou o Nível de Risco "Intolerável" (Matriz BS 8800) condicionam a
     emissão do laudo à intervenção do Responsável Técnico (`_bloco_intervencao_rt_drps`)."""
     inventario = []
     for dim_key, cfg in DIMS_ANALITICAS.items():
@@ -836,20 +836,23 @@ def _bloco_intervencao_rt_drps(cnpj_cod, inventario, ajustes, total_resp, key_pr
     dimensão crítica, com nota de justificativa, antes de liberar a emissão."""
     planos_ajustados = dict(ajustes.get("planos_ajustados") or {})
 
-    dims_criticas = [item for item in inventario if item["Classificação"] == "Crítico"]
+    dims_criticas = [item for item in inventario
+                      if item["Classificação"] == "Crítico" or item["Nível de Risco"] == "Intolerável"]
 
     st.markdown("#### 🔒 Intervenção do Responsável Técnico (RT)")
     st.caption(
-        "Ao menos uma dimensão foi classificada como **Crítico** (situação insuportável). "
-        "Revise cada dimensão crítica abaixo: confirme o resultado do sistema ou ajuste as "
-        "medidas de prevenção (Plano de Ação), registrando uma justificativa técnica."
+        "Ao menos uma dimensão foi classificada como **Crítico** ou obteve Nível de Risco "
+        "**Intolerável** (situação insuportável). Revise cada dimensão abaixo: confirme o "
+        "resultado do sistema ou ajuste as medidas de prevenção (Plano de Ação), registrando "
+        "uma justificativa técnica."
     )
 
     planos_input = {}
     for item in dims_criticas:
         dim_key = item["dim_key"]
         with st.expander(f"⚠️ {item['Dimensão']} (Média {item['Média']:.2f})", expanded=True):
-            st.write(f"**Severidade:** {item['Severidade']}  |  **Classificação:** {item['Classificação']}")
+            st.write(f"**Severidade:** {item['Severidade']}  |  **Classificação:** {item['Classificação']}  |  "
+                     f"**Nível de Risco:** {item['Nível de Risco']}")
             plano_default = "\n".join(planos_ajustados.get(dim_key) or [item["Plano Padrão"]])
             planos_input[dim_key] = st.text_area(
                 "Medidas de Prevenção (Plano de Ação) — uma medida por linha",
@@ -2096,16 +2099,19 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                             medias_dim[dim_key] = round(4.0 - val, 2) if nome_dim.lower() in _DIMS_INV_LOWER else val
 
                         inventario_drps = _calcular_inventario_drps(medias_dim)
-                        tem_critico_drps = any(item["Classificação"] == "Crítico" for item in inventario_drps)
+                        requer_intervencao_drps = any(
+                            item["Classificação"] == "Crítico" or item["Nível de Risco"] == "Intolerável"
+                            for item in inventario_drps
+                        )
                         ajustes_rt_drps = db.carregar_ajustes_drps(cnpj_cod) or {}
                         liberacao_valida_drps = (bool(ajustes_rt_drps.get("liberado"))
                                                   and ajustes_rt_drps.get("total_respostas_liberacao", -1) >= total_resp)
 
-                        if tem_critico_drps and not liberacao_valida_drps:
+                        if requer_intervencao_drps and not liberacao_valida_drps:
                             st.error(
-                                "⚠️ Esta avaliação identificou ao menos uma dimensão classificada como **Crítico** "
-                                "(situação insuportável). A emissão do Laudo DRPS está condicionada à intervenção "
-                                "do Responsável Técnico abaixo."
+                                "⚠️ Esta avaliação identificou ao menos uma dimensão classificada como **Crítico** ou "
+                                "com Nível de Risco **Intolerável** (situação insuportável). A emissão do Laudo DRPS "
+                                "está condicionada à intervenção do Responsável Técnico abaixo."
                             )
                             _bloco_intervencao_rt_drps(cnpj_cod, inventario_drps, ajustes_rt_drps, total_resp, key_prefix="admin")
                         elif st.button("📄 Gerar Laudo DRPS em PDF", type="primary", use_container_width=True):
