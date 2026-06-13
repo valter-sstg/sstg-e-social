@@ -803,24 +803,31 @@ def _renderizar_grafico_secoes_aep(inventario, key):
             cols_d[i].metric(label, f"{val:.1f}%")
 
 
-def _calcular_inventario_drps(medias_por_dim: dict) -> list:
+SEVERIDADES_DRPS = ["Levemente Prejudicial", "Prejudicial", "Extremamente Prejudicial"]
+
+
+def _calcular_inventario_drps(medias_por_dim: dict, severidades_ajustadas: dict = None) -> list:
     """Consolida as médias por dimensão do DRPS (COPSOQ III, já com inversão aplicada,
     0 a 4) em um inventário: para cada dimensão de `DIMS_ANALITICAS` (gerar_laudo.py),
-    calcula a Classificação COPSOQ III e o Nível de Risco (BS 8800) via `nivel_risco`.
+    calcula a Classificação COPSOQ III e o Nível de Risco (BS 8800) via `nivel_risco`,
+    usando a Severidade ajustada pelo RT (`severidades_ajustadas`), quando houver, em
+    vez da Severidade padrão da dimensão.
 
     A classificação "Crítico" (situação insuportável, média <= 0,08 — ver `classificar`
     em gerar_laudo.py) ou o Nível de Risco "Intolerável" (Matriz BS 8800) condicionam a
     emissão do laudo à intervenção do Responsável Técnico (`_bloco_intervencao_rt_drps`)."""
+    severidades_ajustadas = severidades_ajustadas or {}
     inventario = []
     for dim_key, cfg in DIMS_ANALITICAS.items():
         col_key = f"Dim_{_slug(dim_key)}"
         media = medias_por_dim.get(col_key, 2.0)
-        classif, nivel, _cor = nivel_risco(media, cfg["severidade"])
+        sev = severidades_ajustadas.get(dim_key, cfg["severidade"])
+        classif, nivel, _cor = nivel_risco(media, sev)
         inventario.append({
             "dim_key":        dim_key,
             "Dimensão":       cfg["label"],
             "Média":          round(float(media), 2),
-            "Severidade":     cfg["severidade"],
+            "Severidade":     sev,
             "Classificação":  classif,
             "Nível de Risco": nivel,
             "Plano Padrão":   cfg["plano"],
@@ -830,10 +837,13 @@ def _calcular_inventario_drps(medias_por_dim: dict) -> list:
 
 def _bloco_intervencao_rt_drps(cnpj_cod, inventario, ajustes, total_resp, key_prefix):
     """Painel de intervenção do Responsável Técnico (RT), exibido quando a avaliação DRPS
-    identifica ao menos uma dimensão classificada como "Crítico" (situação insuportável).
-    Mirror de `_bloco_intervencao_rt` (DRE/AEP): o RT pode confirmar a emissão do laudo
-    com o resultado do sistema ou ajustar as medidas de prevenção (Plano de Ação) de cada
-    dimensão crítica, com nota de justificativa, antes de liberar a emissão."""
+    identifica ao menos uma dimensão classificada como "Crítico" ou com Nível de Risco
+    "Intolerável" (situação insuportável). Mirror de `_bloco_intervencao_rt` (DRE/AEP): o
+    RT pode confirmar a emissão do laudo com o resultado do sistema ou ajustar a
+    Severidade e/ou as medidas de prevenção (Plano de Ação) de cada dimensão, com nota de
+    justificativa, antes de liberar a emissão. Ajustar a Severidade recalcula o Nível de
+    Risco (Matriz BS 8800)."""
+    severidades_ajustadas = dict(ajustes.get("severidades_ajustadas") or {})
     planos_ajustados = dict(ajustes.get("planos_ajustados") or {})
 
     dims_criticas = [item for item in inventario
@@ -843,16 +853,23 @@ def _bloco_intervencao_rt_drps(cnpj_cod, inventario, ajustes, total_resp, key_pr
     st.caption(
         "Ao menos uma dimensão foi classificada como **Crítico** ou obteve Nível de Risco "
         "**Intolerável** (situação insuportável). Revise cada dimensão abaixo: confirme o "
-        "resultado do sistema ou ajuste as medidas de prevenção (Plano de Ação), registrando "
-        "uma justificativa técnica."
+        "resultado do sistema ou ajuste a Severidade e/ou as medidas de prevenção (Plano de "
+        "Ação), registrando uma justificativa técnica."
     )
 
+    severidades_input = {}
     planos_input = {}
     for item in dims_criticas:
         dim_key = item["dim_key"]
         with st.expander(f"⚠️ {item['Dimensão']} (Média {item['Média']:.2f})", expanded=True):
-            st.write(f"**Severidade:** {item['Severidade']}  |  **Classificação:** {item['Classificação']}  |  "
-                     f"**Nível de Risco:** {item['Nível de Risco']}")
+            st.write(f"**Classificação:** {item['Classificação']}  |  **Nível de Risco:** {item['Nível de Risco']}")
+            sev_default = severidades_ajustadas.get(dim_key, item["Severidade"])
+            severidades_input[dim_key] = st.selectbox(
+                "Severidade ajustada pelo RT (recalcula o Nível de Risco)",
+                options=SEVERIDADES_DRPS,
+                index=SEVERIDADES_DRPS.index(sev_default) if sev_default in SEVERIDADES_DRPS else 0,
+                key=f"{key_prefix}_rt_sev_drps_{dim_key}",
+            )
             plano_default = "\n".join(planos_ajustados.get(dim_key) or [item["Plano Padrão"]])
             planos_input[dim_key] = st.text_area(
                 "Medidas de Prevenção (Plano de Ação) — uma medida por linha",
@@ -869,6 +886,7 @@ def _bloco_intervencao_rt_drps(cnpj_cod, inventario, ajustes, total_resp, key_pr
     col1, col2 = st.columns(2)
     if col1.button("✅ Confirmar emissão com o resultado do sistema", use_container_width=True, key=f"{key_prefix}_rt_confirmar_drps"):
         db.salvar_ajustes_drps(cnpj_cod, {
+            "severidades_ajustadas": {},
             "planos_ajustados": {},
             "nota_rt": nota_rt.strip() or "Resultado da avaliação confirmado pelo Responsável Técnico, sem ajustes.",
             "liberado": True,
@@ -879,11 +897,13 @@ def _bloco_intervencao_rt_drps(cnpj_cod, inventario, ajustes, total_resp, key_pr
         st.rerun()
 
     if col2.button("💾 Salvar ajustes e liberar emissão", type="primary", use_container_width=True, key=f"{key_prefix}_rt_salvar_drps"):
+        severidades_ajustadas.update(severidades_input)
         for dim_key, texto in planos_input.items():
             linhas = [l.strip() for l in texto.split("\n") if l.strip()]
             if linhas:
                 planos_ajustados[dim_key] = linhas
         db.salvar_ajustes_drps(cnpj_cod, {
+            "severidades_ajustadas": severidades_ajustadas,
             "planos_ajustados": planos_ajustados,
             "nota_rt": nota_rt.strip() or "Resultado da avaliação ajustado pelo Responsável Técnico.",
             "liberado": True,
@@ -2098,12 +2118,13 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                             dim_key  = f"Dim_{nome_dim}"
                             medias_dim[dim_key] = round(4.0 - val, 2) if nome_dim.lower() in _DIMS_INV_LOWER else val
 
-                        inventario_drps = _calcular_inventario_drps(medias_dim)
+                        ajustes_rt_drps = db.carregar_ajustes_drps(cnpj_cod) or {}
+                        severidades_ajustadas_drps = ajustes_rt_drps.get("severidades_ajustadas") or {}
+                        inventario_drps = _calcular_inventario_drps(medias_dim, severidades_ajustadas_drps)
                         requer_intervencao_drps = any(
                             item["Classificação"] == "Crítico" or item["Nível de Risco"] == "Intolerável"
                             for item in inventario_drps
                         )
-                        ajustes_rt_drps = db.carregar_ajustes_drps(cnpj_cod) or {}
                         liberacao_valida_drps = (bool(ajustes_rt_drps.get("liberado"))
                                                   and ajustes_rt_drps.get("total_respostas_liberacao", -1) >= total_resp)
 
@@ -2130,6 +2151,7 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                                 nota_rt = ajustes_rt_drps.get("nota_rt") if liberacao_valida_drps else None
                                 data_liberacao_rt = ajustes_rt_drps.get("data_liberacao") if liberacao_valida_drps else None
                                 planos_ajustados_drps = (ajustes_rt_drps.get("planos_ajustados") or {}) if liberacao_valida_drps else {}
+                                severidades_ajustadas_pdf = severidades_ajustadas_drps if liberacao_valida_drps else {}
                                 try:
                                     pdf_bytes = gerar_laudo_pdf(
                                         dados_empresa=dados_emp,
@@ -2140,6 +2162,7 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                                         planos_ajustados=planos_ajustados_drps,
                                         nota_rt=nota_rt,
                                         data_liberacao_rt=data_liberacao_rt,
+                                        severidades_ajustadas=severidades_ajustadas_pdf,
                                     )
                                     db.registrar_laudo(cnpj_cod, "DRPS")
                                     st.success("Laudo DRPS gerado com sucesso!")

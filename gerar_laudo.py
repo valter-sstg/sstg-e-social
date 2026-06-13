@@ -1007,7 +1007,8 @@ def build_s3(st, total_respondentes, total_autorizados=0, medias_por_dim=None):
 
 # ===================== SEÇÃO 4: INVENTÁRIO =====================
 
-def build_s4(st, medias_por_dim):
+def build_s4(st, medias_por_dim, severidades_ajustadas=None):
+    severidades_ajustadas = severidades_ajustadas or {}
     el = []
     el.append(_titulo_secao("8. INVENTÁRIO DE RISCOS PSICOSSOCIAIS", st))
     el.append(Paragraph(
@@ -1034,7 +1035,7 @@ def build_s4(st, medias_por_dim):
     for i, (dim_key, cfg) in enumerate(DIMS_ANALITICAS.items()):
         col_key = f"Dim_{_slug(dim_key)}"
         media = medias_por_dim.get(col_key, 2.0)
-        sev = cfg["severidade"]
+        sev = severidades_ajustadas.get(dim_key, cfg["severidade"])
         classif, nivel, _cor_nivel = nivel_risco(media, sev)
         prob = PROB_MAP.get(classif, "Significante")
         plano = _acao_necessaria(nivel, media)
@@ -1114,7 +1115,7 @@ PLANO_SEM_CANAL = {
     "Comportamentos Ofensivos": "Atualizar Código de Ética com política explícita de tolerância zero ao assédio. Capacitar lideranças em prevenção e notificação obrigatória.",
 }
 
-def build_s5(st, medias_por_dim, planos_ajustados=None):
+def build_s5(st, medias_por_dim, planos_ajustados=None, severidades_ajustadas=None):
     el = []
     el.append(_titulo_secao("9. PLANO DE AÇÃO", st))
     el.append(Paragraph(
@@ -1133,11 +1134,13 @@ def build_s5(st, medias_por_dim, planos_ajustados=None):
     rows = [header]
     risco_cells = []
     planos_ajustados = planos_ajustados or {}
+    severidades_ajustadas = severidades_ajustadas or {}
 
     for dim_key, cfg in DIMS_ANALITICAS.items():
         col_key = f"Dim_{_slug(dim_key)}"
         media = medias_por_dim.get(col_key, 2.0)
-        classif, nivel, _cor_nivel = nivel_risco(media, cfg["severidade"])
+        sev = severidades_ajustadas.get(dim_key, cfg["severidade"])
+        classif, nivel, _cor_nivel = nivel_risco(media, sev)
 
         if _acao_necessaria(nivel, media) == "NÃO":
             continue
@@ -1203,7 +1206,7 @@ def build_s5(st, medias_por_dim, planos_ajustados=None):
 
 # ===================== SEÇÃO 6: CONCLUSÃO =====================
 
-def build_s6(st, empresa, medias_por_dim=None, nota_rt=None, data_liberacao_rt=None):
+def build_s6(st, empresa, medias_por_dim=None, nota_rt=None, data_liberacao_rt=None, severidades_ajustadas=None):
     el = []
     el.append(_titulo_secao("10. CONCLUSÃO", st))
     el.append(Paragraph(
@@ -1217,12 +1220,14 @@ def build_s6(st, empresa, medias_por_dim=None, nota_rt=None, data_liberacao_rt=N
         "(Item 9)</b>. A organização deve assegurar que as medidas propostas sejam acompanhadas de forma "
         "planejada, com a participação ativa dos trabalhadores e da CIPA, quando houver.", st['body']))
 
+    severidades_ajustadas = severidades_ajustadas or {}
     riscos_intoleraveis = []
     riscos_criticos = []
     for dim_key, cfg in (medias_por_dim and DIMS_ANALITICAS or {}).items():
         col_key = f"Dim_{_slug(dim_key)}"
         media = medias_por_dim.get(col_key, 2.0)
-        classif, nivel, _cor_nivel = nivel_risco(media, cfg["severidade"])
+        sev = severidades_ajustadas.get(dim_key, cfg["severidade"])
+        classif, nivel, _cor_nivel = nivel_risco(media, sev)
         if classif == "Crítico":
             riscos_criticos.append(cfg["label"])
         elif nivel == "Intolerável":
@@ -1416,6 +1421,7 @@ def gerar_laudo_pdf(
     planos_ajustados: dict = None,
     nota_rt: str = None,
     data_liberacao_rt: str = None,
+    severidades_ajustadas: dict = None,
 ) -> bytes:
     """
     Gera o Laudo de Fatores Psicossociais em PDF e retorna os bytes.
@@ -1426,9 +1432,13 @@ def gerar_laudo_pdf(
     logo_path: caminho para a imagem da logo (opcional)
     planos_ajustados: dict {chave da dimensão (ex.: "Relacionamentos"): [medidas de
         controle]} com ajustes do RT ao Plano de Ação, usado quando há dimensão Crítica
-        revisada
+        ou Intolerável revisada
+    severidades_ajustadas: dict {chave da dimensão: "Levemente Prejudicial" |
+        "Prejudicial" | "Extremamente Prejudicial"} com a Severidade ajustada pelo RT,
+        usada no lugar da Severidade padrão de `DIMS_ANALITICAS` (recalcula o Nível de
+        Risco BS 8800 no Inventário, Plano de Ação e Conclusão)
     nota_rt / data_liberacao_rt: nota de justificativa e data da revisão do Responsável
-        Técnico para dimensões Crítica, exibida na Conclusão (Item 10.1)
+        Técnico para dimensões Crítica/Intolerável, exibida na Conclusão (Item 10.1)
     """
     buffer = io.BytesIO()
     empresa = dados_empresa.get("Empresa", "—")
@@ -1465,9 +1475,9 @@ def gerar_laudo_pdf(
     story += build_s1(st, empresa, cnpj, cnae, grau, data_emissao)
     story += build_s2(st)
     story += build_s3(st, total_respondentes, total_autorizados, medias_por_dim)
-    story += build_s4(st, medias_por_dim)
-    story += build_s5(st, medias_por_dim, planos_ajustados)
-    story += build_s6(st, empresa, medias_por_dim, nota_rt, data_liberacao_rt)
+    story += build_s4(st, medias_por_dim, severidades_ajustadas)
+    story += build_s5(st, medias_por_dim, planos_ajustados, severidades_ajustadas)
+    story += build_s6(st, empresa, medias_por_dim, nota_rt, data_liberacao_rt, severidades_ajustadas)
 
     doc.build(story, onFirstPage=_callback, onLaterPages=_callback)
     return buffer.getvalue()
