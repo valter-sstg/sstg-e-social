@@ -227,6 +227,27 @@ def salvar_ajustes_aep(cnpj, dados):
     sb.table("ajustes_aep").upsert(registro, on_conflict="cnpj").execute()
 
 
+def carregar_ajustes_drps(cnpj):
+    """Retorna o registro de revisão do RT (planos ajustados, nota, liberação) para as
+    dimensões Críticas/Insuportáveis do DRPS desta empresa, ou None se nunca houve
+    revisão. Falha silenciosamente (None) se a tabela 'ajustes_drps' ainda não existir."""
+    try:
+        sb = _get_sb()
+        res = sb.table("ajustes_drps").select("*").eq("cnpj", cnpj).execute()
+        return res.data[0] if res.data else None
+    except Exception:
+        return None
+
+
+def salvar_ajustes_drps(cnpj, dados):
+    """Grava a revisão do RT (planos_ajustados, nota_rt, liberado, data_liberacao,
+    total_respostas_liberacao) para as dimensões Críticas/Insuportáveis do DRPS desta
+    empresa."""
+    sb = _get_sb()
+    registro = {"cnpj": cnpj, **dados}
+    sb.table("ajustes_drps").upsert(registro, on_conflict="cnpj").execute()
+
+
 def listar_cnpjs_com_respostas():
     sb = _get_sb()
     res = sb.table("respostas").select("cnpj").execute()

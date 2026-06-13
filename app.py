@@ -11,7 +11,7 @@ import db
 
 
 try:
-    from gerar_laudo import gerar_laudo_pdf
+    from gerar_laudo import gerar_laudo_pdf, DIMS_ANALITICAS, _slug, nivel_risco
     LAUDO_DISPONIVEL = True
 except ImportError:
     LAUDO_DISPONIVEL = False
@@ -801,6 +801,94 @@ def _renderizar_grafico_secoes_aep(inventario, key):
         cols_d = st.columns(len(secoes))
         for i, (label, val) in enumerate(zip(secoes, valores)):
             cols_d[i].metric(label, f"{val:.1f}%")
+
+
+def _calcular_inventario_drps(medias_por_dim: dict) -> list:
+    """Consolida as médias por dimensão do DRPS (COPSOQ III, já com inversão aplicada,
+    0 a 4) em um inventário: para cada dimensão de `DIMS_ANALITICAS` (gerar_laudo.py),
+    calcula a Classificação COPSOQ III e o Nível de Risco (BS 8800) via `nivel_risco`.
+
+    A classificação "Crítico" (situação insuportável, média <= 0,08 — ver `classificar`
+    em gerar_laudo.py) é equivalente ao "Crítico/Insuportável" da AEP/DRE e condiciona a
+    emissão do laudo à intervenção do Responsável Técnico (`_bloco_intervencao_rt_drps`)."""
+    inventario = []
+    for dim_key, cfg in DIMS_ANALITICAS.items():
+        col_key = f"Dim_{_slug(dim_key)}"
+        media = medias_por_dim.get(col_key, 2.0)
+        classif, nivel, _cor = nivel_risco(media, cfg["severidade"])
+        inventario.append({
+            "dim_key":        dim_key,
+            "Dimensão":       cfg["label"],
+            "Média":          round(float(media), 2),
+            "Severidade":     cfg["severidade"],
+            "Classificação":  classif,
+            "Nível de Risco": nivel,
+            "Plano Padrão":   cfg["plano"],
+        })
+    return inventario
+
+
+def _bloco_intervencao_rt_drps(cnpj_cod, inventario, ajustes, total_resp, key_prefix):
+    """Painel de intervenção do Responsável Técnico (RT), exibido quando a avaliação DRPS
+    identifica ao menos uma dimensão classificada como "Crítico" (situação insuportável).
+    Mirror de `_bloco_intervencao_rt` (DRE/AEP): o RT pode confirmar a emissão do laudo
+    com o resultado do sistema ou ajustar as medidas de prevenção (Plano de Ação) de cada
+    dimensão crítica, com nota de justificativa, antes de liberar a emissão."""
+    planos_ajustados = dict(ajustes.get("planos_ajustados") or {})
+
+    dims_criticas = [item for item in inventario if item["Classificação"] == "Crítico"]
+
+    st.markdown("#### 🔒 Intervenção do Responsável Técnico (RT)")
+    st.caption(
+        "Ao menos uma dimensão foi classificada como **Crítico** (situação insuportável). "
+        "Revise cada dimensão crítica abaixo: confirme o resultado do sistema ou ajuste as "
+        "medidas de prevenção (Plano de Ação), registrando uma justificativa técnica."
+    )
+
+    planos_input = {}
+    for item in dims_criticas:
+        dim_key = item["dim_key"]
+        with st.expander(f"⚠️ {item['Dimensão']} (Média {item['Média']:.2f})", expanded=True):
+            st.write(f"**Severidade:** {item['Severidade']}  |  **Classificação:** {item['Classificação']}")
+            plano_default = "\n".join(planos_ajustados.get(dim_key) or [item["Plano Padrão"]])
+            planos_input[dim_key] = st.text_area(
+                "Medidas de Prevenção (Plano de Ação) — uma medida por linha",
+                value=plano_default, height=100,
+                key=f"{key_prefix}_rt_plano_drps_{dim_key}",
+            )
+
+    nota_rt = st.text_area(
+        "Nota / Justificativa do RT (registrada na Conclusão do laudo)",
+        value=ajustes.get("nota_rt", ""),
+        key=f"{key_prefix}_rt_nota_drps",
+    )
+
+    col1, col2 = st.columns(2)
+    if col1.button("✅ Confirmar emissão com o resultado do sistema", use_container_width=True, key=f"{key_prefix}_rt_confirmar_drps"):
+        db.salvar_ajustes_drps(cnpj_cod, {
+            "planos_ajustados": {},
+            "nota_rt": nota_rt.strip() or "Resultado da avaliação confirmado pelo Responsável Técnico, sem ajustes.",
+            "liberado": True,
+            "data_liberacao": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "total_respostas_liberacao": total_resp,
+        })
+        st.success("Emissão liberada com o resultado do sistema.")
+        st.rerun()
+
+    if col2.button("💾 Salvar ajustes e liberar emissão", type="primary", use_container_width=True, key=f"{key_prefix}_rt_salvar_drps"):
+        for dim_key, texto in planos_input.items():
+            linhas = [l.strip() for l in texto.split("\n") if l.strip()]
+            if linhas:
+                planos_ajustados[dim_key] = linhas
+        db.salvar_ajustes_drps(cnpj_cod, {
+            "planos_ajustados": planos_ajustados,
+            "nota_rt": nota_rt.strip() or "Resultado da avaliação ajustado pelo Responsável Técnico.",
+            "liberado": True,
+            "data_liberacao": datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "total_respostas_liberacao": total_resp,
+        })
+        st.success("Ajustes salvos e emissão liberada.")
+        st.rerun()
 
 
 def _bloco_intervencao_rt(cnpj_cod, inventario, ajustes, total_resp_aep, key_prefix):
@@ -1999,17 +2087,30 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                         st.caption(f"CNAE Principal: **{_cnae_default or '—'}** | Grau de Risco: **{_grau_default or '—'}** "
                                     "(dados do cadastro da empresa)")
 
-                        if st.button("📄 Gerar Laudo DRPS em PDF", type="primary", use_container_width=True):
-                            with st.spinner("Gerando laudo..."):
-                                nome_empresa   = empresa_sel.split(" — CNPJ:")[0].strip()
-                                df_num_laudo   = df_res[cols_media].apply(pd.to_numeric, errors='coerce')
-                                medias_laudo   = df_num_laudo.mean().to_dict()
-                                medias_dim     = {}
-                                for col, val in medias_laudo.items():
-                                    nome_dim = col.replace("Media_", "")
-                                    dim_key  = f"Dim_{nome_dim}"
-                                    medias_dim[dim_key] = round(4.0 - val, 2) if nome_dim.lower() in _DIMS_INV_LOWER else val
+                        df_num_laudo = df_res[cols_media].apply(pd.to_numeric, errors='coerce')
+                        medias_laudo = df_num_laudo.mean().to_dict()
+                        medias_dim   = {}
+                        for col, val in medias_laudo.items():
+                            nome_dim = col.replace("Media_", "")
+                            dim_key  = f"Dim_{nome_dim}"
+                            medias_dim[dim_key] = round(4.0 - val, 2) if nome_dim.lower() in _DIMS_INV_LOWER else val
 
+                        inventario_drps = _calcular_inventario_drps(medias_dim)
+                        tem_critico_drps = any(item["Classificação"] == "Crítico" for item in inventario_drps)
+                        ajustes_rt_drps = db.carregar_ajustes_drps(cnpj_cod) or {}
+                        liberacao_valida_drps = (bool(ajustes_rt_drps.get("liberado"))
+                                                  and ajustes_rt_drps.get("total_respostas_liberacao", -1) >= total_resp)
+
+                        if tem_critico_drps and not liberacao_valida_drps:
+                            st.error(
+                                "⚠️ Esta avaliação identificou ao menos uma dimensão classificada como **Crítico** "
+                                "(situação insuportável). A emissão do Laudo DRPS está condicionada à intervenção "
+                                "do Responsável Técnico abaixo."
+                            )
+                            _bloco_intervencao_rt_drps(cnpj_cod, inventario_drps, ajustes_rt_drps, total_resp, key_prefix="admin")
+                        elif st.button("📄 Gerar Laudo DRPS em PDF", type="primary", use_container_width=True):
+                            with st.spinner("Gerando laudo..."):
+                                nome_empresa = empresa_sel.split(" — CNPJ:")[0].strip()
                                 _cnae_final = _cnae_default if _cnae_default else "—"
                                 _grau_final = _grau_default if _grau_default else "—"
 
@@ -2020,6 +2121,9 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                                     "Grau_Risco": _grau_final,
                                 }
                                 logo_path = "logo_sstg.png" if os.path.exists("logo_sstg.png") else None
+                                nota_rt = ajustes_rt_drps.get("nota_rt") if liberacao_valida_drps else None
+                                data_liberacao_rt = ajustes_rt_drps.get("data_liberacao") if liberacao_valida_drps else None
+                                planos_ajustados_drps = (ajustes_rt_drps.get("planos_ajustados") or {}) if liberacao_valida_drps else {}
                                 try:
                                     pdf_bytes = gerar_laudo_pdf(
                                         dados_empresa=dados_emp,
@@ -2027,6 +2131,9 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                                         total_respondentes=total_resp,
                                         logo_path=logo_path,
                                         total_autorizados=total_auth,
+                                        planos_ajustados=planos_ajustados_drps,
+                                        nota_rt=nota_rt,
+                                        data_liberacao_rt=data_liberacao_rt,
                                     )
                                     db.registrar_laudo(cnpj_cod, "DRPS")
                                     st.success("Laudo DRPS gerado com sucesso!")

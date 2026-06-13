@@ -151,6 +151,7 @@ BS8800 = {
 }
 
 PROB_MAP = {
+    "Crítico":    "Excessiva",
     "Alto":       "Excessiva",
     "Moderado":   "Significante",
     "Baixo":      "Pequena",
@@ -163,6 +164,7 @@ RISCO_COR = {
     "Moderado":     C_AMARELO,
     "Substancial":  C_LARANJA,
     "Intolerável":  colors.HexColor('#7030A0'),
+    "Crítico":      colors.HexColor('#C0392B'),
 }
 
 ACAO_NECESSARIA = {
@@ -171,6 +173,7 @@ ACAO_NECESSARIA = {
     "Moderado":    "SIM",
     "Substancial": "SIM",
     "Intolerável": "SIM",
+    "Crítico":     "SIM",
 }
 
 def _acao_necessaria(nivel, media):
@@ -188,12 +191,16 @@ def classificar(media: float) -> str:
     """
     Classifica a média COPSOQ III em nível de probabilidade de dano.
     Escala 0–4 (valores já invertidos para dimensões de risco).
+      ≤ 0,08 → Crítico    → situação insuportável (≥ 98% das respostas no nível
+               mais desfavorável da dimensão, quase unanimidade dos trabalhadores)
       ≤ 1,49 → Alto       → Probabilidade Excessiva
       ≤ 2,99 → Moderado   → Probabilidade Significante
       ≤ 3,49 → Baixo      → Probabilidade Pequena
       > 3,49 → Muito Baixo→ Probabilidade Desprezível (condição muito favorável)
     """
-    if media <= 1.49:
+    if media <= 0.08:
+        return "Crítico"
+    elif media <= 1.49:
         return "Alto"
     elif media <= 2.99:
         return "Moderado"
@@ -203,6 +210,7 @@ def classificar(media: float) -> str:
 
 def cor_copsoq(classif: str):
     return {
+        "Crítico":     RISCO_COR["Crítico"],
         "Alto":        C_LARANJA,
         "Moderado":    C_AMARELO,
         "Baixo":       C_VERDE,
@@ -211,6 +219,20 @@ def cor_copsoq(classif: str):
 
 def bs8800_nivel(sev: str, prob: str) -> str:
     return BS8800.get((sev, prob), "Moderado")
+
+def nivel_risco(media: float, severidade: str) -> tuple:
+    """Retorna (classificação COPSOQ III, nível de risco, cor) para uma dimensão.
+
+    A classificação "Crítico" (ver `classificar`) é tratada como situação insuportável e
+    sempre resulta no nível de risco "Crítico" (cor #C0392B), independentemente da
+    Severidade cadastrada para a dimensão — assim como o nível "Crítico" da AEP/DRE não
+    depende do Grau de Risco calculado."""
+    classif = classificar(media)
+    if classif == "Crítico":
+        return classif, "Crítico", RISCO_COR["Crítico"]
+    prob = PROB_MAP.get(classif, "Significante")
+    nivel = bs8800_nivel(severidade, prob)
+    return classif, nivel, RISCO_COR.get(nivel, C_AMARELO)
 
 # ===================== ESTILOS =====================
 
@@ -765,7 +787,11 @@ def build_s3(st, total_respondentes, total_autorizados=0, medias_por_dim=None):
          Paragraph("Classificação COPSOQ III", st['table_header']),
          Paragraph("Probabilidade (BS 8800)", st['table_header']),
          Paragraph("Interpretação", st['table_header'])],
-        ["0,00 — 1,49", "ALTO", "Excessiva",
+        ["0,00 — 0,08", "CRÍTICO", "Excessiva (Insuportável)",
+         Paragraph("Quase unanimidade dos trabalhadores no nível mais desfavorável da dimensão. "
+                   "Situação insuportável — intervenção do Responsável Técnico obrigatória antes "
+                   "da emissão do laudo.", st['table_cell_justify'])],
+        ["0,09 — 1,49", "ALTO", "Excessiva",
          Paragraph("Trabalhadores frequentemente expostos. Necessário adotar ações neutralizadoras.", st['table_cell_justify'])],
         ["1,50 — 2,99", "MODERADO", "Significante",
          Paragraph("Exposição recorrente. Medidas preventivas recomendadas.", st['table_cell_justify'])],
@@ -786,10 +812,11 @@ def build_s3(st, total_respondentes, total_autorizados=0, medias_por_dim=None):
         ('TOPPADDING', (0, 0), (-1, -1), 5),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#cccccc')),
-        ('BACKGROUND', (1, 1), (1, 1), colors.HexColor('#FFD7D7')),
-        ('BACKGROUND', (1, 2), (1, 2), colors.HexColor('#FFF3CC')),
-        ('BACKGROUND', (1, 3), (1, 3), colors.HexColor('#D7F0DD')),
-        ('ROWBACKGROUNDS', (0, 1), (0, -1), [C_CINZAC, C_BRANCO, C_CINZAC]),
+        ('BACKGROUND', (1, 1), (1, 1), colors.HexColor('#F5C6CB')),
+        ('BACKGROUND', (1, 2), (1, 2), colors.HexColor('#FFD7D7')),
+        ('BACKGROUND', (1, 3), (1, 3), colors.HexColor('#FFF3CC')),
+        ('BACKGROUND', (1, 4), (1, 4), colors.HexColor('#D7F0DD')),
+        ('ROWBACKGROUNDS', (0, 1), (0, -1), [C_CINZAC, C_BRANCO, C_CINZAC, C_BRANCO]),
     ]))
     el.append(tc)
     el.append(Paragraph(
@@ -1006,17 +1033,9 @@ def build_s4(st, medias_por_dim):
     for i, (dim_key, cfg) in enumerate(DIMS_ANALITICAS.items()):
         col_key = f"Dim_{_slug(dim_key)}"
         media = medias_por_dim.get(col_key, 2.0)
-        # Classificação inline (4 níveis) — robusto independente de cache de módulo
-        if media > 3.49:
-            classif, prob = "Muito Baixo", "Desprezível"
-        elif media > 2.99:
-            classif, prob = "Baixo", "Pequena"
-        elif media > 1.49:
-            classif, prob = "Moderado", "Significante"
-        else:
-            classif, prob = "Alto", "Excessiva"
         sev = cfg["severidade"]
-        nivel = bs8800_nivel(sev, prob)
+        classif, nivel, _cor_nivel = nivel_risco(media, sev)
+        prob = PROB_MAP.get(classif, "Significante")
         plano = _acao_necessaria(nivel, media)
 
         row = [
@@ -1024,7 +1043,8 @@ def build_s4(st, medias_por_dim):
                       st['table_cell']),
             Paragraph(cfg["fontes"], st['table_cell']),
             Paragraph(cfg["agravos"], st['table_cell']),
-            Paragraph("Nenhuma medida implementada." if classif == "Alto" else
+            Paragraph("Situação insuportável — sem medidas eficazes identificadas." if classif == "Crítico" else
+                      "Nenhuma medida implementada." if classif == "Alto" else
                       "Medidas parciais em execução." if classif == "Moderado" else
                       "Controles implementados e monitorados.", st['table_cell']),
             Paragraph(sev[:3] + ".", st['table_cell_center']),
@@ -1075,8 +1095,9 @@ def build_s4(st, medias_por_dim):
         _chip("Moderado", RISCO_COR["Moderado"]),
         _chip("Substancial", RISCO_COR["Substancial"]),
         _chip("Intolerável", RISCO_COR["Intolerável"]),
+        _chip("Crítico", RISCO_COR["Crítico"]),
     ]]
-    tl = Table(legenda_data, colWidths=[5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.7*cm, 2.7*cm])
+    tl = Table(legenda_data, colWidths=[4.3*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.4*cm, 2.4*cm, 2.2*cm])
     tl.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 4),
@@ -1092,7 +1113,7 @@ PLANO_SEM_CANAL = {
     "Comportamentos Ofensivos": "Atualizar Código de Ética com política explícita de tolerância zero ao assédio. Capacitar lideranças em prevenção e notificação obrigatória.",
 }
 
-def build_s5(st, medias_por_dim):
+def build_s5(st, medias_por_dim, planos_ajustados=None):
     el = []
     el.append(_titulo_secao("9. PLANO DE AÇÃO", st))
     el.append(Paragraph(
@@ -1110,27 +1131,27 @@ def build_s5(st, medias_por_dim):
     ]
     rows = [header]
     risco_cells = []
+    planos_ajustados = planos_ajustados or {}
 
     for dim_key, cfg in DIMS_ANALITICAS.items():
         col_key = f"Dim_{_slug(dim_key)}"
         media = medias_por_dim.get(col_key, 2.0)
-        # Classificação inline (4 níveis) — robusto independente de cache de módulo
-        if media > 3.49:
-            classif, prob = "Muito Baixo", "Desprezível"
-        elif media > 2.99:
-            classif, prob = "Baixo", "Pequena"
-        elif media > 1.49:
-            classif, prob = "Moderado", "Significante"
-        else:
-            classif, prob = "Alto", "Excessiva"
-        nivel = bs8800_nivel(cfg["severidade"], prob)
+        classif, nivel, _cor_nivel = nivel_risco(media, cfg["severidade"])
 
         if _acao_necessaria(nivel, media) == "NÃO":
             continue
 
         plano_texto = cfg["plano"]
-        if dim_key in PLANO_SEM_CANAL and nivel != "Intolerável":
+        if dim_key in PLANO_SEM_CANAL and nivel not in ("Intolerável", "Crítico"):
             plano_texto = PLANO_SEM_CANAL[dim_key]
+
+        ajuste_rt = planos_ajustados.get(dim_key)
+        if ajuste_rt:
+            plano_rt = "<br/>".join(f"• {linha}" for linha in ajuste_rt)
+            if classif == "Crítico":
+                plano_texto = f"<b>• {plano_texto}</b><br/>{plano_rt}"
+            else:
+                plano_texto = plano_rt
 
         rows.append([
             Paragraph(f"<b>{cfg['label']}</b>\nMédia: {media:.2f} ({classif})",
@@ -1181,7 +1202,7 @@ def build_s5(st, medias_por_dim):
 
 # ===================== SEÇÃO 6: CONCLUSÃO =====================
 
-def build_s6(st, empresa, medias_por_dim=None):
+def build_s6(st, empresa, medias_por_dim=None, nota_rt=None, data_liberacao_rt=None):
     el = []
     el.append(_titulo_secao("10. CONCLUSÃO", st))
     el.append(Paragraph(
@@ -1196,20 +1217,24 @@ def build_s6(st, empresa, medias_por_dim=None):
         "planejada, com a participação ativa dos trabalhadores e da CIPA, quando houver.", st['body']))
 
     riscos_intoleraveis = []
+    riscos_criticos = []
     for dim_key, cfg in (medias_por_dim and DIMS_ANALITICAS or {}).items():
         col_key = f"Dim_{_slug(dim_key)}"
         media = medias_por_dim.get(col_key, 2.0)
-        if media > 3.49:
-            prob = "Desprezível"
-        elif media > 2.99:
-            prob = "Pequena"
-        elif media > 1.49:
-            prob = "Significante"
-        else:
-            prob = "Excessiva"
-        nivel = bs8800_nivel(cfg["severidade"], prob)
-        if nivel == "Intolerável":
+        classif, nivel, _cor_nivel = nivel_risco(media, cfg["severidade"])
+        if classif == "Crítico":
+            riscos_criticos.append(cfg["label"])
+        elif nivel == "Intolerável":
             riscos_intoleraveis.append(cfg["label"])
+
+    if riscos_criticos:
+        lista_critico = ", ".join(f"<b>{r}</b>" for r in riscos_criticos)
+        el.append(Paragraph(
+            f"Foram identificadas dimensões com classificação <b>Crítico</b> (situação insuportável): "
+            f"{lista_critico}. Recomenda-se intervenção imediata, com priorização máxima das medidas "
+            "previstas no Plano de Ação, acompanhamento direto da Direção e do Jurídico/RH, e avaliação "
+            "contínua quanto à necessidade de Análise Ergonômica do Trabalho — AET, podendo incluir "
+            "apuração formal e medidas disciplinares quando cabível.", st['body']))
 
     if riscos_intoleraveis:
         lista = ", ".join(f"<b>{r}</b>" for r in riscos_intoleraveis)
@@ -1218,7 +1243,7 @@ def build_s6(st, empresa, medias_por_dim=None):
             "Para essas categorias, recomenda-se intervenção mais aprofundada, com priorização imediata das "
             "medidas previstas no Plano de Ação e acompanhamento direto da Direção e do Jurídico/RH, "
             "podendo incluir apuração formal e medidas disciplinares quando cabível.", st['body']))
-    else:
+    elif not riscos_criticos:
         el.append(Paragraph(
             "Não foram identificadas categorias com Nível de Risco <b>Intolerável</b> nesta avaliação. "
             "Ainda assim, recomenda-se a manutenção do monitoramento periódico e a execução das medidas "
@@ -1229,6 +1254,16 @@ def build_s6(st, empresa, medias_por_dim=None):
         "de doenças relacionadas ao trabalho ou, no máximo, <b>a cada dois anos</b>, de forma a manter o "
         "Inventário de Riscos sempre atualizado e em conformidade com as diretrizes legais vigentes.",
         st['body']))
+
+    if nota_rt:
+        el.append(Spacer(1, 0.2*cm))
+        el.append(_subtitulo("10.1. Revisão do Responsável Técnico", st))
+        data_txt = f" em {data_liberacao_rt}" if data_liberacao_rt else ""
+        el.append(Paragraph(
+            f"Em razão da identificação de dimensão(ões) classificada(s) como <b>Crítico</b> (situação "
+            f"insuportável), o resultado desta avaliação foi revisado pelo Responsável Técnico{data_txt}, "
+            f"conforme nota a seguir: “{nota_rt}”", st['body']))
+
     el.append(Spacer(1, 1.5*cm))
 
     # Assinatura — 3 colunas: RT1 | RT2 | Representante Legal
@@ -1372,6 +1407,9 @@ def gerar_laudo_pdf(
     total_respondentes: int,
     logo_path: str = "logo_sstg.png",
     total_autorizados: int = 0,
+    planos_ajustados: dict = None,
+    nota_rt: str = None,
+    data_liberacao_rt: str = None,
 ) -> bytes:
     """
     Gera o Laudo de Fatores Psicossociais em PDF e retorna os bytes.
@@ -1380,6 +1418,11 @@ def gerar_laudo_pdf(
     medias_por_dim: dict com chaves 'Dim_X' → média float (já com inversão aplicada)
     total_respondentes: int
     logo_path: caminho para a imagem da logo (opcional)
+    planos_ajustados: dict {chave da dimensão (ex.: "Relacionamentos"): [medidas de
+        controle]} com ajustes do RT ao Plano de Ação, usado quando há dimensão Crítica
+        revisada
+    nota_rt / data_liberacao_rt: nota de justificativa e data da revisão do Responsável
+        Técnico para dimensões Crítica, exibida na Conclusão (Item 10.1)
     """
     buffer = io.BytesIO()
     empresa = dados_empresa.get("Empresa", "—")
@@ -1417,8 +1460,8 @@ def gerar_laudo_pdf(
     story += build_s2(st)
     story += build_s3(st, total_respondentes, total_autorizados, medias_por_dim)
     story += build_s4(st, medias_por_dim)
-    story += build_s5(st, medias_por_dim)
-    story += build_s6(st, empresa, medias_por_dim)
+    story += build_s5(st, medias_por_dim, planos_ajustados)
+    story += build_s6(st, empresa, medias_por_dim, nota_rt, data_liberacao_rt)
 
     doc.build(story, onFirstPage=_callback, onLaterPages=_callback)
     return buffer.getvalue()
