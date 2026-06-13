@@ -903,7 +903,11 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
     if not df_acessos_aep.empty:
         _emp_aep = df_acessos_aep[df_acessos_aep['CNPJ'] == cnpj_cod]
         if not _emp_aep.empty:
-            grau_risco_emp = str(_emp_aep.iloc[0].get('Grau_Risco', '')).strip()
+            _linha_emp = _emp_aep.iloc[0]
+            grau_risco_emp = str(_linha_emp.get('Grau_Risco', _linha_emp.get('grau_risco', '')) or '').strip()
+    if not grau_risco_emp:
+        # Sem grau de risco cadastrado: assume Grau 1 (NR-4) como padrão da metodologia
+        grau_risco_emp = "1"
     severidades, faixa_sev = _severidades_por_grau_empresa(grau_risco_emp)
 
     ajustes_rt = db.carregar_ajustes_aep(cnpj_cod) or {}
