@@ -562,10 +562,10 @@ AEP_SEVERIDADES_DEFAULT = {
 # atividade econômica da organização (NR-4, campo Grau_Risco do cadastro da empresa):
 # cada pergunta tem (severidade para empresas de GR 1-2, severidade para empresas de GR 3-4)
 AEP_SEVERIDADES_RT = {
-    "q1":  (2, 2), "q2":  (2, 3), "q3":  (3, 4), "q4":  (3, 3), "q5":  (3, 4),
+    "q1":  (2, 2), "q2":  (2, 3), "q3":  (2, 4), "q4":  (2, 3), "q5":  (2, 4),
     "q6":  (2, 2), "q7":  (2, 2), "q8":  (2, 2), "q9":  (2, 3),
     "q10": (1, 1), "q11": (2, 3), "q12": (1, 2),
-    "q13": (2, 3), "q14": (3, 3), "q15": (3, 3), "q16": (2, 3), "q17": (3, 4),
+    "q13": (2, 3), "q14": (2, 3), "q15": (2, 3), "q16": (2, 3), "q17": (2, 4),
 }
 
 # Setores com menos respondentes que este mínimo são agrupados em um único conjunto
