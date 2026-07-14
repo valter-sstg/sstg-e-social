@@ -502,7 +502,7 @@ pillow
 py -m pip install streamlit pandas reportlab plotly supabase qrcode pillow
 ```
 
-> ⚠️ Mantenha o `requirements.txt` do repositório (`valter-contador/sstg-e-social`)
+> ⚠️ Mantenha o `requirements.txt` do repositório (`valter-sstg/sstg-e-social`)
 > sincronizado com esta lista — é ele que o Streamlit Cloud usa para montar o
 > ambiente a cada deploy.
 

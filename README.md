@@ -295,7 +295,7 @@ Logo: logo_sstg.png (sidebar)
 
 O sistema já está publicado e em produção:
 
-- **Repositório:** GitHub — `valter-contador/sstg-e-social` (branch `main`)
+- **Repositório:** GitHub — `valter-sstg/sstg-e-social` (branch `main`)
 - **Hospedagem:** Streamlit Cloud (plano gratuito)
 - **Banco de dados:** Supabase (plano gratuito — "hiberna" após 7 dias sem uso, e
   é "despertado" automaticamente pelo próprio app)

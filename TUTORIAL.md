@@ -127,11 +127,11 @@ para cada questionário:
 │  🔗 Links para Compartilhar — Empresa XYZ                        │
 ├─────────────────────────────────────────────────────────────────┤
 │  📋 Questionário DRPS (Psicossocial)                              │
-│  https://valter-contador.github.io/sstg-e-social/                │
+│  https://valter-sstg.github.io/sstg-e-social/                │
 │      questionario_psicossocial.html?cnpj=XXXXXXXXXXXXXX          │
 │                                                                   │
 │  🦴 Questionário DRE (Ergonômico)                                 │
-│  https://valter-contador.github.io/sstg-e-social/                │
+│  https://valter-sstg.github.io/sstg-e-social/                │
 │      questionario_aep.html?cnpj=XXXXXXXXXXXXXX                   │
 └─────────────────────────────────────────────────────────────────┘
 ```

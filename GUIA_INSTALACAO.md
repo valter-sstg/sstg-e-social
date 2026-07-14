@@ -25,10 +25,10 @@ o uso diário. A estrutura atual é:
 
 | Componente | Onde está |
 |------------|-----------|
-| **Código-fonte** | GitHub — repositório `valter-contador/sstg-e-social`, branch `main` |
+| **Código-fonte** | GitHub — repositório `valter-sstg/sstg-e-social`, branch `main` |
 | **Hospedagem do app** | Streamlit Cloud (plano gratuito), app `sstg-e-social`, arquivo principal `app.py` |
 | **Banco de dados** | Supabase (PostgreSQL), plano gratuito |
-| **Páginas de questionário/e-books** | GitHub Pages (`valter-contador.github.io/sstg-e-social/`) |
+| **Páginas de questionário/e-books** | GitHub Pages (`valter-sstg.github.io/sstg-e-social/`) |
 | **Documentação** | Dentro do próprio app, módulo 📚 Documentação |
 
 Este guia descreve como **atualizar** essa estrutura e, opcionalmente, como
@@ -50,7 +50,7 @@ estar no repositório GitHub.
 
 ### Passo 2: Subir para o GitHub
 
-1. Acesse: `https://github.com/valter-contador/sstg-e-social/upload/main`
+1. Acesse: `https://github.com/valter-sstg/sstg-e-social/upload/main`
 2. Arraste os arquivos atualizados de `upload_temp\` para a área de upload
    (substituindo os arquivos existentes com o mesmo nome).
 3. Role até o final da página e confirme o **commit** direto na branch `main`.

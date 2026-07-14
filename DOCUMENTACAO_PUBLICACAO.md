@@ -31,7 +31,7 @@ O SSTG - DRPS v6.2 está publicado na plataforma **Streamlit Cloud**, acessível
 | Campo | Valor |
 |-------|-------|
 | **Plataforma** | Streamlit Cloud (PaaS) |
-| **Repositório** | GitHub — valter-contador/sstg-e-social |
+| **Repositório** | GitHub — valter-sstg/sstg-e-social |
 | **URL Pública** | https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app |
 | **Versão** | 6.2 |
 | **Protocolo** | COPSOQ III — 40 questões / 8 dimensões |
@@ -96,7 +96,7 @@ O SSTG - DRPS v6.2 está publicado na plataforma **Streamlit Cloud**, acessível
 
 | Aspecto | Detalhe |
 |--------|---------|
-| **Repositório** | valter-contador/sstg-e-social |
+| **Repositório** | valter-sstg/sstg-e-social |
 | **Visibilidade** | Público (dados sensíveis não versionados) |
 | **Branch principal** | `main` |
 | **Deploy trigger** | Push automático → Streamlit Cloud redeploy |
@@ -142,7 +142,7 @@ O SSTG - DRPS v6.2 está publicado na plataforma **Streamlit Cloud**, acessível
                  │ Deploy automático (push)
 ┌────────────────▼────────────────────────────────────────────┐
 │                   GITHUB                                    │
-│  Repositório: valter-contador/sstg-e-social                 │
+│  Repositório: valter-sstg/sstg-e-social                 │
 │  Branch: main                                               │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -155,7 +155,7 @@ O SSTG - DRPS v6.2 está publicado na plataforma **Streamlit Cloud**, acessível
 
 ```bash
 # 1. Clonar repositório
-git clone https://github.com/valter-contador/sstg-e-social.git
+git clone https://github.com/valter-sstg/sstg-e-social.git
 cd sstg-e-social
 
 # 2. Conectar no Streamlit Cloud (via interface web)

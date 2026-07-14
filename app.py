@@ -152,10 +152,10 @@ COMPARTILHAMENTO_DISPONIVEL = True
 DOC_DIR   = os.path.dirname(os.path.abspath(__file__))
 APP_URL   = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
 SHARE_URL = "https://sstg-e-social-687zwalcuokbggvtc7iy9m.streamlit.app"
-EBOOK_URL = "https://valter-contador.github.io/sstg-e-social/ebook_psicossocial.html"
-EBOOK_AEP_URL = "https://valter-contador.github.io/sstg-e-social/ebook_aep.html"
-QUEST_PSICOSSOCIAL_URL = "https://valter-contador.github.io/sstg-e-social/questionario_psicossocial.html"
-QUEST_AEP_URL = "https://valter-contador.github.io/sstg-e-social/questionario_aep.html"
+EBOOK_URL = "https://valter-sstg.github.io/sstg-e-social/ebook_psicossocial.html"
+EBOOK_AEP_URL = "https://valter-sstg.github.io/sstg-e-social/ebook_aep.html"
+QUEST_PSICOSSOCIAL_URL = "https://valter-sstg.github.io/sstg-e-social/questionario_psicossocial.html"
+QUEST_AEP_URL = "https://valter-sstg.github.io/sstg-e-social/questionario_aep.html"
 SENHA_ADMIN = "Valter@sstg230914"
 
 def caminho_doc(nome_arquivo: str) -> str:
