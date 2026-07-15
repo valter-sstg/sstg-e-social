@@ -1,7 +1,7 @@
 # 🔧 Guia Técnico — DRE - DRPS
 
 **Versão:** 8.0
-**Atualizado:** 12/06/2026
+**Atualizado:** 14/07/2026
 **Público:** Equipe Técnica / Desenvolvedores
 
 ---

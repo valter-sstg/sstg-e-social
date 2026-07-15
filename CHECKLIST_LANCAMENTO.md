@@ -1,7 +1,7 @@
 # ✅ Checklist de Lançamento — DRE - DRPS v8.0
 
 **Versão:** 8.0
-**Atualizado:** 12/06/2026
+**Atualizado:** 14/07/2026
 **Uso:** validar uma publicação/atualização do sistema no Streamlit Cloud
 antes de liberar para uso pelas empresas atendidas.
 

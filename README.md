@@ -1,7 +1,7 @@
 # 🧠 DRE - DRPS — Gestão Integrada de Riscos Ergonômicos e Psicossociais
 
 **Versão:** 8.0
-**Atualizado:** 12/06/2026
+**Atualizado:** 14/07/2026
 **Status:** ✅ Em Produção (Streamlit Cloud)
 
 ---
@@ -386,4 +386,4 @@ R: Os planos gratuitos do Streamlit Cloud e do Supabase atendem o uso atual.
 
 ---
 
-**Última atualização:** 12/06/2026
+**Última atualização:** 14/07/2026
