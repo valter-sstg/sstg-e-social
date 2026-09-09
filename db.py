@@ -2,6 +2,7 @@
 db.py - Camada de acesso ao Supabase (substitui armazenamento em CSV)
 Persistencia garantida independente de redeploys no Streamlit Cloud.
 """
+import math
 import re
 import time
 import unicodedata
@@ -21,16 +22,21 @@ _SURROGATOS_RE = re.compile("[\ud800-\udfff]")
 
 
 def _limpar_valor(v):
-    """Remove caracteres substitutos (surrogates) soltos de textos digitados pelo
-    usuário (ex.: emoji corrompido colado do teclado do celular). Sem isso, o
-    httpx quebra com UnicodeEncodeError (subclasse de ValueError) ao codificar
-    o corpo JSON em UTF-8 para enviar ao Supabase, derrubando a página inteira."""
-    if isinstance(v, str):
-        return _SURROGATOS_RE.sub("", v)
+    """Sanitiza um valor antes de enviar ao Supabase. Remove caracteres substitutos
+    (surrogates) soltos de textos digitados pelo usuário (ex.: emoji corrompido
+    colado do teclado do celular) e converte NaN/Infinity (ex.: campo em branco
+    num cadastro/planilha, que o pandas representa como float NaN em vez de
+    string vazia) em None. Sem isso, o httpx quebra com ValueError/
+    UnicodeEncodeError ao codificar o corpo JSON em UTF-8 (surrogate) ou por
+    allow_nan=False (NaN/Infinity), derrubando a página inteira."""
     if isinstance(v, dict):
         return {k: _limpar_valor(x) for k, x in v.items()}
     if isinstance(v, list):
         return [_limpar_valor(x) for x in v]
+    if isinstance(v, str):
+        return _SURROGATOS_RE.sub("", v)
+    if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+        return None
     return v
 
 
@@ -130,20 +136,20 @@ def salvar_acessos_em_lote(registros):
         for k, v in r.items():
             key_map = {"Funcao": "funcao"}
             key_map.update(_ACESSOS_A2D)
-            rec[key_map.get(k, k.lower())] = v
+            rec[key_map.get(k, k.lower())] = _limpar_valor(v)
         db_recs.append(rec)
     _exec(lambda: sb.table("acessos").upsert(db_recs, on_conflict="cpf,cnpj").execute())
 
 
 def atualizar_acesso_campos(cpf, cnpj, campos):
     sb = _get_sb()
-    db_campos = _to_db(campos, _ACESSOS_A2D)
+    db_campos = {k: _limpar_valor(v) for k, v in _to_db(campos, _ACESSOS_A2D).items()}
     _exec(lambda: sb.table("acessos").update(db_campos).eq("cpf", cpf).eq("cnpj", cnpj).execute())
 
 
 def atualizar_acessos_por_cnpj(cnpj, campos):
     sb = _get_sb()
-    db_campos = _to_db(campos, _ACESSOS_A2D)
+    db_campos = {k: _limpar_valor(v) for k, v in _to_db(campos, _ACESSOS_A2D).items()}
     _exec(lambda: sb.table("acessos").update(db_campos).eq("cnpj", cnpj).execute())
 
 
