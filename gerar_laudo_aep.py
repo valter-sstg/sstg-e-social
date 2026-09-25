@@ -695,10 +695,8 @@ def gerar_laudo_aep_pdf(
     """
     buffer = io.BytesIO()
     empresa = dados_empresa.get("Empresa", "—")
-    cnpj    = dados_empresa.get("CNPJ", "—")
-    grau_risco = str(dados_empresa.get("Grau_Risco", "—") or "—")
-    data_emissao = datetime.now().strftime("%d/%m/%Y")
-    relatos = relatos or []
+    story = _montar_story_aep(dados_empresa, inventario, total_respondentes, total_autorizados,
+                              relatos, logo_path, planos_ajustados, nota_rt, data_liberacao_rt)
 
     doc = SimpleDocTemplate(
         buffer,
@@ -712,11 +710,54 @@ def gerar_laudo_aep_pdf(
         subject="Laudo de Avaliação Ergonômica Preliminar — NR-17",
     )
 
-    st = get_styles()
-
     def _callback(canvas_obj, doc_obj):
         if doc_obj.page > 1:
             _header_footer_aep(canvas_obj, doc_obj, empresa)
+
+    doc.build(story, onFirstPage=_callback, onLaterPages=_callback)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def gerar_laudo_aep_docx(
+    dados_empresa: dict,
+    inventario: list,
+    total_respondentes: int,
+    total_autorizados: int,
+    relatos: list = None,
+    logo_path: str = "logo_sstg.png",
+    planos_ajustados: dict = None,
+    nota_rt: str = None,
+    data_liberacao_rt: str = None,
+) -> bytes:
+    """Gera o mesmo Laudo DRE (AEP / NR-17) de `gerar_laudo_aep_pdf`, em Word (.docx)."""
+    from laudo_docx import story_para_docx
+
+    empresa = dados_empresa.get("Empresa", "—")
+    story = _montar_story_aep(dados_empresa, inventario, total_respondentes, total_autorizados,
+                              relatos, logo_path, planos_ajustados, nota_rt, data_liberacao_rt)
+    return story_para_docx(
+        story,
+        titulo=f"Laudo AEP — {empresa}",
+        autor=RESP_NOME,
+        assunto="Laudo de Avaliação Ergonômica Preliminar — NR-17",
+        titulo_cabecalho="PGR / LAUDO — AVALIAÇÃO ERGONÔMICA PRELIMINAR (AEP)",
+        texto_rodape=("SSTG E-Social — Gestão Ocupacional  |  Laudo AEP — NR-17  |  "
+                      f"{empresa}  |  Documento Confidencial"),
+        cor_barra=C_AZUL,
+        cor_linha=C_VERDE,
+    )
+
+
+def _montar_story_aep(dados_empresa, inventario, total_respondentes, total_autorizados,
+                      relatos, logo_path, planos_ajustados, nota_rt, data_liberacao_rt):
+    """Conteúdo do laudo DRE/AEP (lista de flowables), comum ao PDF e ao Word."""
+    empresa = dados_empresa.get("Empresa", "—")
+    cnpj    = dados_empresa.get("CNPJ", "—")
+    grau_risco = str(dados_empresa.get("Grau_Risco", "—") or "—")
+    data_emissao = datetime.now().strftime("%d/%m/%Y")
+    relatos = relatos or []
+    st = get_styles()
 
     story = []
     story += build_capa_aep(st, empresa, cnpj, data_emissao, logo_path, grau_risco)
@@ -727,7 +768,4 @@ def gerar_laudo_aep_pdf(
     story += build_plano_acao_aep(st, inventario, planos_ajustados)
     story += build_necessidade_aet(st, inventario)
     story += build_conclusao_aep(st, empresa, relatos, inventario, nota_rt, data_liberacao_rt)
-
-    doc.build(story, onFirstPage=_callback, onLaterPages=_callback)
-    buffer.seek(0)
-    return buffer.getvalue()
+    return story

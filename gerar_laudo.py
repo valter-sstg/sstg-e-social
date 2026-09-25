@@ -1442,10 +1442,9 @@ def gerar_laudo_pdf(
     """
     buffer = io.BytesIO()
     empresa = dados_empresa.get("Empresa", "—")
-    cnpj    = dados_empresa.get("CNPJ", "—")
-    cnae    = dados_empresa.get("CNAE", "—")
-    grau    = dados_empresa.get("Grau_Risco", "—")
-    data_emissao = datetime.now().strftime("%d/%m/%Y")
+    story = _montar_story(dados_empresa, medias_por_dim, total_respondentes, logo_path,
+                          total_autorizados, planos_ajustados, nota_rt, data_liberacao_rt,
+                          severidades_ajustadas)
 
     doc = SimpleDocTemplate(
         buffer,
@@ -1459,11 +1458,56 @@ def gerar_laudo_pdf(
         subject="Laudo de Fatores Psicossociais — NR-01",
     )
 
-    st = get_styles()
-
     def _callback(canvas_obj, doc_obj):
         if doc_obj.page > 1:
             _header_footer(canvas_obj, doc_obj, empresa, logo_path)
+
+    doc.build(story, onFirstPage=_callback, onLaterPages=_callback)
+    return buffer.getvalue()
+
+
+def gerar_laudo_docx(
+    dados_empresa: dict,
+    medias_por_dim: dict,
+    total_respondentes: int,
+    logo_path: str = "logo_sstg.png",
+    total_autorizados: int = 0,
+    planos_ajustados: dict = None,
+    nota_rt: str = None,
+    data_liberacao_rt: str = None,
+    severidades_ajustadas: dict = None,
+) -> bytes:
+    """Gera o mesmo Laudo de Fatores Psicossociais de `gerar_laudo_pdf`, em Word (.docx)."""
+    from laudo_docx import story_para_docx
+
+    empresa = dados_empresa.get("Empresa", "—")
+    story = _montar_story(dados_empresa, medias_por_dim, total_respondentes, logo_path,
+                          total_autorizados, planos_ajustados, nota_rt, data_liberacao_rt,
+                          severidades_ajustadas)
+    return story_para_docx(
+        story,
+        titulo=f"Laudo Psicossocial — {empresa}",
+        autor=RESP_NOME,
+        assunto="Laudo de Fatores Psicossociais — NR-01",
+        titulo_cabecalho="PGR / LAUDO — FATORES PSICOSSOCIAIS",
+        texto_rodape=("SSTG - DRPS Diagnóstico de Riscos Psicossociais (NR-1) — Gestão Ocupacional  |  "
+                      f"Laudo de Fatores Psicossociais  |  {empresa}  |  Documento Confidencial"),
+        cor_barra=C_AZUL,
+        cor_linha=C_VERDE,
+        logo_path=logo_path if logo_path and os.path.exists(logo_path) else None,
+    )
+
+
+def _montar_story(dados_empresa, medias_por_dim, total_respondentes, logo_path,
+                  total_autorizados, planos_ajustados, nota_rt, data_liberacao_rt,
+                  severidades_ajustadas):
+    """Conteúdo do laudo DRPS (lista de flowables), comum ao PDF e ao Word."""
+    empresa = dados_empresa.get("Empresa", "—")
+    cnpj    = dados_empresa.get("CNPJ", "—")
+    cnae    = dados_empresa.get("CNAE", "—")
+    grau    = dados_empresa.get("Grau_Risco", "—")
+    data_emissao = datetime.now().strftime("%d/%m/%Y")
+    st = get_styles()
 
     story = []
     story += build_capa(st, empresa, cnpj, cnae, grau, data_emissao, logo_path)
@@ -1478,6 +1522,4 @@ def gerar_laudo_pdf(
     story += build_s4(st, medias_por_dim, severidades_ajustadas)
     story += build_s5(st, medias_por_dim, planos_ajustados, severidades_ajustadas)
     story += build_s6(st, empresa, medias_por_dim, nota_rt, data_liberacao_rt, severidades_ajustadas)
-
-    doc.build(story, onFirstPage=_callback, onLaterPages=_callback)
-    return buffer.getvalue()
+    return story

@@ -7,3 +7,4 @@ pymupdf>=1.23.0
 plotly>=5.18.0
 matplotlib>=3.7.0
 supabase>=2.0.0
+python-docx>=1.1.0

@@ -11,13 +11,13 @@ import db
 
 
 try:
-    from gerar_laudo import gerar_laudo_pdf, DIMS_ANALITICAS, _slug, nivel_risco
+    from gerar_laudo import gerar_laudo_pdf, gerar_laudo_docx, DIMS_ANALITICAS, _slug, nivel_risco
     LAUDO_DISPONIVEL = True
 except ImportError:
     LAUDO_DISPONIVEL = False
 
 try:
-    from gerar_laudo_aep import gerar_laudo_aep_pdf, ACOES_CONTROLE_RT
+    from gerar_laudo_aep import gerar_laudo_aep_pdf, gerar_laudo_aep_docx, ACOES_CONTROLE_RT
     LAUDO_AEP_DISPONIVEL = True
 except ImportError:
     LAUDO_AEP_DISPONIVEL = False
@@ -991,6 +991,37 @@ def _bloco_intervencao_rt(cnpj_cod, inventario, ajustes, total_resp_aep, key_pre
         st.rerun()
 
 
+def _botoes_download_laudo(laudo, tipo, key):
+    """Botões de download do laudo gerado (PDF e Word), lado a lado. O laudo fica em
+    st.session_state para os dois botões continuarem disponíveis após o primeiro download
+    (cada clique num download_button provoca um rerun)."""
+    if not laudo:
+        return
+    st.success(f"Laudo {tipo} gerado com sucesso!")
+    col_pdf, col_docx = st.columns(2)
+    with col_pdf:
+        st.download_button(
+            f"⬇️ Baixar Laudo {tipo} (PDF)",
+            laudo["pdf"],
+            f"{laudo['nome']}.pdf",
+            "application/pdf",
+            use_container_width=True,
+            key=f"{key}_pdf",
+        )
+    with col_docx:
+        if laudo.get("docx"):
+            st.download_button(
+                f"⬇️ Baixar Laudo {tipo} (Word)",
+                laudo["docx"],
+                f"{laudo['nome']}.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True,
+                key=f"{key}_docx",
+            )
+        else:
+            st.warning(f"Não foi possível gerar a versão Word: {laudo.get('erro_docx')}")
+
+
 def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostrar_laudo=False):
     """Exibe os resultados consolidados da Avaliação Ergonômica (AEP/NR-17): adesão,
     gráfico por seção, inventário de riscos com severidades pré-calibradas pelo
@@ -1053,7 +1084,7 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
 
     if mostrar_laudo:
         st.divider()
-        st.subheader("📄 Gerar Laudo DRE em PDF")
+        st.subheader("📄 Gerar Laudo DRE (PDF e Word)")
 
         tem_critico = any(item["Classificação"] == "Crítico" for item in inventario)
         liberacao_valida = bool(ajustes_rt.get("liberado")) and ajustes_rt.get("total_respostas_liberacao", -1) >= total_resp_aep
@@ -1067,19 +1098,20 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
                 "à intervenção do Responsável Técnico abaixo."
             )
             _bloco_intervencao_rt(cnpj_cod, inventario, ajustes_rt, total_resp_aep, key_prefix)
-        elif st.button("📄 Gerar Laudo DRE em PDF", type="primary", use_container_width=True, key=f"{key_prefix}_btn_laudo_aep"):
-            with st.spinner("Gerando laudo..."):
-                dados_emp = {"Empresa": empresa_nome, "CNPJ": cnpj_cod, "Grau_Risco": grau_risco_emp or "—"}
-                logo_path = "logo_sstg.png" if os.path.exists("logo_sstg.png") else None
-                relatos = []
-                for col in ("relato_dor", "relato_dificuldades", "relato_sugestoes"):
-                    if col in df_aep.columns:
-                        relatos.extend([r for r in df_aep[col].dropna().tolist() if str(r).strip()])
-                nota_rt = ajustes_rt.get("nota_rt") if liberacao_valida else None
-                data_liberacao_rt = ajustes_rt.get("data_liberacao") if liberacao_valida else None
-                planos_ajustados = (ajustes_rt.get("planos_ajustados") or {}) if liberacao_valida else {}
-                try:
-                    pdf_bytes = gerar_laudo_aep_pdf(
+        else:
+            chave_laudo = f"{key_prefix}_laudo_dre_{cnpj_cod}"
+            if st.button("📄 Gerar Laudo DRE", type="primary", use_container_width=True, key=f"{key_prefix}_btn_laudo_aep"):
+                with st.spinner("Gerando laudo..."):
+                    dados_emp = {"Empresa": empresa_nome, "CNPJ": cnpj_cod, "Grau_Risco": grau_risco_emp or "—"}
+                    logo_path = "logo_sstg.png" if os.path.exists("logo_sstg.png") else None
+                    relatos = []
+                    for col in ("relato_dor", "relato_dificuldades", "relato_sugestoes"):
+                        if col in df_aep.columns:
+                            relatos.extend([r for r in df_aep[col].dropna().tolist() if str(r).strip()])
+                    nota_rt = ajustes_rt.get("nota_rt") if liberacao_valida else None
+                    data_liberacao_rt = ajustes_rt.get("data_liberacao") if liberacao_valida else None
+                    planos_ajustados = (ajustes_rt.get("planos_ajustados") or {}) if liberacao_valida else {}
+                    params_laudo = dict(
                         dados_empresa=dados_emp,
                         inventario=inventario,
                         total_respondentes=total_resp_aep,
@@ -1090,18 +1122,22 @@ def _bloco_resultados_aep(cnpj_cod, total_auth, key_prefix, empresa_nome, mostra
                         nota_rt=nota_rt,
                         data_liberacao_rt=data_liberacao_rt,
                     )
-                    db.registrar_laudo(cnpj_cod, "DRE")
-                    st.success("Laudo DRE gerado com sucesso!")
-                    st.download_button(
-                        "⬇️ Baixar Laudo DRE PDF",
-                        pdf_bytes,
-                        f"Laudo_DRE_{cnpj_cod}_{datetime.now().strftime('%d-%m-%Y')}.pdf",
-                        "application/pdf",
-                        use_container_width=True,
-                        key=f"{key_prefix}_download_laudo_aep",
-                    )
-                except Exception as e:
-                    st.error(f"Erro ao gerar o laudo: {e}")
+                    try:
+                        pdf_bytes = gerar_laudo_aep_pdf(**params_laudo)
+                    except Exception as e:
+                        st.session_state.pop(chave_laudo, None)
+                        st.error(f"Erro ao gerar o laudo: {e}")
+                    else:
+                        try:
+                            docx_bytes, erro_docx = gerar_laudo_aep_docx(**params_laudo), None
+                        except Exception as e:
+                            docx_bytes, erro_docx = None, str(e)
+                        db.registrar_laudo(cnpj_cod, "DRE")
+                        st.session_state[chave_laudo] = {
+                            "pdf": pdf_bytes, "docx": docx_bytes, "erro_docx": erro_docx,
+                            "nome": f"Laudo_DRE_{cnpj_cod}_{datetime.now().strftime('%d-%m-%Y')}",
+                        }
+            _botoes_download_laudo(st.session_state.get(chave_laudo), "DRE", f"{key_prefix}_download_laudo_aep")
 
 
 # ─── CONFIGURAÇÃO DA PÁGINA ───────────────────────────────────────────────────
@@ -2090,9 +2126,9 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                         csv_res, f"resultados_{cnpj_cod}.csv", "text/csv"
                     )
 
-                    # ── Gerar Laudo DRPS em PDF ───────────────────────────────────
+                    # ── Gerar Laudo DRPS (PDF e Word) ─────────────────────────────
                     st.divider()
-                    st.subheader("📄 Gerar Laudo DRPS em PDF")
+                    st.subheader("📄 Gerar Laudo DRPS (PDF e Word)")
 
                     if not LAUDO_DISPONIVEL:
                         st.error("Módulo `gerar_laudo.py` não encontrado na pasta do projeto.")
@@ -2135,25 +2171,26 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                                 "está condicionada à intervenção do Responsável Técnico abaixo."
                             )
                             _bloco_intervencao_rt_drps(cnpj_cod, inventario_drps, ajustes_rt_drps, total_resp, key_prefix="admin")
-                        elif st.button("📄 Gerar Laudo DRPS em PDF", type="primary", use_container_width=True):
-                            with st.spinner("Gerando laudo..."):
-                                nome_empresa = empresa_sel.split(" — CNPJ:")[0].strip()
-                                _cnae_final = _cnae_default if _cnae_default else "—"
-                                _grau_final = _grau_default if _grau_default else "—"
+                        else:
+                            chave_laudo = f"admin_laudo_drps_{cnpj_cod}"
+                            if st.button("📄 Gerar Laudo DRPS", type="primary", use_container_width=True):
+                                with st.spinner("Gerando laudo..."):
+                                    nome_empresa = empresa_sel.split(" — CNPJ:")[0].strip()
+                                    _cnae_final = _cnae_default if _cnae_default else "—"
+                                    _grau_final = _grau_default if _grau_default else "—"
 
-                                dados_emp = {
-                                    "Empresa":    nome_empresa,
-                                    "CNPJ":       cnpj_cod,
-                                    "CNAE":       _cnae_final,
-                                    "Grau_Risco": _grau_final,
-                                }
-                                logo_path = "logo_sstg.png" if os.path.exists("logo_sstg.png") else None
-                                nota_rt = ajustes_rt_drps.get("nota_rt") if liberacao_valida_drps else None
-                                data_liberacao_rt = ajustes_rt_drps.get("data_liberacao") if liberacao_valida_drps else None
-                                planos_ajustados_drps = (ajustes_rt_drps.get("planos_ajustados") or {}) if liberacao_valida_drps else {}
-                                severidades_ajustadas_pdf = severidades_ajustadas_drps if liberacao_valida_drps else {}
-                                try:
-                                    pdf_bytes = gerar_laudo_pdf(
+                                    dados_emp = {
+                                        "Empresa":    nome_empresa,
+                                        "CNPJ":       cnpj_cod,
+                                        "CNAE":       _cnae_final,
+                                        "Grau_Risco": _grau_final,
+                                    }
+                                    logo_path = "logo_sstg.png" if os.path.exists("logo_sstg.png") else None
+                                    nota_rt = ajustes_rt_drps.get("nota_rt") if liberacao_valida_drps else None
+                                    data_liberacao_rt = ajustes_rt_drps.get("data_liberacao") if liberacao_valida_drps else None
+                                    planos_ajustados_drps = (ajustes_rt_drps.get("planos_ajustados") or {}) if liberacao_valida_drps else {}
+                                    severidades_ajustadas_pdf = severidades_ajustadas_drps if liberacao_valida_drps else {}
+                                    params_laudo = dict(
                                         dados_empresa=dados_emp,
                                         medias_por_dim=medias_dim,
                                         total_respondentes=total_resp,
@@ -2164,17 +2201,22 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                                         data_liberacao_rt=data_liberacao_rt,
                                         severidades_ajustadas=severidades_ajustadas_pdf,
                                     )
-                                    db.registrar_laudo(cnpj_cod, "DRPS")
-                                    st.success("Laudo DRPS gerado com sucesso!")
-                                    st.download_button(
-                                        "⬇️ Baixar Laudo DRPS PDF",
-                                        pdf_bytes,
-                                        f"Laudo_DRPS_{cnpj_cod}_{datetime.now().strftime('%d-%m-%Y')}.pdf",
-                                        "application/pdf",
-                                        use_container_width=True,
-                                    )
-                                except Exception as e:
-                                    st.error(f"Erro ao gerar o laudo: {e}")
+                                    try:
+                                        pdf_bytes = gerar_laudo_pdf(**params_laudo)
+                                    except Exception as e:
+                                        st.session_state.pop(chave_laudo, None)
+                                        st.error(f"Erro ao gerar o laudo: {e}")
+                                    else:
+                                        try:
+                                            docx_bytes, erro_docx = gerar_laudo_docx(**params_laudo), None
+                                        except Exception as e:
+                                            docx_bytes, erro_docx = None, str(e)
+                                        db.registrar_laudo(cnpj_cod, "DRPS")
+                                        st.session_state[chave_laudo] = {
+                                            "pdf": pdf_bytes, "docx": docx_bytes, "erro_docx": erro_docx,
+                                            "nome": f"Laudo_DRPS_{cnpj_cod}_{datetime.now().strftime('%d-%m-%Y')}",
+                                        }
+                            _botoes_download_laudo(st.session_state.get(chave_laudo), "DRPS", "admin_download_laudo_drps")
                     else:
                         st.warning("Sem dados de médias por dimensão. Verifique se há respostas registradas.")
 
