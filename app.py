@@ -156,7 +156,6 @@ EBOOK_URL = "https://valter-sstg.github.io/sstg-e-social/ebook_psicossocial.html
 EBOOK_AEP_URL = "https://valter-sstg.github.io/sstg-e-social/ebook_aep.html"
 QUEST_PSICOSSOCIAL_URL = "https://valter-sstg.github.io/sstg-e-social/questionario_psicossocial.html"
 QUEST_AEP_URL = "https://valter-sstg.github.io/sstg-e-social/questionario_aep.html"
-SENHA_ADMIN = "Valter@sstg230914"
 
 def caminho_doc(nome_arquivo: str) -> str:
     return os.path.join(DOC_DIR, nome_arquivo)
@@ -223,7 +222,14 @@ def reativar_usuario_operacional(usuario: str) -> tuple:
 
 def get_senha_admin_hash() -> str:
     h = db.get_config("senha_admin_hash")
-    return h if h else hash_senha(SENHA_ADMIN)
+    if h:
+        return h
+    # Fallback: lê de st.secrets (deve ser definida antes de usar)
+    # Se não houver, retorna hash vazio para forçar erro de autenticação
+    senha_admin = st.secrets.get("SENHA_ADMIN", "")
+    if not senha_admin:
+        return ""  # Força falha de autenticação se não estiver em st.secrets
+    return hash_senha(senha_admin)
 
 def set_senha_admin(nova_senha: str):
     db.set_config("senha_admin_hash", hash_senha(nova_senha))
@@ -1925,7 +1931,7 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                                              use_container_width=True, key="btn_del_empresa"):
                                     if not senha_conf_del:
                                         st.error("Digite a senha do Admin para confirmar.")
-                                    elif senha_conf_del != SENHA_ADMIN:
+                                    elif hash_senha(senha_conf_del) != get_senha_admin_hash():
                                         st.error("❌ Senha incorreta. Operação cancelada.")
                                     else:
                                         db.deletar_acessos_empresa(cnpj_del)
@@ -1965,7 +1971,7 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                                                  use_container_width=True, key="btn_del_respostas"):
                                         if not senha_conf_r:
                                             st.error("Digite a senha do Admin para confirmar.")
-                                        elif senha_conf_r != SENHA_ADMIN:
+                                        elif hash_senha(senha_conf_r) != get_senha_admin_hash():
                                             st.error("❌ Senha incorreta. Operação cancelada.")
                                         else:
                                             db.deletar_respostas_empresa(cnpj_del_r)
@@ -1984,7 +1990,7 @@ elif menu == "🔐 Admin SSTG (Gestão)":
                                      use_container_width=True, key="btn_reset_all"):
                             if not senha_conf_all:
                                 st.error("Digite a senha do Admin para confirmar.")
-                            elif senha_conf_all != SENHA_ADMIN:
+                            elif hash_senha(senha_conf_all) != get_senha_admin_hash():
                                 st.error("❌ Senha incorreta. Operação cancelada.")
                             else:
                                 db.deletar_todos_acessos()
