@@ -1,0 +1,22 @@
+# Dados sensíveis
+db_acessos_autorizados.csv
+respostas_CNPJ_*.csv
+*.env
+
+# Cache Python
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# PDFs gerados (opcional, descomente se quiser)
+# *.pdf
